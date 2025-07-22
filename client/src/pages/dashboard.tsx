@@ -198,8 +198,27 @@ export default function DashboardPage() {
               />
             </Route>
 
-            {/* Default home */}
-            <Route component={DashboardHome} />
+            {/* Catch-all for dashboard routes */}
+            <Route path="/dashboard/:rest*">
+              {(params) => {
+                // If it's exactly /dashboard, show home
+                if (!params.rest || params.rest === "") {
+                  return <DashboardHome />;
+                }
+                
+                // Otherwise show development page
+                return (
+                  <PlaceholderPage
+                    title="Página em Desenvolvimento"
+                    description="Esta funcionalidade está sendo desenvolvida"
+                    icon={Home}
+                  />
+                );
+              }}
+            </Route>
+            
+            {/* Default home for exact dashboard path */}
+            <Route path="/dashboard" component={DashboardHome} />
           </Switch>
         </main>
       </div>
