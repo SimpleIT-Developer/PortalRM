@@ -22,7 +22,7 @@ export class AuthenticationError extends Error {
 export class AuthService {
   private static readonly TOKEN_KEY = "totvs_token";
 
-  static async authenticate(credentials: TotvsLoginRequest): Promise<TotvsTokenResponse> {
+  static async authenticate(credentials: TotvsLoginRequest & { endpoint: string }): Promise<TotvsTokenResponse> {
     const { endpoint, ...requestData } = credentials;
     const response = await fetch(`${endpoint}${TOKEN_ENDPOINT}`, {
       method: "POST",

@@ -22,6 +22,9 @@ export default function LoginPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
+  const [endpoint, setEndpoint] = useState("https://legiaoda142256.rm.cloudtotvs.com.br:8051");
+  const [isEditingEndpoint, setIsEditingEndpoint] = useState(false);
+
   const form = useForm<TotvsLoginRequest>({
     resolver: zodResolver(totvsLoginSchema),
     defaultValues: {
@@ -29,7 +32,6 @@ export default function LoginPage() {
       username: "",
       password: "",
       servicealias: "",
-      endpoint: "https://legiaoda142256.rm.cloudtotvs.com.br:8051",
     },
   });
 
@@ -54,8 +56,8 @@ export default function LoginPage() {
         delete credentials.servicealias;
       }
 
-      const tokenData = await AuthService.authenticate(credentials);
-      AuthService.storeToken(tokenData, data.username, data.endpoint);
+      const tokenData = await AuthService.authenticate({ ...credentials, endpoint });
+      AuthService.storeToken(tokenData, data.username, endpoint);
       
       setShowSuccess(true);
       toast({
@@ -185,36 +187,6 @@ export default function LoginPage() {
                   )}
                 />
 
-                {/* Endpoint Field */}
-                <FormField
-                  control={form.control}
-                  name="endpoint"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Endpoint</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            type="url"
-                            placeholder="https://servidor.rm.cloudtotvs.com.br:8051"
-                            className="pr-10"
-                            disabled={isLoading}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              clearErrors();
-                            }}
-                          />
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                            <Server className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 {/* Service Alias Field */}
                 <FormField
                   control={form.control}
@@ -323,10 +295,45 @@ export default function LoginPage() {
 
         {/* System Info */}
         <div className="text-center text-xs text-muted-foreground">
-          <p>
-            Endpoint: <code className="bg-muted px-2 py-1 rounded text-xs">legiaoda142256.rm.cloudtotvs.com.br:8051</code>
-          </p>
-          <p className="mt-2">© 2024 TOTVS S.A. Todos os direitos reservados.</p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span>Endpoint:</span>
+            {isEditingEndpoint ? (
+              <div className="flex items-center gap-1">
+                <Input
+                  type="url"
+                  value={endpoint}
+                  onChange={(e) => setEndpoint(e.target.value)}
+                  className="h-6 text-xs px-2 py-1 w-80"
+                  placeholder="https://servidor.rm.cloudtotvs.com.br:8051"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setIsEditingEndpoint(false)}
+                >
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <code className="bg-muted px-2 py-1 rounded text-xs">
+                  {endpoint.replace('https://', '')}
+                </code>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setIsEditingEndpoint(true)}
+                >
+                  <Server className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                </Button>
+              </div>
+            )}
+          </div>
+          <p>© 2024 TOTVS S.A. Todos os direitos reservados.</p>
         </div>
       </div>
     </div>

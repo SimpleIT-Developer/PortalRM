@@ -22,7 +22,6 @@ export const totvsLoginSchema = z.object({
   username: z.string().min(1, "Usuário é obrigatório"),
   password: z.string().min(1, "Senha é obrigatória"),
   servicealias: z.string().optional(),
-  endpoint: z.string().url("Endpoint deve ser uma URL válida").min(1, "Endpoint é obrigatório"),
 });
 
 export const totvsRefreshSchema = z.object({
