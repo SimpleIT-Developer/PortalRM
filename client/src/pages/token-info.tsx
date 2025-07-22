@@ -17,7 +17,8 @@ import {
   Play, 
   Book,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -64,9 +65,9 @@ export default function TokenInfoPage() {
       const newTokenData = await AuthService.refreshToken({
         grant_type: "refresh_token",
         refresh_token: token.refresh_token,
-      });
+      }, token.endpoint);
 
-      AuthService.storeToken(newTokenData, token.username);
+      AuthService.storeToken(newTokenData, token.username, token.endpoint);
       const updatedToken = AuthService.getStoredToken();
       setToken(updatedToken);
 
@@ -208,6 +209,23 @@ export default function TokenInfoPage() {
               <div className="flex items-center text-sm text-muted-foreground mt-2">
                 <Shield className="mr-2 h-4 w-4 text-primary" />
                 <span>{token.token_type || "Bearer"}</span>
+              </div>
+            </div>
+            
+            <div>
+              <Label className="text-sm font-medium text-foreground">Usuário</Label>
+              <div className="flex items-center text-sm text-muted-foreground mt-2">
+                <User className="mr-2 h-4 w-4 text-primary" />
+                <span>{token.username}</span>
+              </div>
+            </div>
+            
+            <div>
+              <Label className="text-sm font-medium text-foreground">Endpoint</Label>
+              <div className="bg-muted p-3 rounded-lg mt-2">
+                <code className="text-xs text-muted-foreground break-all">
+                  {token.endpoint}
+                </code>
               </div>
             </div>
           </div>

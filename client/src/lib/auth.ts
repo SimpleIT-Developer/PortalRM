@@ -6,6 +6,7 @@ const TOKEN_ENDPOINT = "/api/connect/token";
 export interface StoredToken extends TotvsTokenResponse {
   timestamp: number;
   username: string;
+  endpoint: string;
 }
 
 export class AuthenticationError extends Error {
@@ -22,12 +23,13 @@ export class AuthService {
   private static readonly TOKEN_KEY = "totvs_token";
 
   static async authenticate(credentials: TotvsLoginRequest): Promise<TotvsTokenResponse> {
-    const response = await fetch(`${TOTVS_API_BASE}${TOKEN_ENDPOINT}`, {
+    const { endpoint, ...requestData } = credentials;
+    const response = await fetch(`${endpoint}${TOKEN_ENDPOINT}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(requestData),
     });
 
     if (!response.ok) {
@@ -43,7 +45,7 @@ export class AuthService {
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else if (response.status === 404) {
         const friendlyMessage = "Servidor não encontrado. Verifique a conexão com o TOTVS RM.";
-        const technicalDetails = `HTTP ${response.status}: Endpoint ${TOTVS_API_BASE}${TOKEN_ENDPOINT} não encontrado`;
+        const technicalDetails = `HTTP ${response.status}: Endpoint ${endpoint}${TOKEN_ENDPOINT} não encontrado`;
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else if (response.status >= 500) {
         const friendlyMessage = "Erro no servidor TOTVS. Tente novamente em alguns minutos.";
@@ -59,8 +61,8 @@ export class AuthService {
     return await response.json();
   }
 
-  static async refreshToken(refreshTokenRequest: TotvsRefreshRequest): Promise<TotvsTokenResponse> {
-    const response = await fetch(`${TOTVS_API_BASE}${TOKEN_ENDPOINT}`, {
+  static async refreshToken(refreshTokenRequest: TotvsRefreshRequest, endpoint: string): Promise<TotvsTokenResponse> {
+    const response = await fetch(`${endpoint}${TOKEN_ENDPOINT}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -76,11 +78,12 @@ export class AuthService {
     return await response.json();
   }
 
-  static storeToken(tokenData: TotvsTokenResponse, username: string): void {
+  static storeToken(tokenData: TotvsTokenResponse, username: string, endpoint: string): void {
     const storedToken: StoredToken = {
       ...tokenData,
       timestamp: Date.now(),
       username,
+      endpoint,
     };
     localStorage.setItem(this.TOKEN_KEY, JSON.stringify(storedToken));
   }

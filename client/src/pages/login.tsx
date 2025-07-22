@@ -29,6 +29,7 @@ export default function LoginPage() {
       username: "",
       password: "",
       servicealias: "",
+      endpoint: "https://legiaoda142256.rm.cloudtotvs.com.br:8051",
     },
   });
 
@@ -54,7 +55,7 @@ export default function LoginPage() {
       }
 
       const tokenData = await AuthService.authenticate(credentials);
-      AuthService.storeToken(tokenData, data.username);
+      AuthService.storeToken(tokenData, data.username, data.endpoint);
       
       setShowSuccess(true);
       toast({
@@ -177,6 +178,36 @@ export default function LoginPage() {
                               <Eye className="h-4 w-4 text-muted-foreground" />
                             )}
                           </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Endpoint Field */}
+                <FormField
+                  control={form.control}
+                  name="endpoint"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Endpoint</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type="url"
+                            placeholder="https://servidor.rm.cloudtotvs.com.br:8051"
+                            className="pr-10"
+                            disabled={isLoading}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              clearErrors();
+                            }}
+                          />
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <Server className="h-4 w-4 text-muted-foreground" />
+                          </div>
                         </div>
                       </FormControl>
                       <FormMessage />
