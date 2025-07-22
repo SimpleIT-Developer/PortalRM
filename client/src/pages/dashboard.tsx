@@ -122,96 +122,100 @@ export default function DashboardPage() {
 
         {/* Main Content */}
         <main className="flex-1 p-6">
-          <Switch>
-            {/* Most specific routes first */}
-            <Route path="/dashboard/parametros/token-info" component={TokenInfoPage} />
-            <Route path="/dashboard/globais" component={GlobaisPage} />
-            
-            {/* Gestão Financeira - Contas a Pagar */}
-            <Route path="/dashboard/financeira/contas-pagar/lancamentos" component={ContasPagarLancamentosPage} />
-            
-            {/* Other Gestão Financeira Routes */}
-            <Route path="/dashboard/financeira/contas-receber/lancamentos">
-              <PlaceholderPage
-                title="Lançamentos - Contas a Receber"
-                description="Esta funcionalidade está em desenvolvimento. Gerencie os lançamentos de contas a receber."
-                icon={Banknote}
-              />
-            </Route>
-            <Route path="/dashboard/financeira/movimentacao-bancaria/conta-caixa">
-              <PlaceholderPage
-                title="Conta/Caixa"
-                description="Esta funcionalidade está em desenvolvimento. Controle de contas e caixas bancárias."
-                icon={Wallet}
-              />
-            </Route>
-            <Route path="/dashboard/financeira/movimentacao-bancaria/extrato-caixa">
-              <PlaceholderPage
-                title="Extrato de Caixa"
-                description="Esta funcionalidade está em desenvolvimento. Visualize extratos de movimentação de caixa."
-                icon={FileText}
-              />
-            </Route>
-
-            {/* Compras e Faturamento Routes */}
-            <Route path="/dashboard/compras-faturamento/compras/solicitacao-compras">
-              <PlaceholderPage
-                title="Solicitação de Compras"
-                description="Esta funcionalidade está em desenvolvimento. Gerencie solicitações de compras."
-                icon={ClipboardList}
-              />
-            </Route>
-            <Route path="/dashboard/compras-faturamento/compras/ordem-compras">
-              <PlaceholderPage
-                title="Ordem de Compras"
-                description="Esta funcionalidade está em desenvolvimento. Controle de ordens de compras."
-                icon={FileText}
-              />
-            </Route>
-            <Route path="/dashboard/compras-faturamento/compras/recebimento-materiais">
-              <PlaceholderPage
-                title="Recebimento de Materiais"
-                description="Esta funcionalidade está em desenvolvimento. Controle de recebimento de materiais."
-                icon={Package}
-              />
-            </Route>
-            <Route path="/dashboard/compras-faturamento/compras/aquisicao-servicos">
-              <PlaceholderPage
-                title="Aquisição de Serviços"
-                description="Esta funcionalidade está em desenvolvimento. Gerencie aquisições de serviços."
-                icon={Truck}
-              />
-            </Route>
-            <Route path="/dashboard/compras-faturamento/faturamento/pedido-venda">
-              <PlaceholderPage
-                title="Pedido de Venda"
-                description="Esta funcionalidade está em desenvolvimento. Gerencie pedidos de venda."
-                icon={ClipboardList}
-              />
-            </Route>
-            <Route path="/dashboard/compras-faturamento/faturamento/faturamento">
-              <PlaceholderPage
-                title="Faturamento"
-                description="Esta funcionalidade está em desenvolvimento. Controle de faturamento."
-                icon={Receipt}
-              />
-            </Route>
-
-            {/* Home Dashboard - Less specific route at the end */}
-            <Route path="/dashboard" component={DashboardHome} />
-            
-            {/* Catch all other dashboard paths */}
-            <Route path="/dashboard/:rest*">
-              <PlaceholderPage
-                title="Funcionalidade em Desenvolvimento"
-                description="Esta funcionalidade está sendo desenvolvida"
-                icon={Settings}
-              />
-            </Route>
-          </Switch>
+          <DashboardContent location={location} />
         </main>
       </div>
     </div>
+  );
+}
+
+// Router component that handles all dashboard routes
+function DashboardContent({ location }: { location: string }) {
+  // Define all valid routes and their components
+  const routes: Record<string, React.ComponentType<any> | (() => JSX.Element)> = {
+    '/dashboard': DashboardHome,
+    '/dashboard/globais': GlobaisPage,
+    '/dashboard/parametros/token-info': TokenInfoPage,
+    '/dashboard/financeira/contas-pagar/lancamentos': ContasPagarLancamentosPage,
+    '/dashboard/financeira/contas-receber/lancamentos': () => (
+      <PlaceholderPage
+        title="Lançamentos - Contas a Receber"
+        description="Esta funcionalidade está em desenvolvimento. Gerencie os lançamentos de contas a receber."
+        icon={Banknote}
+      />
+    ),
+    '/dashboard/financeira/movimentacao-bancaria/conta-caixa': () => (
+      <PlaceholderPage
+        title="Conta/Caixa"
+        description="Esta funcionalidade está em desenvolvimento. Controle de contas e caixas bancárias."
+        icon={Wallet}
+      />
+    ),
+    '/dashboard/financeira/movimentacao-bancaria/extrato-caixa': () => (
+      <PlaceholderPage
+        title="Extrato de Caixa"
+        description="Esta funcionalidade está em desenvolvimento. Visualize extratos de movimentação de caixa."
+        icon={FileText}
+      />
+    ),
+    '/dashboard/compras-faturamento/compras/solicitacao-compras': () => (
+      <PlaceholderPage
+        title="Solicitação de Compras"
+        description="Esta funcionalidade está em desenvolvimento. Gerencie solicitações de compras."
+        icon={ClipboardList}
+      />
+    ),
+    '/dashboard/compras-faturamento/compras/ordem-compras': () => (
+      <PlaceholderPage
+        title="Ordem de Compras"
+        description="Esta funcionalidade está em desenvolvimento. Controle de ordens de compras."
+        icon={FileText}
+      />
+    ),
+    '/dashboard/compras-faturamento/compras/recebimento-materiais': () => (
+      <PlaceholderPage
+        title="Recebimento de Materiais"
+        description="Esta funcionalidade está em desenvolvimento. Controle de recebimento de materiais."
+        icon={Package}
+      />
+    ),
+    '/dashboard/compras-faturamento/compras/aquisicao-servicos': () => (
+      <PlaceholderPage
+        title="Aquisição de Serviços"
+        description="Esta funcionalidade está em desenvolvimento. Gerencie aquisições de serviços."
+        icon={Truck}
+      />
+    ),
+    '/dashboard/compras-faturamento/faturamento/pedido-venda': () => (
+      <PlaceholderPage
+        title="Pedido de Venda"
+        description="Esta funcionalidade está em desenvolvimento. Gerencie pedidos de venda."
+        icon={ClipboardList}
+      />
+    ),
+    '/dashboard/compras-faturamento/faturamento/faturamento': () => (
+      <PlaceholderPage
+        title="Faturamento"
+        description="Esta funcionalidade está em desenvolvimento. Controle de faturamento."
+        icon={Receipt}
+      />
+    ),
+  };
+
+  // Find the matching route or use default
+  const RouteComponent = routes[location];
+  
+  if (RouteComponent) {
+    return <RouteComponent />;
+  }
+
+  // Default fallback for any unmatched route
+  return (
+    <PlaceholderPage
+      title="Funcionalidade em Desenvolvimento"
+      description="Esta funcionalidade está sendo desenvolvida e estará disponível em breve."
+      icon={Settings}
+    />
   );
 }
 
