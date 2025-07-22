@@ -119,6 +119,7 @@ export default function DashboardPage() {
         {/* Main Content */}
         <main className="flex-1 p-6">
           <Switch>
+            <Route path="/dashboard" exact component={DashboardHome} />
             <Route path="/dashboard/parametros/token-info" component={TokenInfoPage} />
             <Route path="/dashboard/globais" component={GlobaisPage} />
             
@@ -198,27 +199,14 @@ export default function DashboardPage() {
               />
             </Route>
 
-            {/* Catch-all for dashboard routes */}
-            <Route path="/dashboard/:rest*">
-              {(params) => {
-                // If it's exactly /dashboard, show home
-                if (!params.rest || params.rest === "") {
-                  return <DashboardHome />;
-                }
-                
-                // Otherwise show development page
-                return (
-                  <PlaceholderPage
-                    title="Página em Desenvolvimento"
-                    description="Esta funcionalidade está sendo desenvolvida"
-                    icon={Home}
-                  />
-                );
-              }}
+            {/* Default fallback for any unmatched dashboard route */}
+            <Route>
+              <PlaceholderPage
+                title="Funcionalidade em Desenvolvimento"
+                description="Esta funcionalidade está sendo desenvolvida"
+                icon={Home}
+              />
             </Route>
-            
-            {/* Default home for exact dashboard path */}
-            <Route path="/dashboard" component={DashboardHome} />
           </Switch>
         </main>
       </div>
