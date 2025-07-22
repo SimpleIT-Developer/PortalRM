@@ -8,6 +8,16 @@ export interface StoredToken extends TotvsTokenResponse {
   username: string;
 }
 
+export class AuthenticationError extends Error {
+  public readonly technicalDetails: string;
+
+  constructor(friendlyMessage: string, technicalDetails: string) {
+    super(friendlyMessage);
+    this.name = "AuthenticationError";
+    this.technicalDetails = technicalDetails;
+  }
+}
+
 export class AuthService {
   private static readonly TOKEN_KEY = "totvs_token";
 
@@ -24,13 +34,25 @@ export class AuthService {
       const errorData = await response.json().catch(() => ({}));
       
       if (response.status === 401) {
-        throw new Error("Usuário ou senha inválidos. Verifique suas credenciais e tente novamente.");
+        const friendlyMessage = "Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.";
+        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        throw new AuthenticationError(friendlyMessage, technicalDetails);
+      } else if (response.status === 400) {
+        const friendlyMessage = "Dados inválidos. Verifique se todos os campos estão preenchidos corretamente.";
+        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else if (response.status === 404) {
-        throw new Error("Serviço não encontrado. Verifique o endpoint do servidor.");
+        const friendlyMessage = "Servidor não encontrado. Verifique a conexão com o TOTVS RM.";
+        const technicalDetails = `HTTP ${response.status}: Endpoint ${TOTVS_API_BASE}${TOKEN_ENDPOINT} não encontrado`;
+        throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else if (response.status >= 500) {
-        throw new Error("Erro interno do servidor. Tente novamente mais tarde.");
+        const friendlyMessage = "Erro no servidor TOTVS. Tente novamente em alguns minutos.";
+        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else {
-        throw new Error(errorData.error_description || `Erro HTTP ${response.status}: ${response.statusText}`);
+        const friendlyMessage = "Erro inesperado durante a autenticação. Tente novamente.";
+        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        throw new AuthenticationError(friendlyMessage, technicalDetails);
       }
     }
 

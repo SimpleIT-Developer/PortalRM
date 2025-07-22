@@ -3,21 +3,22 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { totvsLoginSchema, type TotvsLoginRequest } from "@shared/schema";
-import { AuthService } from "@/lib/auth";
+import { AuthService, AuthenticationError } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, Eye, EyeOff, User, Lock, Server, AlertCircle, CheckCircle, Box } from "lucide-react";
+import { Loader2, Eye, EyeOff, User, Lock, Server, AlertCircle, CheckCircle, Box, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<AuthenticationError | null>(null);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
@@ -31,9 +32,18 @@ export default function LoginPage() {
     },
   });
 
+  // Clear errors when user starts typing
+  const clearErrors = () => {
+    if (authError) {
+      setAuthError(null);
+      setShowTechnicalDetails(false);
+    }
+  };
+
   const onSubmit = async (data: TotvsLoginRequest) => {
     setIsLoading(true);
     setAuthError(null);
+    setShowTechnicalDetails(false);
     setShowSuccess(false);
 
     try {
@@ -58,13 +68,24 @@ export default function LoginPage() {
       }, 1500);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido durante a autenticação";
-      setAuthError(errorMessage);
-      toast({
-        title: "Erro de Autenticação",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      if (error instanceof AuthenticationError) {
+        setAuthError(error);
+        toast({
+          title: "Erro de Autenticação",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        const friendlyMessage = "Erro inesperado. Verifique sua conexão e tente novamente.";
+        const technicalDetails = error instanceof Error ? error.message : "Erro desconhecido";
+        const authError = new AuthenticationError(friendlyMessage, technicalDetails);
+        setAuthError(authError);
+        toast({
+          title: "Erro de Autenticação",
+          description: friendlyMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -107,6 +128,10 @@ export default function LoginPage() {
                             placeholder="Digite seu usuário"
                             className="pr-10"
                             disabled={isLoading}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              clearErrors();
+                            }}
                           />
                           <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                             <User className="h-4 w-4 text-muted-foreground" />
@@ -133,6 +158,10 @@ export default function LoginPage() {
                             placeholder="Digite sua senha"
                             className="pr-10"
                             disabled={isLoading}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              clearErrors();
+                            }}
                           />
                           <Button
                             type="button"
@@ -170,6 +199,10 @@ export default function LoginPage() {
                             placeholder="Digite o alias do serviço"
                             className="pr-10"
                             disabled={isLoading}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              clearErrors();
+                            }}
                           />
                           <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                             <Server className="h-4 w-4 text-muted-foreground" />
@@ -186,9 +219,41 @@ export default function LoginPage() {
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Erro de Autenticação</strong>
-                      <br />
-                      {authError}
+                      <div className="space-y-3">
+                        <div>
+                          <strong>Não foi possível fazer o login</strong>
+                          <br />
+                          {authError.message}
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                            className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            {showTechnicalDetails ? (
+                              <>
+                                <ChevronUp className="h-3 w-3 mr-1" />
+                                Ocultar detalhes técnicos
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-3 w-3 mr-1" />
+                                Ver detalhes técnicos
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        
+                        {showTechnicalDetails && (
+                          <div className="bg-muted/50 p-2 rounded text-xs font-mono text-muted-foreground border">
+                            {authError.technicalDetails}
+                          </div>
+                        )}
+                      </div>
                     </AlertDescription>
                   </Alert>
                 )}
