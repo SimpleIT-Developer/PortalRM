@@ -28,7 +28,8 @@ import {
   ClipboardList, 
   Package, 
   Truck, 
-  Receipt 
+  Receipt,
+  Settings
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -119,11 +120,14 @@ export default function DashboardPage() {
         {/* Main Content */}
         <main className="flex-1 p-6">
           <Switch>
-            <Route path="/dashboard" exact component={DashboardHome} />
+            {/* Parâmetros - More specific routes first */}
             <Route path="/dashboard/parametros/token-info" component={TokenInfoPage} />
+            
+            {/* Globais */}
             <Route path="/dashboard/globais" component={GlobaisPage} />
             
-            {/* Financeira routes */}
+            {/* Gestão Financeira Routes */}
+            {/* Contas a Pagar */}
             <Route path="/dashboard/financeira/contas-pagar/lancamentos">
               <PlaceholderPage
                 title="Lançamentos - Contas a Pagar"
@@ -131,6 +135,8 @@ export default function DashboardPage() {
                 icon={CreditCard}
               />
             </Route>
+            
+            {/* Contas a Receber */}
             <Route path="/dashboard/financeira/contas-receber/lancamentos">
               <PlaceholderPage
                 title="Lançamentos - Contas a Receber"
@@ -138,6 +144,8 @@ export default function DashboardPage() {
                 icon={Banknote}
               />
             </Route>
+            
+            {/* Movimentação Bancária */}
             <Route path="/dashboard/financeira/movimentacao-bancaria/conta-caixa">
               <PlaceholderPage
                 title="Conta/Caixa"
@@ -153,7 +161,8 @@ export default function DashboardPage() {
               />
             </Route>
 
-            {/* Compras routes */}
+            {/* Compras e Faturamento Routes */}
+            {/* Compras */}
             <Route path="/dashboard/compras-faturamento/compras/solicitacao-compras">
               <PlaceholderPage
                 title="Solicitação de Compras"
@@ -183,7 +192,7 @@ export default function DashboardPage() {
               />
             </Route>
 
-            {/* Faturamento routes */}
+            {/* Faturamento */}
             <Route path="/dashboard/compras-faturamento/faturamento/pedido-venda">
               <PlaceholderPage
                 title="Pedido de Venda"
@@ -199,12 +208,15 @@ export default function DashboardPage() {
               />
             </Route>
 
-            {/* Default fallback for any unmatched dashboard route */}
-            <Route>
+            {/* Home Dashboard - Less specific route at the end */}
+            <Route path="/dashboard" component={DashboardHome} />
+            
+            {/* Catch all other dashboard paths */}
+            <Route path="/dashboard/:rest*">
               <PlaceholderPage
                 title="Funcionalidade em Desenvolvimento"
                 description="Esta funcionalidade está sendo desenvolvida"
-                icon={Home}
+                icon={Settings}
               />
             </Route>
           </Switch>
