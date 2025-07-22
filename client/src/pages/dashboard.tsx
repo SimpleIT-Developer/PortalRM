@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import TokenInfoPage from "./token-info";
 import GlobaisPage from "./globais";
 import PlaceholderPage from "./placeholder";
+import ContasPagarLancamentosPage from "./contas-pagar-lancamentos";
 
 // Import icons for placeholder pages
 import { 
@@ -33,11 +34,13 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [token, setToken] = useState<StoredToken | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
   const { toast } = useToast();
+
+
 
   useEffect(() => {
     const storedToken = AuthService.getStoredToken();
@@ -120,90 +123,76 @@ export default function DashboardPage() {
         {/* Main Content */}
         <main className="flex-1 p-6">
           <Switch>
-            {/* Parâmetros - More specific routes first */}
+            {/* Most specific routes first */}
             <Route path="/dashboard/parametros/token-info" component={TokenInfoPage} />
-            
-            {/* Globais */}
             <Route path="/dashboard/globais" component={GlobaisPage} />
             
-            {/* Gestão Financeira Routes */}
-            {/* Contas a Pagar */}
-            <Route path="/dashboard/financeira/contas-pagar/lancamentos">
-              <PlaceholderPage
-                title="Lançamentos - Contas a Pagar"
-                description="Gerencie os lançamentos de contas a pagar"
-                icon={CreditCard}
-              />
-            </Route>
+            {/* Gestão Financeira - Contas a Pagar */}
+            <Route path="/dashboard/financeira/contas-pagar/lancamentos" component={ContasPagarLancamentosPage} />
             
-            {/* Contas a Receber */}
+            {/* Other Gestão Financeira Routes */}
             <Route path="/dashboard/financeira/contas-receber/lancamentos">
               <PlaceholderPage
                 title="Lançamentos - Contas a Receber"
-                description="Gerencie os lançamentos de contas a receber"
+                description="Esta funcionalidade está em desenvolvimento. Gerencie os lançamentos de contas a receber."
                 icon={Banknote}
               />
             </Route>
-            
-            {/* Movimentação Bancária */}
             <Route path="/dashboard/financeira/movimentacao-bancaria/conta-caixa">
               <PlaceholderPage
                 title="Conta/Caixa"
-                description="Controle de contas e caixas bancárias"
+                description="Esta funcionalidade está em desenvolvimento. Controle de contas e caixas bancárias."
                 icon={Wallet}
               />
             </Route>
             <Route path="/dashboard/financeira/movimentacao-bancaria/extrato-caixa">
               <PlaceholderPage
                 title="Extrato de Caixa"
-                description="Visualize extratos de movimentação de caixa"
+                description="Esta funcionalidade está em desenvolvimento. Visualize extratos de movimentação de caixa."
                 icon={FileText}
               />
             </Route>
 
             {/* Compras e Faturamento Routes */}
-            {/* Compras */}
             <Route path="/dashboard/compras-faturamento/compras/solicitacao-compras">
               <PlaceholderPage
                 title="Solicitação de Compras"
-                description="Gerencie solicitações de compras"
+                description="Esta funcionalidade está em desenvolvimento. Gerencie solicitações de compras."
                 icon={ClipboardList}
               />
             </Route>
             <Route path="/dashboard/compras-faturamento/compras/ordem-compras">
               <PlaceholderPage
                 title="Ordem de Compras"
-                description="Controle de ordens de compras"
+                description="Esta funcionalidade está em desenvolvimento. Controle de ordens de compras."
                 icon={FileText}
               />
             </Route>
             <Route path="/dashboard/compras-faturamento/compras/recebimento-materiais">
               <PlaceholderPage
                 title="Recebimento de Materiais"
-                description="Controle de recebimento de materiais"
+                description="Esta funcionalidade está em desenvolvimento. Controle de recebimento de materiais."
                 icon={Package}
               />
             </Route>
             <Route path="/dashboard/compras-faturamento/compras/aquisicao-servicos">
               <PlaceholderPage
                 title="Aquisição de Serviços"
-                description="Gerencie aquisições de serviços"
+                description="Esta funcionalidade está em desenvolvimento. Gerencie aquisições de serviços."
                 icon={Truck}
               />
             </Route>
-
-            {/* Faturamento */}
             <Route path="/dashboard/compras-faturamento/faturamento/pedido-venda">
               <PlaceholderPage
                 title="Pedido de Venda"
-                description="Gerencie pedidos de venda"
+                description="Esta funcionalidade está em desenvolvimento. Gerencie pedidos de venda."
                 icon={ClipboardList}
               />
             </Route>
             <Route path="/dashboard/compras-faturamento/faturamento/faturamento">
               <PlaceholderPage
                 title="Faturamento"
-                description="Controle de faturamento"
+                description="Esta funcionalidade está em desenvolvimento. Controle de faturamento."
                 icon={Receipt}
               />
             </Route>
