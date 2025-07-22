@@ -1,0 +1,6 @@
+@echo off
+echo Iniciando sincronizacao com o Git...
+powershell -ExecutionPolicy Bypass -File "%~dp0sync-git.ps1"
+echo.
+echo Pressione qualquer tecla para sair...
+pause > nul
