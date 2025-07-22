@@ -93,7 +93,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: "compras-faturamento",
-    label: "Gestão de Compras/Faturamento",
+    label: "Compras e Faturamento",
     icon: ShoppingCart,
     children: [
       {
@@ -146,18 +146,18 @@ const menuItems: MenuItem[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    id: "parametros",
+    label: "Parâmetros",
+    icon: Settings,
+    children: [
       {
-        id: "parametros",
-        label: "Parâmetros",
-        icon: Settings,
-        children: [
-          {
-            id: "informacoes-token",
-            label: "Informações do Token",
-            icon: Key,
-            path: "/dashboard/token-info",
-          },
-        ],
+        id: "informacoes-token",
+        label: "Informações do Token",
+        icon: Key,
+        path: "/dashboard/parametros/token-info",
       },
     ],
   },
@@ -172,7 +172,7 @@ interface SidebarProps {
 
 export function Sidebar({ className, isMobile = false, isOpen = true, onClose }: SidebarProps) {
   const [location] = useLocation();
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["financeira", "compras-faturamento"]));
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["financeira", "compras-faturamento", "parametros"]));
 
   const toggleExpanded = (itemId: string) => {
     const newExpanded = new Set(expandedItems);

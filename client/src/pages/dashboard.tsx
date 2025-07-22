@@ -119,7 +119,7 @@ export default function DashboardPage() {
         {/* Main Content */}
         <main className="flex-1 p-6">
           <Switch>
-            <Route path="/dashboard/token-info" component={TokenInfoPage} />
+            <Route path="/dashboard/parametros/token-info" component={TokenInfoPage} />
             <Route path="/dashboard/globais" component={GlobaisPage} />
             
             {/* Financeira routes */}

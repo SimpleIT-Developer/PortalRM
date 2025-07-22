@@ -8,6 +8,17 @@ This is a full-stack web application designed specifically for authenticating wi
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (January 2025)
+
+**Navigation System Overhaul**
+- Implemented hierarchical sidebar navigation with responsive mobile support
+- Restructured menu organization:
+  - Moved "Parâmetros" to top-level menu alongside other main sections
+  - Renamed "Gestão de Compras/Faturamento" to "Compras e Faturamento" for better display
+  - Relocated token information to "Parâmetros > Informações do Token"
+- Enhanced error messages with friendly text and collapsible technical details
+- Added placeholder pages for modules in development with consistent messaging
+
 ## System Architecture
 
 The application follows a modern full-stack architecture with clear separation between frontend and backend concerns:
@@ -37,8 +48,14 @@ The application follows a modern full-stack architecture with clear separation b
 
 ### Key Pages and Features
 - **Login Page** (`/`): TOTVS RM authentication form with credential validation
-- **Dashboard Page** (`/dashboard`): Token management and API testing interface
-- **Error Handling**: Comprehensive error boundaries and user feedback
+- **Dashboard System** (`/dashboard/*`): Complete navigation system with sidebar menu
+- **Navigation Structure**:
+  - **Globais** (`/dashboard/globais`): Global system configurations
+  - **Gestão Financeira**: Financial management with submenus for accounts payable/receivable and bank transactions
+  - **Compras e Faturamento**: Purchase and billing management with detailed submenus
+  - **Parâmetros** (`/dashboard/parametros/*`): System parameters including token information
+- **Responsive Design**: Mobile-friendly sidebar with overlay navigation
+- **Error Handling**: User-friendly error messages with technical details toggle
 
 ## Data Flow
 

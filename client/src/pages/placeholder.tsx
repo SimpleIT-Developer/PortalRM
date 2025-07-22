@@ -23,11 +23,11 @@ export default function PlaceholderPage({ title, description, icon: Icon }: Plac
       {/* Content */}
       <Card>
         <CardHeader>
-          <CardTitle>Módulo em Desenvolvimento</CardTitle>
+          <CardTitle>Funcionalidade em Desenvolvimento</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Este módulo está em desenvolvimento. Em breve estará disponível com todas as funcionalidades necessárias.
+            Esta funcionalidade está em desenvolvimento. Em breve estará disponível com todas as características necessárias.
           </p>
         </CardContent>
       </Card>
