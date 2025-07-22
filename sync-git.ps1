@@ -57,14 +57,14 @@ if ($continuar -ne "S" -and $continuar -ne "s") {
 try {
     $branchAtual = git branch --show-current
     if ([string]::IsNullOrWhiteSpace($branchAtual)) {
-        $branchAtual = "master"
-        Mostrar-Mensagem "\nNão foi possível detectar a branch atual. Usando 'master' como padrão." $amarelo
+        $branchAtual = "main"
+        Mostrar-Mensagem "\nNão foi possível detectar a branch atual. Usando 'main' como padrão." $amarelo
     } else {
         Mostrar-Mensagem "\nBranch atual: $branchAtual" $verde
     }
 } catch {
-    $branchAtual = "master"
-    Mostrar-Mensagem "\nErro ao detectar a branch atual. Usando 'master' como padrão." $amarelo
+    $branchAtual = "main"
+    Mostrar-Mensagem "\nErro ao detectar a branch atual. Usando 'main' como padrão." $amarelo
 }
 
 # Pull das alterações remotas
