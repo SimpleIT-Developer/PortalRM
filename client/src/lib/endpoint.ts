@@ -60,8 +60,8 @@ export class EndpointService {
   private static getDefaultEndpoints(): EndpointOption[] {
     return [
       {
-        url: 'http://legiaoda142256.rm.cloudtotvs.com.br:8051',
-        name: 'legiaoda142256.rm.cloudtotvs.com.br:8051'
+        url: 'http://erp-simpleit.sytes.net:8051',
+        name: 'ERP SimpleIT'
       }
     ];
   }
@@ -99,6 +99,6 @@ export class EndpointService {
     }
 
     const endpoints = await this.loadEndpoints();
-    return endpoints.length > 0 ? endpoints[0].url : 'http://legiaoda142256.rm.cloudtotvs.com.br:8051';
+    return endpoints.length > 0 ? endpoints[0].url : 'http://erp-simpleit.sytes.net:8051';
   }
 }

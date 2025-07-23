@@ -1,7 +1,8 @@
 import { TotvsLoginRequest, TotvsRefreshRequest, TotvsTokenResponse } from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
 
-const TOTVS_API_BASE = "https://legiaoda142256.rm.cloudtotvs.com.br:8051";
+// Default fallback endpoint - should be overridden by configuration
+const DEFAULT_ENDPOINT = "http://erp-simpleit.sytes.net:8051";
 const TOKEN_ENDPOINT = "/api/connect/token";
 
 export interface StoredToken extends TotvsTokenResponse {
@@ -135,7 +136,7 @@ export class AuthService {
           console.error("Não foi possível obter detalhes do erro:", e);
         }
         
-        const errorMessage = errorData.error_description || `Erro ao renovar token: ${response.status}`;
+        const errorMessage = (errorData as any).error_description || `Erro ao renovar token: ${response.status}`;
         console.error("Resposta de erro:", errorMessage);
         throw new Error(errorMessage);
       }
@@ -203,7 +204,7 @@ export class AuthService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error_description || `Erro ao renovar token: ${response.status}`);
+      throw new Error((errorData as any).error_description || `Erro ao renovar token: ${response.status}`);
     }
 
     return await response.json();

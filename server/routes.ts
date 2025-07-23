@@ -27,7 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao ler arquivo de endpoints:", error);
       res.json({ 
-        endpoints: ["legiaoda142256.rm.cloudtotvs.com.br:8051"],
+        endpoints: ["erp-simpleit.sytes.net:8051"],
         error: "Arquivo de configuração não encontrado, usando padrão"
       });
     }

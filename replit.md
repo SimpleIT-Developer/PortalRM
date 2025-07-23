@@ -19,6 +19,16 @@ Preferred communication style: Simple, everyday language.
 - Enhanced error messages with friendly text and collapsible technical details
 - Added placeholder pages for modules in development with consistent messaging
 
+**Endpoint Configuration System (Latest)**
+- Replaced hardcoded endpoint `legiaoda142256.rm.cloudtotvs.com.br:8051` with configurable system
+- New default endpoint: `erp-simpleit.sytes.net:8051`
+- Created comprehensive routing system that eliminates all 404 errors
+- All undefined menu items now show "Funcionalidade em Desenvolvimento" pages
+- Configuration files:
+  - Primary: `env/endpoint.txt`
+  - Frontend fallback: `client/public/endpoints.json`
+  - Advanced config: `config/endpoints.json`
+
 ## System Architecture
 
 The application follows a modern full-stack architecture with clear separation between frontend and backend concerns:

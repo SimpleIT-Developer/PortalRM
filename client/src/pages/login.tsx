@@ -52,10 +52,10 @@ export default function LoginPage() {
       } catch (error) {
         console.error('Erro ao carregar endpoints:', error);
         // Definir endpoint padrão em caso de erro
-        setSelectedEndpoint('http://legiaoda142256.rm.cloudtotvs.com.br:8051');
+        setSelectedEndpoint('http://erp-simpleit.sytes.net:8051');
         setEndpoints([{
-          url: 'http://legiaoda142256.rm.cloudtotvs.com.br:8051',
-          name: 'legiaoda142256.rm.cloudtotvs.com.br:8051'
+          url: 'http://erp-simpleit.sytes.net:8051',
+          name: 'ERP SimpleIT'
         }]);
         toast({
           title: "Aviso",
