@@ -43,11 +43,20 @@ export default function LoginPage() {
     const loadEndpoints = async () => {
       try {
         setIsLoadingEndpoints(true);
+        
+        // Verificar se existe endpoint antigo no localStorage e limpar
+        const oldEndpoint = localStorage.getItem('selected_endpoint');
+        if (oldEndpoint && oldEndpoint.includes('legiaoda142256')) {
+          console.log("🧹 Removendo endpoint antigo do cache:", oldEndpoint);
+          localStorage.removeItem('selected_endpoint');
+        }
+        
         const endpointList = await EndpointService.loadEndpoints();
         setEndpoints(endpointList);
         
         // Definir endpoint padrão (último selecionado ou primeiro da lista)
         const defaultEndpoint = await EndpointService.getDefaultEndpoint();
+        console.log("🔧 Endpoint carregado:", defaultEndpoint);
         setSelectedEndpoint(defaultEndpoint);
       } catch (error) {
         console.error('Erro ao carregar endpoints:', error);
