@@ -108,6 +108,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TOTVS API Proxy - handles CORS for all API calls
+  app.get("/api/proxy", async (req, res) => {
+    try {
+      const { endpoint, path, token } = req.query;
+      
+      if (!endpoint || !path) {
+        return res.status(400).json({ error: "Endpoint e path são obrigatórios" });
+      }
+
+      const fullUrl = `${endpoint}${path}`;
+      console.log("🔗 Proxy GET - Consultando:", fullUrl);
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers,
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.log("⚠️ Proxy GET - Erro:", response.status, data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log("✅ Proxy GET - Sucesso");
+      res.json(data);
+    } catch (error) {
+      console.error("❌ Proxy GET - Erro:", error);
+      res.status(500).json({ 
+        error: "Erro interno do servidor",
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

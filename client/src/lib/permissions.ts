@@ -13,7 +13,6 @@ export interface PermissionResponse {
 }
 
 export class PermissionsService {
-  private static readonly BASE_URL = 'http://erp-simpleit.sytes.net:8051/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.002/1/T';
 
   /**
    * Consulta as permissões do usuário no endpoint TOTVS
@@ -26,16 +25,17 @@ export class PermissionsService {
         return null;
       }
 
-      const url = `${this.BASE_URL}?parameters=CODUSUARIO=${username}`;
+      const endpoint = token.endpoint || 'http://erp-simpleit.sytes.net:8051';
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.002/1/T?parameters=CODUSUARIO=${username}`;
       
-      // Consulta silenciosa de permissões
-
-      const response = await fetch(url, {
+      // Consulta via proxy backend para evitar problemas de CORS
+      console.log("🔗 Consultando permissões via proxy backend");
+      
+      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token.access_token}`,
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       });
 
       // Verificação silenciosa da resposta
