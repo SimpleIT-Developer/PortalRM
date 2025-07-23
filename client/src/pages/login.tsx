@@ -90,6 +90,9 @@ export default function LoginPage() {
     setShowTechnicalDetails(false);
     setShowSuccess(false);
 
+    console.log("🚀 Iniciando autenticação...");
+    console.log("📍 Endpoint selecionado:", selectedEndpoint);
+
     try {
       // Remove servicealias if empty
       const credentials = { ...data };

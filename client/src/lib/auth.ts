@@ -27,41 +27,68 @@ export class AuthService {
 
   static async authenticate(credentials: TotvsLoginRequest & { endpoint: string }): Promise<TotvsTokenResponse> {
     const { endpoint, ...requestData } = credentials;
-    const response = await fetch(`${endpoint}${TOKEN_ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestData),
-    });
+    const fullUrl = `${endpoint}${TOKEN_ENDPOINT}`;
+    
+    console.log("🔗 Tentando autenticar em:", fullUrl);
+    console.log("📤 Dados da requisição:", requestData);
+    
+    try {
+      const response = await fetch(fullUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+      
+      console.log("📥 Resposta recebida - Status:", response.status);
+      return await this.handleAuthResponse(response, fullUrl);
+      
+    } catch (error) {
+      console.error("❌ Erro na requisição:", error);
+      
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        const friendlyMessage = "Não foi possível conectar ao servidor TOTVS. Verifique se o endpoint está correto e acessível.";
+        const technicalDetails = `Falha na conexão com ${fullUrl}: ${error.message}`;
+        throw new AuthenticationError(friendlyMessage, technicalDetails);
+      }
+      
+      throw error;
+    }
+  }
+
+  private static async handleAuthResponse(response: Response, fullUrl: string): Promise<TotvsTokenResponse> {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.log("⚠️ Erro na resposta:", { status: response.status, errorData });
       
       if (response.status === 401) {
         const friendlyMessage = "Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.";
-        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        const technicalDetails = `HTTP ${response.status}: ${(errorData as any).error_description || response.statusText}`;
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else if (response.status === 400) {
         const friendlyMessage = "Dados inválidos. Verifique se todos os campos estão preenchidos corretamente.";
-        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        const technicalDetails = `HTTP ${response.status}: ${(errorData as any).error_description || response.statusText}`;
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else if (response.status === 404) {
         const friendlyMessage = "Servidor não encontrado. Verifique a conexão com o TOTVS RM.";
-        const technicalDetails = `HTTP ${response.status}: Endpoint ${endpoint}${TOKEN_ENDPOINT} não encontrado`;
+        const technicalDetails = `HTTP ${response.status}: Endpoint ${fullUrl} não encontrado`;
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else if (response.status >= 500) {
         const friendlyMessage = "Erro no servidor TOTVS. Tente novamente em alguns minutos.";
-        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        const technicalDetails = `HTTP ${response.status}: ${(errorData as any).error_description || response.statusText}`;
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       } else {
         const friendlyMessage = "Erro inesperado durante a autenticação. Tente novamente.";
-        const technicalDetails = `HTTP ${response.status}: ${errorData.error_description || response.statusText}`;
+        const technicalDetails = `HTTP ${response.status}: ${(errorData as any).error_description || response.statusText}`;
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       }
     }
 
-    return await response.json();
+    const tokenData = await response.json();
+    console.log("✅ Autenticação bem-sucedida");
+    return tokenData;
   }
 
   /**

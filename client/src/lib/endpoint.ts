@@ -41,6 +41,7 @@ export class EndpointService {
    */
   private static normalizeEndpoint(endpoint: string): string {
     if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+      // Para desenvolvimento local, usar http. Em produção, considerar https
       return `http://${endpoint}`;
     }
     return endpoint;
