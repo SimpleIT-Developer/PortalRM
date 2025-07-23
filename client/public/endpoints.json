@@ -1,5 +1,5 @@
 {
   "endpoints": [
-    "erp-simpleit.sytes.net:8051"
+    "http://erp-simpleit.sytes.net:8051"
   ]
 }
