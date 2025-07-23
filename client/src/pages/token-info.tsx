@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AuthService, type StoredToken } from "@/lib/auth";
+import { EndpointService } from "@/lib/endpoint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,29 +27,42 @@ export default function TokenInfoPage() {
   const [, setLocation] = useLocation();
   const [token, setToken] = useState<StoredToken | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [apiEndpoint, setApiEndpoint] = useState("https://legiaoda142256.rm.cloudtotvs.com.br:8051/api/");
+  const [apiEndpoint, setApiEndpoint] = useState("");
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isExpiringSoon, setIsExpiringSoon] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedToken = AuthService.getStoredToken();
-    if (!storedToken) {
-      setLocation("/");
-      return;
-    }
+    const loadTokenAndEndpoint = async () => {
+      const storedToken = AuthService.getStoredToken();
+      if (!storedToken) {
+        setLocation("/");
+        return;
+      }
 
-    if (!AuthService.isTokenValid(storedToken)) {
-      toast({
-        title: "Sessão Expirada",
-        description: "Seu token expirou. Faça login novamente.",
-        variant: "destructive",
-      });
-      setLocation("/");
-      return;
-    }
+      if (!AuthService.isTokenValid(storedToken)) {
+        toast({
+          title: "Sessão Expirada",
+          description: "Seu token expirou. Faça login novamente.",
+          variant: "destructive",
+        });
+        setLocation("/");
+        return;
+      }
 
-    setToken(storedToken);
+      setToken(storedToken);
+      
+      // Carregar endpoint configurado
+      try {
+        const defaultEndpoint = await EndpointService.getDefaultEndpoint();
+        setApiEndpoint(`${defaultEndpoint}/api/`);
+      } catch (error) {
+        console.error('Erro ao carregar endpoint:', error);
+        setApiEndpoint("https://erp-simpleit.sytes.net:8051/api/");
+      }
+    };
+
+    loadTokenAndEndpoint();
   }, [setLocation, toast]);
 
   // Atualizar tempo restante em tempo real
@@ -323,7 +337,7 @@ export default function TokenInfoPage() {
               type="url"
               value={apiEndpoint}
               onChange={(e) => setApiEndpoint(e.target.value)}
-              placeholder="https://legiaoda142256.rm.cloudtotvs.com.br:8051/api/..."
+              placeholder="https://erp-simpleit.sytes.net:8051/api/..."
               className="mt-2"
             />
           </div>
