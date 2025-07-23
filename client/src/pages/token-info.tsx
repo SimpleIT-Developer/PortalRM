@@ -27,6 +27,8 @@ export default function TokenInfoPage() {
   const [token, setToken] = useState<StoredToken | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [apiEndpoint, setApiEndpoint] = useState("https://legiaoda142256.rm.cloudtotvs.com.br:8051/api/");
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [isExpiringSoon, setIsExpiringSoon] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,7 +44,6 @@ export default function TokenInfoPage() {
         description: "Seu token expirou. Faça login novamente.",
         variant: "destructive",
       });
-      AuthService.clearToken();
       setLocation("/");
       return;
     }
@@ -50,40 +51,60 @@ export default function TokenInfoPage() {
     setToken(storedToken);
   }, [setLocation, toast]);
 
+  // Atualizar tempo restante em tempo real
+  useEffect(() => {
+    if (!token) return;
+
+    const updateTimeRemaining = () => {
+      if (token.expires_at) {
+        // Usar o mesmo método do TokenIndicator
+        const now = Date.now();
+        const expiresAt = new Date(token.expires_at).getTime();
+        const diff = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        setTimeRemaining(diff);
+        setIsExpiringSoon(diff < 60);
+      } else {
+        // Fallback para o método antigo se expires_at não estiver disponível
+        const remaining = Math.max(0, token.expires_in - Math.floor((Date.now() - token.timestamp) / 1000));
+        setTimeRemaining(remaining);
+        setIsExpiringSoon(remaining < 60);
+      }
+    };
+
+    updateTimeRemaining();
+    const interval = setInterval(updateTimeRemaining, 1000);
+
+    return () => clearInterval(interval);
+  }, [token]);
+
   const handleRefreshToken = async () => {
-    if (!token?.refresh_token) {
-      toast({
-        title: "Erro",
-        description: "Nenhum refresh token disponível",
-        variant: "destructive",
-      });
+    if (!token) {
+      console.warn("TokenInfo: Tentativa de renovar token nulo");
       return;
     }
-
-    setIsRefreshing(true);
+    
     try {
-      const newTokenData = await AuthService.refreshToken({
-        grant_type: "refresh_token",
-        refresh_token: token.refresh_token,
-      }, token.endpoint);
-
-      AuthService.storeToken(newTokenData, token.username, token.endpoint);
-      const updatedToken = AuthService.getStoredToken();
-      setToken(updatedToken);
-
-      toast({
-        title: "Sucesso",
-        description: "Token renovado com sucesso!",
-      });
+      console.log("TokenInfo: Iniciando renovação de token...");
+      const newStoredToken = await AuthService.renewTokenWithToast(setIsRefreshing);
+      
+      if (newStoredToken) {
+        console.log("TokenInfo: Token renovado com sucesso");
+        // Atualiza o token local
+        setToken(newStoredToken);
+        
+        // Recarrega a página para garantir que todos os componentes usem o token atualizado
+        console.log("TokenInfo: Recarregando página...");
+        window.location.reload();
+      } else {
+        console.warn("TokenInfo: Falha ao renovar token");
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erro ao renovar token";
+      console.error("TokenInfo: Erro ao renovar token:", error);
       toast({
-        title: "Erro",
-        description: errorMessage,
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao renovar o token. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -134,6 +155,23 @@ export default function TokenInfoPage() {
     }
   };
 
+  // Função para formatar o tempo de forma legível
+  const formatTimeRemaining = (seconds: number): string => {
+    if (seconds <= 0) return "Expirado";
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+
   if (!token) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -141,9 +179,6 @@ export default function TokenInfoPage() {
       </div>
     );
   }
-
-  const timeRemaining = Math.max(0, token.expires_in - Math.floor((Date.now() - token.timestamp) / 1000));
-  const isExpiringSoon = timeRemaining < 60;
 
   return (
     <div className="space-y-6">
@@ -156,12 +191,22 @@ export default function TokenInfoPage() {
       </div>
 
       {/* Token Expiry Warning */}
-      {isExpiringSoon && (
+      {isExpiringSoon && timeRemaining > 0 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>Atenção:</strong> Seu token expira em {timeRemaining} segundos. 
+            <strong>Atenção:</strong> Seu token expira em {formatTimeRemaining(timeRemaining)}. 
             Considere renová-lo para manter o acesso.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Token Expired Warning */}
+      {timeRemaining <= 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Token Expirado:</strong> Faça login novamente para obter um novo token.
           </AlertDescription>
         </Alert>
       )}
@@ -198,8 +243,8 @@ export default function TokenInfoPage() {
               <Label className="text-sm font-medium text-foreground">Expira em</Label>
               <div className="flex items-center text-sm text-muted-foreground mt-2">
                 <Clock className="mr-2 h-4 w-4 text-primary" />
-                <span className={isExpiringSoon ? "text-destructive font-medium" : ""}>
-                  {timeRemaining} segundos
+                <span className={timeRemaining <= 0 ? "text-destructive font-medium" : isExpiringSoon ? "text-yellow-600 font-medium" : ""}>
+                  {formatTimeRemaining(timeRemaining)}
                 </span>
               </div>
             </div>
@@ -233,18 +278,21 @@ export default function TokenInfoPage() {
           <Separator />
 
           <div className="flex flex-wrap gap-4">
-            <Button 
-              onClick={handleRefreshToken}
-              disabled={isRefreshing || !token.refresh_token}
-              variant="default"
-            >
-              {isRefreshing ? (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Renovar Token
-            </Button>
+            {/* Só mostrar o botão de renovar se o token não estiver expirado */}
+            {timeRemaining > 0 && (
+              <Button 
+                onClick={handleRefreshToken}
+                disabled={isRefreshing || !token.refresh_token}
+                variant="default"
+              >
+                {isRefreshing ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Renovar Token
+              </Button>
+            )}
             
             <Button 
               onClick={handleCopyToken}

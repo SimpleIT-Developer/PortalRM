@@ -1,29 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { totvsLoginSchema, type TotvsLoginRequest } from "@shared/schema";
 import { AuthService, AuthenticationError } from "@/lib/auth";
+import { EndpointService, type EndpointOption } from "@/lib/endpoint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, Eye, EyeOff, User, Lock, Server, AlertCircle, CheckCircle, Box, ChevronDown, ChevronUp } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Eye, EyeOff, User, Server, AlertCircle, CheckCircle, Box, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<AuthenticationError | null>(null);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const { toast } = useToast();
-
-  const [endpoint, setEndpoint] = useState("https://legiaoda142256.rm.cloudtotvs.com.br:8051");
-  const [isEditingEndpoint, setIsEditingEndpoint] = useState(false);
+  
+  // Estados para gerenciamento de endpoints
+  const [endpoints, setEndpoints] = useState<EndpointOption[]>([]);
+  const [selectedEndpoint, setSelectedEndpoint] = useState<string>('');
+  const [isLoadingEndpoints, setIsLoadingEndpoints] = useState(true);
 
   const form = useForm<TotvsLoginRequest>({
     resolver: zodResolver(totvsLoginSchema),
@@ -34,6 +37,44 @@ export default function LoginPage() {
       servicealias: "",
     },
   });
+
+  // Carregar endpoints na inicialização
+  useEffect(() => {
+    const loadEndpoints = async () => {
+      try {
+        setIsLoadingEndpoints(true);
+        const endpointList = await EndpointService.loadEndpoints();
+        setEndpoints(endpointList);
+        
+        // Definir endpoint padrão (último selecionado ou primeiro da lista)
+        const defaultEndpoint = await EndpointService.getDefaultEndpoint();
+        setSelectedEndpoint(defaultEndpoint);
+      } catch (error) {
+        console.error('Erro ao carregar endpoints:', error);
+        // Definir endpoint padrão em caso de erro
+        setSelectedEndpoint('http://legiaoda142256.rm.cloudtotvs.com.br:8051');
+        setEndpoints([{
+          url: 'http://legiaoda142256.rm.cloudtotvs.com.br:8051',
+          name: 'legiaoda142256.rm.cloudtotvs.com.br:8051'
+        }]);
+        toast({
+          title: "Aviso",
+          description: "Não foi possível carregar a lista de endpoints. Usando configuração padrão.",
+          variant: "default",
+        });
+      } finally {
+        setIsLoadingEndpoints(false);
+      }
+    };
+
+    loadEndpoints();
+  }, [toast]);
+
+  // Salvar endpoint selecionado quando alterado
+  const handleEndpointChange = (endpoint: string) => {
+    setSelectedEndpoint(endpoint);
+    EndpointService.saveSelectedEndpoint(endpoint);
+  };
 
   // Clear errors when user starts typing
   const clearErrors = () => {
@@ -56,8 +97,8 @@ export default function LoginPage() {
         delete credentials.servicealias;
       }
 
-      const tokenData = await AuthService.authenticate({ ...credentials, endpoint });
-      AuthService.storeToken(tokenData, data.username, endpoint);
+      const tokenData = await AuthService.authenticate({ ...credentials, endpoint: selectedEndpoint });
+      AuthService.storeToken(tokenData, data.username, selectedEndpoint);
       
       setShowSuccess(true);
       toast({
@@ -294,45 +335,33 @@ export default function LoginPage() {
         </Card>
 
         {/* System Info */}
-        <div className="text-center text-xs text-muted-foreground">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <span>Endpoint:</span>
-            {isEditingEndpoint ? (
-              <div className="flex items-center gap-1">
-                <Input
-                  type="url"
-                  value={endpoint}
-                  onChange={(e) => setEndpoint(e.target.value)}
-                  className="h-6 text-xs px-2 py-1 w-80"
-                  placeholder="https://servidor.rm.cloudtotvs.com.br:8051"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => setIsEditingEndpoint(false)}
-                >
-                  <CheckCircle className="h-3 w-3 text-green-600" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <code className="bg-muted px-2 py-1 rounded text-xs">
-                  {endpoint.replace('https://', '')}
-                </code>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => setIsEditingEndpoint(true)}
-                >
-                  <Server className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                </Button>
-              </div>
-            )}
-          </div>
+        <div className="text-center text-xs text-muted-foreground space-y-2">
+          {/* Endpoint Selection */}
+          {isLoadingEndpoints ? (
+            <div className="flex items-center justify-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Carregando endpoint...</span>
+            </div>
+          ) : endpoints.length > 1 ? (
+            <Select value={selectedEndpoint} onValueChange={handleEndpointChange}>
+              <SelectTrigger className="h-7 text-xs px-3 py-1 w-auto min-w-64 mx-auto">
+                <SelectValue placeholder="Selecione o endpoint" />
+              </SelectTrigger>
+              <SelectContent>
+                {endpoints.map((endpoint) => (
+                  <SelectItem key={endpoint.url} value={endpoint.url}>
+                    {endpoint.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-xs text-muted-foreground">
+              {selectedEndpoint ? selectedEndpoint.replace('https://', '').replace('http://', '') : 'Carregando...'}
+            </div>
+          )}
+          
+          {/* Copyright */}
           <p>© 2024 TOTVS S.A. Todos os direitos reservados.</p>
         </div>
       </div>

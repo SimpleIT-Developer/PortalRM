@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sidebar } from "@/components/navigation/sidebar";
 import { MobileMenuButton } from "@/components/navigation/mobile-menu-button";
+import { TokenIndicator } from "@/components/ui/token-indicator";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePermissions } from "@/hooks/use-permissions";
 import { 
   LogOut,
   Box,
@@ -15,22 +17,20 @@ import { useToast } from "@/hooks/use-toast";
 
 // Import pages
 import TokenInfoPage from "./token-info";
-import GlobaisPage from "./globais";
-import PlaceholderPage from "./placeholder";
-import ContasPagarLancamentosPage from "./contas-pagar-lancamentos";
+import SolicitacaoCompras from "./solicitacao-compras";
+import LancamentosContasPagar from "./lancamentos-contas-pagar";
+import AssistenteVirtual from "./assistente-virtual";
 
-// Import icons for placeholder pages
+// Import icons for dashboard cards
 import { 
-  CreditCard, 
-  Banknote, 
-  Wallet, 
-  FileText, 
-  ShoppingCart, 
-  ClipboardList, 
-  Package, 
-  Truck, 
-  Receipt,
-  Settings
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users,
+  ShoppingCart,
+  BarChart3,
+  PieChart,
+  Activity
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -39,6 +39,23 @@ export default function DashboardPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
   const { toast } = useToast();
+
+  // Hook para gerenciar permissões do usuário
+  const { 
+    hasGestaoComprasPermission,
+    hasGestaoFinanceiraPermission,
+    loading: permissionsLoading, 
+    error: permissionsError,
+    permissions,
+    refetch: refetchPermissions 
+  } = usePermissions(token?.username || null);
+
+  // Debug info para o Sidebar
+  const debugInfo = {
+    username: token?.username,
+    permissions,
+    loading: permissionsLoading
+  };
 
 
 
@@ -72,10 +89,26 @@ export default function DashboardPage() {
     });
   };
 
+  const handleTokenRefresh = (newToken: StoredToken) => {
+    setToken(newToken);
+  };
+
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Mostrar loading enquanto carrega as permissões
+  if (permissionsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando permissões...</p>
+        </div>
       </div>
     );
   }
@@ -98,6 +131,7 @@ export default function DashboardPage() {
                 <span>Bem-vindo, </span>
                 <span className="font-medium text-foreground">{token.username}</span>
               </div>
+              <TokenIndicator token={token} onTokenRefresh={handleTokenRefresh} />
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Sair</span>
@@ -110,14 +144,22 @@ export default function DashboardPage() {
       <div className="flex">
         {/* Desktop Sidebar */}
         {!isMobile && (
-          <Sidebar className="hidden md:block" />
+          <Sidebar 
+            className="hidden md:block" 
+            hasGestaoComprasPermission={hasGestaoComprasPermission}
+            hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
+            debugInfo={debugInfo}
+          />
         )}
 
         {/* Mobile Sidebar */}
-        <Sidebar 
-          isMobile 
-          isOpen={mobileMenuOpen} 
-          onClose={() => setMobileMenuOpen(false)} 
+        <Sidebar
+          isMobile
+          isOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          hasGestaoComprasPermission={hasGestaoComprasPermission}
+          hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
+          debugInfo={debugInfo}
         />
 
         {/* Main Content */}
@@ -129,127 +171,292 @@ export default function DashboardPage() {
   );
 }
 
+// Define all valid routes and their components
+const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Element)> = {
+  '/dashboard': DashboardHome,
+  '/dashboard/token-info': TokenInfoPage,
+  '/dashboard/solicitacao-compras': SolicitacaoCompras,
+  '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
+  '/dashboard/assistente-virtual': AssistenteVirtual,
+};
+
 // Router component that handles all dashboard routes
 function DashboardContent({ location }: { location: string }) {
-  // Define all valid routes and their components
-  const routes: Record<string, React.ComponentType<any> | (() => JSX.Element)> = {
-    '/dashboard': DashboardHome,
-    '/dashboard/globais': GlobaisPage,
-    '/dashboard/parametros/token-info': TokenInfoPage,
-    '/dashboard/financeira/contas-pagar/lancamentos': ContasPagarLancamentosPage,
-    '/dashboard/financeira/contas-receber/lancamentos': () => (
-      <PlaceholderPage
-        title="Lançamentos - Contas a Receber"
-        description="Esta funcionalidade está em desenvolvimento. Gerencie os lançamentos de contas a receber."
-        icon={Banknote}
-      />
-    ),
-    '/dashboard/financeira/movimentacao-bancaria/conta-caixa': () => (
-      <PlaceholderPage
-        title="Conta/Caixa"
-        description="Esta funcionalidade está em desenvolvimento. Controle de contas e caixas bancárias."
-        icon={Wallet}
-      />
-    ),
-    '/dashboard/financeira/movimentacao-bancaria/extrato-caixa': () => (
-      <PlaceholderPage
-        title="Extrato de Caixa"
-        description="Esta funcionalidade está em desenvolvimento. Visualize extratos de movimentação de caixa."
-        icon={FileText}
-      />
-    ),
-    '/dashboard/compras-faturamento/compras/solicitacao-compras': () => (
-      <PlaceholderPage
-        title="Solicitação de Compras"
-        description="Esta funcionalidade está em desenvolvimento. Gerencie solicitações de compras."
-        icon={ClipboardList}
-      />
-    ),
-    '/dashboard/compras-faturamento/compras/ordem-compras': () => (
-      <PlaceholderPage
-        title="Ordem de Compras"
-        description="Esta funcionalidade está em desenvolvimento. Controle de ordens de compras."
-        icon={FileText}
-      />
-    ),
-    '/dashboard/compras-faturamento/compras/recebimento-materiais': () => (
-      <PlaceholderPage
-        title="Recebimento de Materiais"
-        description="Esta funcionalidade está em desenvolvimento. Controle de recebimento de materiais."
-        icon={Package}
-      />
-    ),
-    '/dashboard/compras-faturamento/compras/aquisicao-servicos': () => (
-      <PlaceholderPage
-        title="Aquisição de Serviços"
-        description="Esta funcionalidade está em desenvolvimento. Gerencie aquisições de serviços."
-        icon={Truck}
-      />
-    ),
-    '/dashboard/compras-faturamento/faturamento/pedido-venda': () => (
-      <PlaceholderPage
-        title="Pedido de Venda"
-        description="Esta funcionalidade está em desenvolvimento. Gerencie pedidos de venda."
-        icon={ClipboardList}
-      />
-    ),
-    '/dashboard/compras-faturamento/faturamento/faturamento': () => (
-      <PlaceholderPage
-        title="Faturamento"
-        description="Esta funcionalidade está em desenvolvimento. Controle de faturamento."
-        icon={Receipt}
-      />
-    ),
-  };
+  const [, setLocation] = useLocation();
+  const token = AuthService.getStoredToken();
+  const { hasGestaoComprasPermission, hasGestaoFinanceiraPermission } = usePermissions(token?.username || null);
 
-  // Find the matching route or use default
-  const RouteComponent = routes[location];
-  
-  if (RouteComponent) {
-    return <RouteComponent />;
+  // Verificar permissões para rotas protegidas
+  if (location === '/dashboard/solicitacao-compras' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
   }
 
-  // Default fallback for any unmatched route
-  return (
-    <PlaceholderPage
-      title="Funcionalidade em Desenvolvimento"
-      description="Esta funcionalidade está sendo desenvolvida e estará disponível em breve."
-      icon={Settings}
-    />
-  );
+  if (location === '/dashboard/lancamentos-contas-pagar' && !hasGestaoFinanceiraPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  // Render the appropriate component based on the current location
+  const Component = dashboardRoutes[location] || dashboardRoutes['/dashboard'];
+  return <Component />;
 }
 
 function DashboardHome() {
+  // Dados simulados para demonstração
+  const metricsData = [
+    {
+      title: "Receita Total",
+      value: "R$ 125.430,00",
+      change: "+12.5%",
+      trend: "up",
+      icon: DollarSign,
+      color: "text-green-600"
+    },
+    {
+      title: "Vendas do Mês",
+      value: "1.234",
+      change: "+8.2%",
+      trend: "up",
+      icon: ShoppingCart,
+      color: "text-blue-600"
+    },
+    {
+      title: "Clientes Ativos",
+      value: "856",
+      change: "+5.1%",
+      trend: "up",
+      icon: Users,
+      color: "text-purple-600"
+    },
+    {
+      title: "Taxa de Conversão",
+      value: "3.2%",
+      change: "-2.1%",
+      trend: "down",
+      icon: Activity,
+      color: "text-orange-600"
+    }
+  ];
+
+  const salesData = [
+    { month: "Jan", value: 45000 },
+    { month: "Fev", value: 52000 },
+    { month: "Mar", value: 48000 },
+    { month: "Abr", value: 61000 },
+    { month: "Mai", value: 55000 },
+    { month: "Jun", value: 67000 }
+  ];
+
+  const recentActivities = [
+    { id: 1, action: "Nova venda realizada", time: "2 min atrás", type: "sale" },
+    { id: 2, action: "Cliente cadastrado", time: "15 min atrás", type: "customer" },
+    { id: 3, action: "Pagamento recebido", time: "1 hora atrás", type: "payment" },
+    { id: 4, action: "Produto atualizado", time: "2 horas atrás", type: "product" },
+    { id: 5, action: "Relatório gerado", time: "3 horas atrás", type: "report" }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-medium text-foreground flex items-center">
-          <Home className="mr-2 h-6 w-6 text-primary" />
+        <h1 className="text-3xl font-bold text-foreground flex items-center">
+          <Home className="mr-3 h-8 w-8 text-primary" />
           Dashboard
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Bem-vindo ao sistema TOTVS RM
+        <p className="text-muted-foreground mt-2">
+          Visão geral do seu negócio e métricas importantes
         </p>
       </div>
 
-      {/* Welcome Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bem-vindo ao TOTVS RM</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground mb-4">
-            Utilize o menu lateral para navegar pelos módulos do sistema. Você pode acessar as funcionalidades de:
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-            <li>Configurações Globais</li>
-            <li>Gestão Financeira (Contas a Pagar, Contas a Receber, Movimentação Bancária)</li>
-            <li>Gestão de Compras e Faturamento</li>
-            <li>Parâmetros do Sistema</li>
-          </ul>
-        </CardContent>
-      </Card>
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {metricsData.map((metric, index) => {
+          const Icon = metric.icon;
+          const TrendIcon = metric.trend === "up" ? TrendingUp : TrendingDown;
+          
+          return (
+            <Card key={index} className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {metric.title}
+                    </p>
+                    <p className="text-2xl font-bold text-foreground mt-2">
+                      {metric.value}
+                    </p>
+                    <div className="flex items-center mt-2">
+                      <TrendIcon className={`h-4 w-4 mr-1 ${
+                        metric.trend === "up" ? "text-green-600" : "text-red-600"
+                      }`} />
+                      <span className={`text-sm font-medium ${
+                        metric.trend === "up" ? "text-green-600" : "text-red-600"
+                      }`}>
+                        {metric.change}
+                      </span>
+                      <span className="text-sm text-muted-foreground ml-1">
+                        vs mês anterior
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`p-3 rounded-full bg-muted ${metric.color}`}>
+                    <Icon className="h-6 w-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Sales Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart3 className="mr-2 h-5 w-5 text-primary" />
+              Vendas dos Últimos 6 Meses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {salesData.map((item, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {item.month}
+                  </span>
+                  <div className="flex items-center space-x-2 flex-1 mx-4">
+                    <div className="flex-1 bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(item.value / 70000) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-foreground">
+                    R$ {(item.value / 1000).toFixed(0)}k
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activities */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Activity className="mr-2 h-5 w-5 text-primary" />
+              Atividades Recentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {activity.action}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {activity.time}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <PieChart className="mr-2 h-5 w-5 text-primary" />
+              Distribuição de Vendas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Produtos</span>
+                <span className="text-sm font-medium">65%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full" style={{ width: "65%" }} />
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Serviços</span>
+                <span className="text-sm font-medium">35%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div className="bg-green-600 h-2 rounded-full" style={{ width: "35%" }} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Metas do Mês</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Vendas</span>
+                  <span className="text-sm font-medium">78%</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full" style={{ width: "78%" }} />
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Receita</span>
+                  <span className="text-sm font-medium">92%</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-green-600 h-2 rounded-full" style={{ width: "92%" }} />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo Financeiro</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Receita Bruta</span>
+                <span className="text-sm font-medium text-green-600">R$ 125.430</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Despesas</span>
+                <span className="text-sm font-medium text-red-600">R$ 45.230</span>
+              </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Lucro Líquido</span>
+                  <span className="text-sm font-bold text-green-600">R$ 80.200</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

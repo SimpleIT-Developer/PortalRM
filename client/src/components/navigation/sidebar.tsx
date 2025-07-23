@@ -1,26 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { 
-  ChevronDown, 
-  ChevronRight,
-  Globe,
-  DollarSign,
-  CreditCard,
-  Receipt,
-  Banknote,
-  Wallet,
-  FileText,
-  ShoppingCart,
-  ClipboardList,
-  Package,
-  Truck,
+  Home,
+  Menu,
+  X,
   Settings,
   Key,
-  Menu,
-  X
+  ShoppingCart,
+  FileText,
+  DollarSign,
+  Receipt,
+  MessageCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,119 +27,42 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    id: "globais",
-    label: "Globais",
-    icon: Globe,
-    path: "/dashboard/globais",
+    id: "dashboard",
+    label: "Dashboard",
+    icon: Home,
+    path: "/dashboard",
   },
   {
-    id: "financeira",
+    id: "gestao-compras",
+    label: "Gestão de Compras",
+    icon: ShoppingCart,
+    children: [
+      {
+        id: "solicitacao-compras",
+        label: "Solicitação de Compras",
+        icon: FileText,
+        path: "/dashboard/solicitacao-compras",
+      },
+    ],
+  },
+  {
+    id: "gestao-financeira",
     label: "Gestão Financeira",
     icon: DollarSign,
     children: [
       {
-        id: "contas-pagar",
+        id: "lancamentos-contas-pagar",
         label: "Contas a Pagar",
-        icon: CreditCard,
-        children: [
-          {
-            id: "lancamentos-pagar",
-            label: "Lançamentos",
-            icon: Receipt,
-            path: "/dashboard/financeira/contas-pagar/lancamentos",
-          },
-        ],
-      },
-      {
-        id: "contas-receber",
-        label: "Contas a Receber",
-        icon: Banknote,
-        children: [
-          {
-            id: "lancamentos-receber",
-            label: "Lançamentos",
-            icon: Receipt,
-            path: "/dashboard/financeira/contas-receber/lancamentos",
-          },
-        ],
-      },
-      {
-        id: "movimentacao-bancaria",
-        label: "Movimentação Bancária",
-        icon: Wallet,
-        children: [
-          {
-            id: "conta-caixa",
-            label: "Conta/Caixa",
-            icon: Wallet,
-            path: "/dashboard/financeira/movimentacao-bancaria/conta-caixa",
-          },
-          {
-            id: "extrato-caixa",
-            label: "Extrato de Caixa",
-            icon: FileText,
-            path: "/dashboard/financeira/movimentacao-bancaria/extrato-caixa",
-          },
-        ],
+        icon: Receipt,
+        path: "/dashboard/lancamentos-contas-pagar",
       },
     ],
   },
   {
-    id: "compras-faturamento",
-    label: "Compras e Faturamento",
-    icon: ShoppingCart,
-    children: [
-      {
-        id: "compras",
-        label: "Compras",
-        icon: ShoppingCart,
-        children: [
-          {
-            id: "solicitacao-compras",
-            label: "Solicitação de Compras",
-            icon: ClipboardList,
-            path: "/dashboard/compras-faturamento/compras/solicitacao-compras",
-          },
-          {
-            id: "ordem-compras",
-            label: "Ordem de Compras",
-            icon: FileText,
-            path: "/dashboard/compras-faturamento/compras/ordem-compras",
-          },
-          {
-            id: "recebimento-materiais",
-            label: "Recebimento de Materiais",
-            icon: Package,
-            path: "/dashboard/compras-faturamento/compras/recebimento-materiais",
-          },
-          {
-            id: "aquisicao-servicos",
-            label: "Aquisição de Serviços",
-            icon: Truck,
-            path: "/dashboard/compras-faturamento/compras/aquisicao-servicos",
-          },
-        ],
-      },
-      {
-        id: "faturamento",
-        label: "Faturamento",
-        icon: Receipt,
-        children: [
-          {
-            id: "pedido-venda",
-            label: "Pedido de Venda",
-            icon: ClipboardList,
-            path: "/dashboard/compras-faturamento/faturamento/pedido-venda",
-          },
-          {
-            id: "faturamento-vendas",
-            label: "Faturamento",
-            icon: Receipt,
-            path: "/dashboard/compras-faturamento/faturamento/faturamento",
-          },
-        ],
-      },
-    ],
+    id: "assistente-virtual",
+    label: "Assistente Virtual",
+    icon: MessageCircle,
+    path: "/dashboard/assistente-virtual",
   },
   {
     id: "parametros",
@@ -154,10 +70,10 @@ const menuItems: MenuItem[] = [
     icon: Settings,
     children: [
       {
-        id: "informacoes-token",
+        id: "token-info",
         label: "Informações do Token",
         icon: Key,
-        path: "/dashboard/parametros/token-info",
+        path: "/dashboard/token-info",
       },
     ],
   },
@@ -168,39 +84,202 @@ interface SidebarProps {
   isMobile?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
+  hasGestaoComprasPermission?: boolean;
+  hasGestaoFinanceiraPermission?: boolean;
+  debugInfo?: {
+    username?: string;
+    permissions?: any;
+    loading?: boolean;
+  };
 }
 
-export function Sidebar({ className, isMobile = false, isOpen = true, onClose }: SidebarProps) {
+export function Sidebar({ 
+  className, 
+  isMobile = false, 
+  isOpen = true, 
+  onClose,
+  hasGestaoComprasPermission = false,
+  hasGestaoFinanceiraPermission = false,
+  debugInfo
+}: SidebarProps) {
   const [location] = useLocation();
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["financeira", "compras-faturamento", "parametros"]));
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const toggleExpanded = (itemId: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(itemId)) {
-      newExpanded.delete(itemId);
-    } else {
-      newExpanded.add(itemId);
+    // Se for o menu de Gestão de Compras e não tiver permissão, não permitir expansão
+    if (itemId === 'gestao-compras' && !hasGestaoComprasPermission) {
+      return;
     }
-    setExpandedItems(newExpanded);
+    
+    // Se for o menu de Gestão Financeira e não tiver permissão, não permitir expansão
+    if (itemId === 'gestao-financeira' && !hasGestaoFinanceiraPermission) {
+      return;
+    }
+    
+    setExpandedItems(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId) 
+        : [...prev, itemId]
+    );
   };
 
-  const renderMenuItem = (item: MenuItem, level: number = 0) => {
-    const isExpanded = expandedItems.has(item.id);
-    const hasChildren = item.children && item.children.length > 0;
+  const renderMenuItem = (item: MenuItem) => {
     const isActive = item.path === location;
     const Icon = item.icon;
+    const hasChildren = item.children && item.children.length > 0;
+    const isExpanded = expandedItems.includes(item.id);
+    
+    // Verificar se o item está desabilitado por falta de permissão
+    const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
+                      (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
+
+    if (hasChildren) {
+      return (
+        <div key={item.id} className="w-full">
+          <Button
+            variant="ghost"
+            disabled={isDisabled}
+            className={cn(
+              "w-full justify-start text-left h-auto py-2 px-3",
+              isDisabled 
+                ? "opacity-50 cursor-not-allowed text-muted-foreground" 
+                : "hover:bg-muted/50"
+            )}
+            onClick={() => toggleExpanded(item.id)}
+          >
+            <Icon className={cn("mr-2 h-4 w-4 shrink-0", isDisabled && "opacity-50")} />
+            <span className="truncate">{item.label}</span>
+            {!isDisabled && (
+              <span className="ml-auto">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={cn("transition-transform", isExpanded ? "rotate-180" : "")}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </span>
+            )}
+            {isDisabled && (
+              <span className="ml-auto text-xs text-muted-foreground">🔒</span>
+            )}
+          </Button>
+          {isExpanded && item.children && !isDisabled && (
+            <div className="pl-4 mt-1 space-y-1">
+              {item.children.map(child => {
+                const isChildActive = child.path === location;
+                const ChildIcon = child.icon;
+                const hasGrandchildren = child.children && child.children.length > 0;
+                const isChildExpanded = expandedItems.includes(child.id);
+                
+                if (hasGrandchildren) {
+                  return (
+                    <div key={child.id} className="w-full">
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          "w-full justify-start text-left h-auto py-2 px-3",
+                          "hover:bg-muted/50"
+                        )}
+                        onClick={() => toggleExpanded(child.id)}
+                      >
+                        <ChildIcon className="mr-2 h-4 w-4 shrink-0" />
+                        <span className="truncate">{child.label}</span>
+                        <span className="ml-auto">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={cn("transition-transform", isChildExpanded ? "rotate-180" : "")}
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </span>
+                      </Button>
+                      {isChildExpanded && child.children && (
+                        <div className="pl-4 mt-1 space-y-1">
+                          {child.children.map(grandchild => {
+                            const isGrandchildActive = grandchild.path === location;
+                            const GrandchildIcon = grandchild.icon;
+                            
+                            return (
+                              <Link key={grandchild.id} href={grandchild.path!}>
+                                <Button
+                                  variant={isGrandchildActive ? "secondary" : "ghost"}
+                                  className={cn(
+                                    "w-full justify-start text-left h-auto py-2 px-3",
+                                    "hover:bg-muted/50"
+                                  )}
+                                  onClick={() => isMobile && onClose?.()}
+                                >
+                                  <GrandchildIcon className="mr-2 h-4 w-4 shrink-0" />
+                                  <span className="truncate">{grandchild.label}</span>
+                                </Button>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                
+                return (
+                  <Link key={child.id} href={child.path!}>
+                    <Button
+                      variant={isChildActive ? "secondary" : "ghost"}
+                      className={cn(
+                        "w-full justify-start text-left h-auto py-2 px-3",
+                        "hover:bg-muted/50"
+                      )}
+                      onClick={() => isMobile && onClose?.()}
+                    >
+                      <ChildIcon className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="truncate">{child.label}</span>
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div key={item.id} className="w-full">
-        {item.path ? (
-          <Link href={item.path}>
+        {isDisabled ? (
+          <Button
+            variant="ghost"
+            disabled
+            className={cn(
+              "w-full justify-start text-left h-auto py-2 px-3",
+              "opacity-50 cursor-not-allowed text-muted-foreground"
+            )}
+          >
+            <Icon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <span className="truncate">{item.label}</span>
+            <span className="ml-auto text-xs">🔒</span>
+          </Button>
+        ) : (
+          <Link href={item.path!}>
             <Button
               variant={isActive ? "secondary" : "ghost"}
               className={cn(
                 "w-full justify-start text-left h-auto py-2 px-3",
-                level === 1 && "ml-4 pl-4",
-                level === 2 && "ml-8 pl-6", 
-                level >= 3 && "ml-12 pl-8",
                 "hover:bg-muted/50"
               )}
               onClick={() => isMobile && onClose?.()}
@@ -209,36 +288,6 @@ export function Sidebar({ className, isMobile = false, isOpen = true, onClose }:
               <span className="truncate">{item.label}</span>
             </Button>
           </Link>
-        ) : (
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-between text-left h-auto py-2 px-3",
-              level === 1 && "ml-4 pl-4",
-              level === 2 && "ml-8 pl-6", 
-              level >= 3 && "ml-12 pl-8",
-              "hover:bg-muted/50"
-            )}
-            onClick={() => toggleExpanded(item.id)}
-          >
-            <div className="flex items-center">
-              <Icon className="mr-2 h-4 w-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </div>
-            {hasChildren && (
-              isExpanded ? (
-                <ChevronDown className="h-4 w-4 shrink-0" />
-              ) : (
-                <ChevronRight className="h-4 w-4 shrink-0" />
-              )
-            )}
-          </Button>
-        )}
-        
-        {hasChildren && isExpanded && (
-          <div className="mt-1 space-y-1">
-            {item.children!.map((child) => renderMenuItem(child, level + 1))}
-          </div>
         )}
       </div>
     );
@@ -249,7 +298,7 @@ export function Sidebar({ className, isMobile = false, isOpen = true, onClose }:
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Menu Principal</h2>
+          <h2 className="text-lg font-medium">Dashboard</h2>
           {isMobile && (
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />

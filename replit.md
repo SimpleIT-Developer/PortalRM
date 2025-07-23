@@ -51,7 +51,6 @@ The application follows a modern full-stack architecture with clear separation b
 - **Dashboard System** (`/dashboard/*`): Complete navigation system with sidebar menu
 - **Navigation Structure**:
   - **Globais** (`/dashboard/globais`): Global system configurations
-  - **Gestão Financeira**: Financial management with submenus for accounts payable/receivable and bank transactions
   - **Compras e Faturamento**: Purchase and billing management with detailed submenus
   - **Parâmetros** (`/dashboard/parametros/*`): System parameters including token information
 - **Responsive Design**: Mobile-friendly sidebar with overlay navigation
