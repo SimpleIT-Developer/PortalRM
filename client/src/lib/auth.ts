@@ -26,30 +26,27 @@ export class AuthService {
   private static readonly TOKEN_KEY = "totvs_token";
 
   static async authenticate(credentials: TotvsLoginRequest & { endpoint: string }): Promise<TotvsTokenResponse> {
-    const { endpoint, ...requestData } = credentials;
-    const fullUrl = `${endpoint}${TOKEN_ENDPOINT}`;
-    
-    console.log("🔗 Tentando autenticar em:", fullUrl);
-    console.log("📤 Dados da requisição:", requestData);
+    console.log("🔗 Autenticando via proxy backend");
+    console.log("📤 Dados da requisição:", credentials);
     
     try {
-      const response = await fetch(fullUrl, {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify(credentials),
       });
       
-      console.log("📥 Resposta recebida - Status:", response.status);
-      return await this.handleAuthResponse(response, fullUrl);
+      console.log("📥 Resposta do proxy - Status:", response.status);
+      return await this.handleAuthResponse(response, credentials.endpoint);
       
     } catch (error) {
       console.error("❌ Erro na requisição:", error);
       
       if (error instanceof TypeError && error.message.includes("fetch")) {
-        const friendlyMessage = "Não foi possível conectar ao servidor TOTVS. Verifique se o endpoint está correto e acessível.";
-        const technicalDetails = `Falha na conexão com ${fullUrl}: ${error.message}`;
+        const friendlyMessage = "Não foi possível conectar ao servidor de autenticação. Tente novamente.";
+        const technicalDetails = `Falha na conexão: ${error.message}`;
         throw new AuthenticationError(friendlyMessage, technicalDetails);
       }
       
@@ -141,13 +138,17 @@ export class AuthService {
         bodyString: requestBody
       });
       
-      // Importante: Usar o mesmo formato que o método authenticate (application/json)
-      const response = await fetch(tokenUrl, {
+      // Usar proxy backend para evitar problemas de CORS
+      console.log("🔄 Usando proxy backend para renovar token");
+      const response = await fetch("/api/auth/refresh", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(refreshRequest),
+        body: JSON.stringify({
+          endpoint: currentToken.endpoint,
+          ...refreshRequest
+        }),
       });
 
       // Log da resposta para debug

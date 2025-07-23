@@ -33,8 +33,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Note: Authentication is handled directly by the frontend against TOTVS servers
-  // This backend serves as a bridge if needed for CORS or additional processing
+  // TOTVS Authentication Proxy - handles CORS issues
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { endpoint, ...credentials } = req.body;
+      
+      if (!endpoint) {
+        return res.status(400).json({ error: "Endpoint é obrigatório" });
+      }
+
+      console.log("🔗 Proxy - Autenticando em:", `${endpoint}/api/connect/token`);
+      console.log("📤 Proxy - Dados:", credentials);
+
+      const response = await fetch(`${endpoint}/api/connect/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.log("⚠️ Proxy - Erro:", response.status, data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log("✅ Proxy - Sucesso");
+      res.json(data);
+    } catch (error) {
+      console.error("❌ Proxy - Erro:", error);
+      res.status(500).json({ 
+        error: "Erro interno do servidor",
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
+  // TOTVS Token Refresh Proxy
+  app.post("/api/auth/refresh", async (req, res) => {
+    try {
+      const { endpoint, ...refreshData } = req.body;
+      
+      if (!endpoint) {
+        return res.status(400).json({ error: "Endpoint é obrigatório" });
+      }
+
+      console.log("🔄 Proxy - Renovando token em:", `${endpoint}/api/connect/token`);
+
+      const response = await fetch(`${endpoint}/api/connect/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(refreshData),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.log("⚠️ Proxy - Erro na renovação:", response.status, data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log("✅ Proxy - Token renovado com sucesso");
+      res.json(data);
+    } catch (error) {
+      console.error("❌ Proxy - Erro na renovação:", error);
+      res.status(500).json({ 
+        error: "Erro interno do servidor",
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
 
   const httpServer = createServer(app);
 
