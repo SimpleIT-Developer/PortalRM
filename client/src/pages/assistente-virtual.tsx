@@ -235,7 +235,7 @@ export default function AssistenteVirtual() {
                       ? 'bg-blue-600 text-white rounded-br-md'
                       : 'bg-white text-gray-800 rounded-bl-md border border-gray-200'
                   )}>
-                    {message.content}
+                    <pre className="whitespace-pre-wrap font-sans">{message.content}</pre>
                   </div>
                   <div className={cn(
                     "text-xs text-gray-400 mt-2 px-1",
