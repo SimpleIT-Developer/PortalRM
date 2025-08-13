@@ -20,6 +20,7 @@ import TokenInfoPage from "./token-info";
 import SolicitacaoCompras from "./solicitacao-compras";
 import LancamentosContasPagar from "./lancamentos-contas-pagar";
 import AssistenteVirtual from "./assistente-virtual";
+import AssistenteVirtualRH from "./assistente-virtual-rh";
 
 // Import icons for dashboard cards
 import { 
@@ -145,7 +146,7 @@ export default function DashboardPage() {
         {/* Desktop Sidebar */}
         {!isMobile && (
           <Sidebar 
-            className="hidden md:block" 
+            className="hidden md:block h-[calc(100vh-4rem)] sticky top-16" 
             hasGestaoComprasPermission={hasGestaoComprasPermission}
             hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
             debugInfo={debugInfo}
@@ -163,7 +164,7 @@ export default function DashboardPage() {
         />
 
         {/* Main Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
           <DashboardContent location={location} />
         </main>
       </div>
@@ -178,6 +179,7 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/solicitacao-compras': SolicitacaoCompras,
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
   '/dashboard/assistente-virtual': AssistenteVirtual,
+  '/dashboard/assistente-virtual-rh': AssistenteVirtualRH,
 };
 
 // Router component that handles all dashboard routes

@@ -59,10 +59,23 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    id: "assistente-virtual",
-    label: "Assistente Virtual",
+    id: "assistentes-virtuais",
+    label: "Assistentes Virtuais",
     icon: MessageCircle,
-    path: "/dashboard/assistente-virtual",
+    children: [
+      {
+        id: "assistente-virtual-financeiro",
+        label: "Assistente Virtual - Financeiro",
+        icon: MessageCircle,
+        path: "/dashboard/assistente-virtual",
+      },
+      {
+        id: "assistente-virtual-rh",
+        label: "Assistente Virtual - RH",
+        icon: MessageCircle,
+        path: "/dashboard/assistente-virtual-rh",
+      },
+    ],
   },
   {
     id: "parametros",
@@ -140,15 +153,15 @@ export function Sidebar({
             variant="ghost"
             disabled={isDisabled}
             className={cn(
-              "w-full justify-start text-left h-auto py-2 px-3",
+              "w-full justify-start text-left h-auto py-2.5 px-4",
               isDisabled 
                 ? "opacity-50 cursor-not-allowed text-muted-foreground" 
                 : "hover:bg-muted/50"
             )}
             onClick={() => toggleExpanded(item.id)}
           >
-            <Icon className={cn("mr-2 h-4 w-4 shrink-0", isDisabled && "opacity-50")} />
-            <span className="truncate">{item.label}</span>
+            <Icon className={cn("mr-2.5 h-4 w-4 shrink-0", isDisabled && "opacity-50")} />
+            <span className="truncate text-sm">{item.label}</span>
             {!isDisabled && (
               <span className="ml-auto">
                 <svg
@@ -172,7 +185,7 @@ export function Sidebar({
             )}
           </Button>
           {isExpanded && item.children && !isDisabled && (
-            <div className="pl-4 mt-1 space-y-1">
+            <div className="pl-5 mt-2 space-y-2">
               {item.children.map(child => {
                 const isChildActive = child.path === location;
                 const ChildIcon = child.icon;
@@ -185,13 +198,13 @@ export function Sidebar({
                       <Button
                         variant="ghost"
                         className={cn(
-                          "w-full justify-start text-left h-auto py-2 px-3",
+                          "w-full justify-start text-left h-auto py-2.5 px-4",
                           "hover:bg-muted/50"
                         )}
                         onClick={() => toggleExpanded(child.id)}
                       >
-                        <ChildIcon className="mr-2 h-4 w-4 shrink-0" />
-                        <span className="truncate">{child.label}</span>
+                        <ChildIcon className="mr-2.5 h-4 w-4 shrink-0" />
+                        <span className="truncate text-sm">{child.label}</span>
                         <span className="ml-auto">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -210,7 +223,7 @@ export function Sidebar({
                         </span>
                       </Button>
                       {isChildExpanded && child.children && (
-                        <div className="pl-4 mt-1 space-y-1">
+                        <div className="pl-5 mt-2 space-y-2">
                           {child.children.map(grandchild => {
                             const isGrandchildActive = grandchild.path === location;
                             const GrandchildIcon = grandchild.icon;
@@ -220,13 +233,13 @@ export function Sidebar({
                                 <Button
                                   variant={isGrandchildActive ? "secondary" : "ghost"}
                                   className={cn(
-                                    "w-full justify-start text-left h-auto py-2 px-3",
+                                    "w-full justify-start text-left h-auto py-2.5 px-4",
                                     "hover:bg-muted/50"
                                   )}
                                   onClick={() => isMobile && onClose?.()}
                                 >
-                                  <GrandchildIcon className="mr-2 h-4 w-4 shrink-0" />
-                                  <span className="truncate">{grandchild.label}</span>
+                                  <GrandchildIcon className="mr-2.5 h-4 w-4 shrink-0" />
+                                  <span className="truncate text-sm">{grandchild.label}</span>
                                 </Button>
                               </Link>
                             );
@@ -242,13 +255,13 @@ export function Sidebar({
                     <Button
                       variant={isChildActive ? "secondary" : "ghost"}
                       className={cn(
-                        "w-full justify-start text-left h-auto py-2 px-3",
+                        "w-full justify-start text-left h-auto py-2.5 px-4",
                         "hover:bg-muted/50"
                       )}
                       onClick={() => isMobile && onClose?.()}
                     >
-                      <ChildIcon className="mr-2 h-4 w-4 shrink-0" />
-                      <span className="truncate">{child.label}</span>
+                      <ChildIcon className="mr-2.5 h-4 w-4 shrink-0" />
+                      <span className="truncate text-sm">{child.label}</span>
                     </Button>
                   </Link>
                 );
@@ -266,12 +279,12 @@ export function Sidebar({
             variant="ghost"
             disabled
             className={cn(
-              "w-full justify-start text-left h-auto py-2 px-3",
+              "w-full justify-start text-left h-auto py-2.5 px-4",
               "opacity-50 cursor-not-allowed text-muted-foreground"
             )}
           >
-            <Icon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-            <span className="truncate">{item.label}</span>
+            <Icon className="mr-2.5 h-4 w-4 shrink-0 opacity-50" />
+            <span className="truncate text-sm">{item.label}</span>
             <span className="ml-auto text-xs">🔒</span>
           </Button>
         ) : (
@@ -279,13 +292,13 @@ export function Sidebar({
             <Button
               variant={isActive ? "secondary" : "ghost"}
               className={cn(
-                "w-full justify-start text-left h-auto py-2 px-3",
+                "w-full justify-start text-left h-auto py-2.5 px-4",
                 "hover:bg-muted/50"
               )}
               onClick={() => isMobile && onClose?.()}
             >
-              <Icon className="mr-2 h-4 w-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
+              <Icon className="mr-2.5 h-4 w-4 shrink-0" />
+              <span className="truncate text-sm">{item.label}</span>
             </Button>
           </Link>
         )}
@@ -298,7 +311,7 @@ export function Sidebar({
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Dashboard</h2>
+          <h2 className="text-lg font-semibold">Portal RM</h2>
           {isMobile && (
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -308,8 +321,8 @@ export function Sidebar({
       </div>
 
       {/* Menu Items */}
-      <ScrollArea className="flex-1 p-2">
-        <div className="space-y-1">
+      <ScrollArea className="flex-1 p-3">
+        <div className="space-y-2">
           {menuItems.map((item) => renderMenuItem(item))}
         </div>
       </ScrollArea>
@@ -319,7 +332,7 @@ export function Sidebar({
   if (isMobile) {
     return isOpen ? (
       <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="fixed inset-y-0 left-0 w-72 bg-card border-r border-border shadow-lg">
+        <div className="fixed inset-y-0 left-0 w-80 bg-card border-r border-border shadow-lg">
           {sidebarContent}
         </div>
         <div className="fixed inset-0" onClick={onClose} />
@@ -328,7 +341,7 @@ export function Sidebar({
   }
 
   return (
-    <div className={cn("w-64 bg-card border-r border-border", className)}>
+    <div className={cn("w-72 bg-card border-r border-border", className)}>
       {sidebarContent}
     </div>
   );

@@ -14,7 +14,7 @@ interface Message {
   timestamp: Date;
 }
 
-export default function AssistenteVirtual() {
+export default function AssistenteVirtualRH() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,12 +71,12 @@ export default function AssistenteVirtual() {
         if (data.output) {
           addMessage(data.output, 'bot');
         } else {
-          addMessage('Olá! 👋 Sou seu assistente virtual. Como posso ajudá-lo hoje?', 'bot');
+          addMessage('Olá! 👋 Sou seu assistente virtual de RH. Como posso ajudá-lo hoje?', 'bot');
         }
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem de boas-vindas:', error);
-      addMessage('Olá! 👋 Sou seu assistente virtual. Como posso ajudá-lo hoje?', 'bot');
+      addMessage('Olá! 👋 Sou seu assistente virtual de RH. Como posso ajudá-lo hoje?', 'bot');
     }
     
     // Focar no input após mensagem de boas-vindas
@@ -178,11 +178,11 @@ export default function AssistenteVirtual() {
       <div className="pb-6 border-b bg-white/80 backdrop-blur-sm">
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <MessageCircle className="h-8 w-8 text-blue-600" />
+            <MessageCircle className="h-8 w-8 text-purple-600" />
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Assistente Virtual - Financeiro</h1>
+            <h1 className="text-xl font-semibold text-gray-900">Assistente Virtual - RH</h1>
             <p className="text-sm text-gray-500">Online • Responde em segundos</p>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function AssistenteVirtual() {
               <div className="flex items-center justify-center h-32 text-gray-500">
                 <div className="text-center">
                   <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">Inicie uma conversa com o assistente virtual</p>
+                  <p className="text-sm">Inicie uma conversa com o assistente virtual de RH</p>
                 </div>
               </div>
             )}
@@ -214,7 +214,7 @@ export default function AssistenteVirtual() {
                 <div className={cn(
                   "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm",
                   message.sender === 'user' 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-purple-600 text-white' 
                     : 'bg-gray-100 text-gray-600 border border-gray-200'
                 )}>
                   {message.sender === 'user' ? (
@@ -232,7 +232,7 @@ export default function AssistenteVirtual() {
                   <div className={cn(
                     "inline-block px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm",
                     message.sender === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-md'
+                      ? 'bg-purple-600 text-white rounded-br-md'
                       : 'bg-white text-gray-800 rounded-bl-md border border-gray-200'
                   )}>
                     {message.content}
@@ -278,13 +278,13 @@ export default function AssistenteVirtual() {
               onKeyPress={handleKeyPress}
               placeholder="Digite sua mensagem..."
               disabled={isLoading}
-              className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              className="flex-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
             />
             <Button
               onClick={sendMessage}
               disabled={!inputValue.trim() || isLoading}
               size="icon"
-              className="bg-blue-600 hover:bg-blue-700 shadow-sm"
+              className="bg-purple-600 hover:bg-purple-700 shadow-sm"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
