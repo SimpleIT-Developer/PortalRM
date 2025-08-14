@@ -144,6 +144,15 @@ export function Sidebar({
   };
 
   const renderMenuItem = (item: MenuItem) => {
+    // Debug para assistentes virtuais
+    if (item.id === 'assistentes-virtuais') {
+      console.log('🔧 Renderizando assistentes-virtuais:', {
+        hasAssistenteVirtualRHPermission,
+        hasAssistenteVirtualFinanceiroPermission,
+        expandedItems,
+        isExpanded: expandedItems.includes(item.id)
+      });
+    }
     const isActive = item.path === location;
     const Icon = item.icon;
     const hasChildren = item.children && item.children.length > 0;
@@ -209,6 +218,16 @@ export function Sidebar({
                   const isChildDisabled = 
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
+                  
+                  // Debug para cada child
+                  if (item.id === 'assistentes-virtuais') {
+                    console.log(`🔍 Renderizando ${child.id}:`, {
+                      isChildDisabled,
+                      hasGrandchildren,
+                      willRenderDisabled: isChildDisabled,
+                      willShowLock: isChildDisabled
+                    });
+                  }
                   
                 
                 if (hasGrandchildren) {
