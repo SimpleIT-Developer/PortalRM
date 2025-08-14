@@ -164,6 +164,19 @@ export function Sidebar({
   };
 
   const renderMenuItem = (item: MenuItem) => {
+    // Debug específico para assistentes virtuais
+    if (item.id === 'assistentes-virtuais') {
+      console.log('🐛 DEBUG Assistentes Virtuais:', {
+        expandedItems,
+        isExpanded: expandedItems.includes(item.id),
+        hasAssistenteVirtualRHPermission,
+        hasAssistenteVirtualFinanceiroPermission,
+        children: item.children?.map(child => ({
+          id: child.id,
+          label: child.label
+        }))
+      });
+    }
     const isActive = item.path === location;
     const Icon = item.icon;
     const hasChildren = item.children && item.children.length > 0;
@@ -229,6 +242,15 @@ export function Sidebar({
                   const isChildDisabled = 
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
+                  
+                  // Debug para sub-menus dos assistentes virtuais
+                  if (item.id === 'assistentes-virtuais') {
+                    console.log(`🔍 SUB-MENU ${child.id}:`, {
+                      isChildDisabled,
+                      hasGrandchildren,
+                      willShowLock: isChildDisabled
+                    });
+                  }
                   
                   
                 
