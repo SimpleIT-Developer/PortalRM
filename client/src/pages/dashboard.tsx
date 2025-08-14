@@ -18,9 +18,13 @@ import { useToast } from "@/hooks/use-toast";
 // Import pages
 import TokenInfoPage from "./token-info";
 import SolicitacaoCompras from "./solicitacao-compras";
+import NovaSolicitacaoCompras from "./nova-solicitacao-compras";
 import LancamentosContasPagar from "./lancamentos-contas-pagar";
 import AssistenteVirtual from "./assistente-virtual";
 import AssistenteVirtualRH from "./assistente-virtual-rh";
+import DashboardFinanceiro from "./dashboard-financeiro";
+import DashboardCompras from "./dashboard-compras";
+import DashboardRH from "./dashboard-rh";
 
 // Import icons for dashboard cards
 import { 
@@ -45,6 +49,7 @@ export default function DashboardPage() {
   const { 
     hasGestaoComprasPermission,
     hasGestaoFinanceiraPermission,
+    hasGestaoRHPermission,
     loading: permissionsLoading, 
     error: permissionsError,
     permissions,
@@ -149,6 +154,7 @@ export default function DashboardPage() {
             className="hidden md:block h-[calc(100vh-4rem)] sticky top-16" 
             hasGestaoComprasPermission={hasGestaoComprasPermission}
             hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
+            hasGestaoRHPermission={hasGestaoRHPermission}
             hasAssistenteVirtualRHPermission={permissions?.MNULB !== 0}
             hasAssistenteVirtualFinanceiroPermission={permissions?.MNULF !== 0}
             debugInfo={debugInfo}
@@ -162,6 +168,7 @@ export default function DashboardPage() {
           onClose={() => setMobileMenuOpen(false)}
           hasGestaoComprasPermission={hasGestaoComprasPermission}
           hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
+          hasGestaoRHPermission={hasGestaoRHPermission}
           hasAssistenteVirtualRHPermission={permissions?.MNULB !== 0}
           hasAssistenteVirtualFinanceiroPermission={permissions?.MNULF !== 0}
           debugInfo={debugInfo}
@@ -181,9 +188,13 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard': DashboardHome,
   '/dashboard/token-info': TokenInfoPage,
   '/dashboard/solicitacao-compras': SolicitacaoCompras,
+  '/dashboard/nova-solicitacao-compras': NovaSolicitacaoCompras,
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
   '/dashboard/assistente-virtual': AssistenteVirtual,
   '/dashboard/assistente-virtual-rh': AssistenteVirtualRH,
+  '/dashboard/financeiro': DashboardFinanceiro,
+  '/dashboard/compras': DashboardCompras,
+  '/dashboard/rh': DashboardRH,
 };
 
 // Router component that handles all dashboard routes
@@ -193,6 +204,7 @@ function DashboardContent({ location }: { location: string }) {
   const { 
     hasGestaoComprasPermission, 
     hasGestaoFinanceiraPermission,
+    hasGestaoRHPermission,
     hasAssistenteVirtualRHPermission,
     hasAssistenteVirtualFinanceiroPermission
   } = usePermissions(token?.username || null);
@@ -205,6 +217,12 @@ function DashboardContent({ location }: { location: string }) {
   }
 
   if (location === '/dashboard/lancamentos-contas-pagar' && !hasGestaoFinanceiraPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+  
+  if (location === '/dashboard/nova-solicitacao-compras' && !hasGestaoComprasPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;

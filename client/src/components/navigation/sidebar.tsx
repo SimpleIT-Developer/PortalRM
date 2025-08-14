@@ -13,7 +13,8 @@ import {
   FileText,
   DollarSign,
   Receipt,
-  MessageCircle
+  MessageCircle,
+  Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,10 +28,35 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
+    id: "dashboard-principal",
+    label: "Dashboard Principal",
     icon: Home,
-    path: "/dashboard",
+    children: [
+      {
+        id: "dashboard",
+        label: "Dashboard Geral",
+        icon: Home,
+        path: "/dashboard",
+      },
+      {
+        id: "dashboard-financeiro",
+        label: "Dashboard Financeiro",
+        icon: DollarSign,
+        path: "/dashboard/financeiro",
+      },
+      {
+        id: "dashboard-compras",
+        label: "Dashboard Compras",
+        icon: ShoppingCart,
+        path: "/dashboard/compras",
+      },
+      {
+        id: "dashboard-rh",
+        label: "Dashboard RH",
+        icon: Users,
+        path: "/dashboard/rh",
+      },
+    ],
   },
   {
     id: "gestao-compras",
@@ -56,7 +82,19 @@ const menuItems: MenuItem[] = [
         icon: Receipt,
         path: "/dashboard/lancamentos-contas-pagar",
       },
+      {
+        id: "aprovacao-bordero",
+        label: "Aprovação de Borderô",
+        icon: Receipt,
+        path: "/dashboard/aprovacao-bordero",
+      },
     ],
+  },
+  {
+    id: "gestao-rh",
+    label: "Gestão de RH",
+    icon: Users,
+    children: [],
   },
   {
     id: "assistentes-virtuais",
@@ -99,6 +137,7 @@ interface SidebarProps {
   onClose?: () => void;
   hasGestaoComprasPermission?: boolean;
   hasGestaoFinanceiraPermission?: boolean;
+  hasGestaoRHPermission?: boolean;
   hasAssistenteVirtualRHPermission?: boolean;
   hasAssistenteVirtualFinanceiroPermission?: boolean;
   debugInfo?: {
@@ -115,6 +154,7 @@ export function Sidebar({
   onClose,
   hasGestaoComprasPermission = false,
   hasGestaoFinanceiraPermission = false,
+  hasGestaoRHPermission = false,
   hasAssistenteVirtualRHPermission = false,
   hasAssistenteVirtualFinanceiroPermission = false,
   debugInfo
@@ -167,6 +207,12 @@ export function Sidebar({
       return;
     }
     
+    // Se for o menu de Gestão de RH e não tiver permissão, não permitir expansão
+    if (itemId === 'gestao-rh' && !hasGestaoRHPermission) {
+      setIsToggling(false);
+      return;
+    }
+    
     // Removida a condição que impedia a expansão do menu de Assistentes Virtuais sem permissão
     // Agora o menu pode ser expandido mesmo sem permissão, mostrando os sub-menus com cadeados
     
@@ -198,7 +244,8 @@ export function Sidebar({
     // Verificar se o item está desabilitado por falta de permissão
     // Removida a verificação para o menu de Assistentes Virtuais
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
-                      (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
+                      (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission) ||
+                      (item.id === 'gestao-rh' && !hasGestaoRHPermission);
     
     // Para o menu de Assistentes Virtuais, não mostramos cadeado no menu pai
     // Os cadeados ficam apenas nos sub-menus que não têm permissão
