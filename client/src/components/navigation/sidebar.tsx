@@ -120,8 +120,25 @@ export function Sidebar({
   debugInfo
 }: SidebarProps) {
   const [location] = useLocation();
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  // Recuperar estado expandido do sessionStorage
+  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('sidebar-expanded-items');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isToggling, setIsToggling] = useState(false);
+  
+  // Salvar estado expandido no sessionStorage sempre que mudar
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('sidebar-expanded-items', JSON.stringify(expandedItems));
+    } catch {
+      // Ignorar erros de storage
+    }
+  }, [expandedItems]);
   
 
   const toggleExpanded = (itemId: string, event?: React.MouseEvent) => {
@@ -164,17 +181,12 @@ export function Sidebar({
   };
 
   const renderMenuItem = (item: MenuItem) => {
-    // Debug específico para assistentes virtuais
+    // Debug para verificar se sessionStorage está funcionando
     if (item.id === 'assistentes-virtuais') {
-      console.log('🐛 DEBUG Assistentes Virtuais:', {
+      console.log('🔄 SessionStorage test:', {
         expandedItems,
         isExpanded: expandedItems.includes(item.id),
-        hasAssistenteVirtualRHPermission,
-        hasAssistenteVirtualFinanceiroPermission,
-        children: item.children?.map(child => ({
-          id: child.id,
-          label: child.label
-        }))
+        sessionStorage: sessionStorage.getItem('sidebar-expanded-items')
       });
     }
     const isActive = item.path === location;
@@ -243,14 +255,6 @@ export function Sidebar({
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
                   
-                  // Debug para sub-menus dos assistentes virtuais
-                  if (item.id === 'assistentes-virtuais') {
-                    console.log(`🔍 SUB-MENU ${child.id}:`, {
-                      isChildDisabled,
-                      hasGrandchildren,
-                      willShowLock: isChildDisabled
-                    });
-                  }
                   
                   
                 
