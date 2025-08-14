@@ -7,6 +7,8 @@ export interface UsePermissionsReturn {
   error: string | null;
   hasGestaoComprasPermission: boolean;
   hasGestaoFinanceiraPermission: boolean;
+  hasAssistenteVirtualRHPermission: boolean;
+  hasAssistenteVirtualFinanceiroPermission: boolean;
   refetch: () => Promise<void>;
 }
 
@@ -44,6 +46,8 @@ export function usePermissions(username: string | null): UsePermissionsReturn {
 
   const hasGestaoComprasPermission = permissions ? permissions.MNUSC !== 0 : false;
   const hasGestaoFinanceiraPermission = permissions ? permissions.MNULF !== 0 : false;
+  const hasAssistenteVirtualRHPermission = permissions ? permissions.MNULB !== 0 : false;
+  const hasAssistenteVirtualFinanceiroPermission = permissions ? permissions.MNULF !== 0 : false;
 
   return {
     permissions,
@@ -51,6 +55,8 @@ export function usePermissions(username: string | null): UsePermissionsReturn {
     error,
     hasGestaoComprasPermission,
     hasGestaoFinanceiraPermission,
+    hasAssistenteVirtualRHPermission,
+    hasAssistenteVirtualFinanceiroPermission,
     refetch: fetchPermissions,
   };
 }

@@ -149,6 +149,8 @@ export default function DashboardPage() {
             className="hidden md:block h-[calc(100vh-4rem)] sticky top-16" 
             hasGestaoComprasPermission={hasGestaoComprasPermission}
             hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
+            hasAssistenteVirtualRHPermission={permissions?.MNULB !== 0}
+            hasAssistenteVirtualFinanceiroPermission={permissions?.MNULF !== 0}
             debugInfo={debugInfo}
           />
         )}
@@ -160,6 +162,8 @@ export default function DashboardPage() {
           onClose={() => setMobileMenuOpen(false)}
           hasGestaoComprasPermission={hasGestaoComprasPermission}
           hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
+          hasAssistenteVirtualRHPermission={permissions?.MNULB !== 0}
+          hasAssistenteVirtualFinanceiroPermission={permissions?.MNULF !== 0}
           debugInfo={debugInfo}
         />
 
@@ -186,7 +190,12 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
 function DashboardContent({ location }: { location: string }) {
   const [, setLocation] = useLocation();
   const token = AuthService.getStoredToken();
-  const { hasGestaoComprasPermission, hasGestaoFinanceiraPermission } = usePermissions(token?.username || null);
+  const { 
+    hasGestaoComprasPermission, 
+    hasGestaoFinanceiraPermission,
+    hasAssistenteVirtualRHPermission,
+    hasAssistenteVirtualFinanceiroPermission
+  } = usePermissions(token?.username || null);
 
   // Verificar permissões para rotas protegidas
   if (location === '/dashboard/solicitacao-compras' && !hasGestaoComprasPermission) {
@@ -196,6 +205,18 @@ function DashboardContent({ location }: { location: string }) {
   }
 
   if (location === '/dashboard/lancamentos-contas-pagar' && !hasGestaoFinanceiraPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+  
+  if (location === '/dashboard/assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+  
+  if (location === '/dashboard/assistente-virtual' && !hasAssistenteVirtualFinanceiroPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;

@@ -99,6 +99,8 @@ interface SidebarProps {
   onClose?: () => void;
   hasGestaoComprasPermission?: boolean;
   hasGestaoFinanceiraPermission?: boolean;
+  hasAssistenteVirtualRHPermission?: boolean;
+  hasAssistenteVirtualFinanceiroPermission?: boolean;
   debugInfo?: {
     username?: string;
     permissions?: any;
@@ -113,6 +115,8 @@ export function Sidebar({
   onClose,
   hasGestaoComprasPermission = false,
   hasGestaoFinanceiraPermission = false,
+  hasAssistenteVirtualRHPermission = false,
+  hasAssistenteVirtualFinanceiroPermission = false,
   debugInfo
 }: SidebarProps) {
   const [location] = useLocation();
@@ -126,6 +130,13 @@ export function Sidebar({
     
     // Se for o menu de Gestão Financeira e não tiver permissão, não permitir expansão
     if (itemId === 'gestao-financeira' && !hasGestaoFinanceiraPermission) {
+      return;
+    }
+    
+    // Se for o menu de Assistentes Virtuais e não tiver permissão para nenhum dos assistentes, não permitir expansão
+    if (itemId === 'assistentes-virtuais' && 
+        !hasAssistenteVirtualRHPermission && 
+        !hasAssistenteVirtualFinanceiroPermission) {
       return;
     }
     
@@ -144,7 +155,8 @@ export function Sidebar({
     
     // Verificar se o item está desabilitado por falta de permissão
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
-                      (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
+                      (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission) ||
+                      (item.id === 'assistentes-virtuais' && !hasAssistenteVirtualRHPermission && !hasAssistenteVirtualFinanceiroPermission);
 
     if (hasChildren) {
       return (
@@ -186,11 +198,24 @@ export function Sidebar({
           </Button>
           {isExpanded && item.children && !isDisabled && (
             <div className="pl-5 mt-2 space-y-2">
-              {item.children.map(child => {
-                const isChildActive = child.path === location;
-                const ChildIcon = child.icon;
-                const hasGrandchildren = child.children && child.children.length > 0;
-                const isChildExpanded = expandedItems.includes(child.id);
+              {item.children
+                .filter(child => {
+                  // Filtrar os assistentes virtuais com base nas permissões
+                  if (item.id === 'assistentes-virtuais') {
+                    if (child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) {
+                      return false;
+                    }
+                    if (child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission) {
+                      return false;
+                    }
+                  }
+                  return true;
+                })
+                .map(child => {
+                  const isChildActive = child.path === location;
+                  const ChildIcon = child.icon;
+                  const hasGrandchildren = child.children && child.children.length > 0;
+                  const isChildExpanded = expandedItems.includes(child.id);
                 
                 if (hasGrandchildren) {
                   return (

@@ -3,6 +3,7 @@ import { AuthService } from './auth';
 export interface UserPermissions {
   MNUSC: number;
   MNULF: number;
+  MNULB: number;
   // Adicione outras permissões conforme necessário
 }
 
