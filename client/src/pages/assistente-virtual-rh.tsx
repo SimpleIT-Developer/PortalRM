@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Send, Bot, User, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const WEBHOOK_URL = 'https://webhook-n8n.simpleit.app.br/webhook/82ebd54c-d0ba-4e43-b159-7797c20bc9f4/chat';
+const WEBHOOK_URL = 'https://webhook-n8n.simpleit.app.br/webhook/b62a449f-0043-4fe5-811d-e25fc587772d/chat';
 
 interface Message {
   id: string;
