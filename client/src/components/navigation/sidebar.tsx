@@ -208,6 +208,16 @@ export function Sidebar({
                   const isChildDisabled = 
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
+                  
+                  // Debug temporário
+                  if (item.id === 'assistentes-virtuais') {
+                    console.log(`🔍 Debug ${child.id}:`, {
+                      isChildDisabled,
+                      hasAssistenteVirtualRHPermission,
+                      hasAssistenteVirtualFinanceiroPermission,
+                      hasGrandchildren
+                    });
+                  }
                 
                 if (hasGrandchildren) {
                   return (
