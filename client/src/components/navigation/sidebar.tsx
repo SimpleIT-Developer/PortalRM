@@ -153,9 +153,9 @@ export function Sidebar({
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
                       (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
     
-    // Para o menu de Assistentes Virtuais, mostramos como desabilitado apenas para exibir o ícone de cadeado
+    // Para o menu de Assistentes Virtuais, mostramos o cadeado quando há pelo menos um sub-menu sem permissão
     // mas ainda permitimos que seja expandido para mostrar os sub-menus
-    const showLockIcon = item.id === 'assistentes-virtuais' && !hasAssistenteVirtualRHPermission && !hasAssistenteVirtualFinanceiroPermission;
+    const showLockIcon = item.id === 'assistentes-virtuais' && (!hasAssistenteVirtualRHPermission || !hasAssistenteVirtualFinanceiroPermission);
 
     if (hasChildren) {
       return (
