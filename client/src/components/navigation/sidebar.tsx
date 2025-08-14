@@ -121,68 +121,49 @@ export function Sidebar({
 }: SidebarProps) {
   const [location] = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [isToggling, setIsToggling] = useState(false);
   
-  // Debug para detectar mudanças no expandedItems
-  useEffect(() => {
-    console.log('🔄 expandedItems mudou:', expandedItems);
-  }, [expandedItems]);
-  
-  // Debug para detectar re-renderizações completas do Sidebar
-  useEffect(() => {
-    console.log('🏗️ Sidebar componente foi montado/re-montado');
-  }, []);
-  
-  // Debug para detectar mudanças nas props de permissão
-  useEffect(() => {
-    console.log('🔐 Permissões mudaram:', {
-      hasGestaoComprasPermission,
-      hasGestaoFinanceiraPermission,
-      hasAssistenteVirtualRHPermission,
-      hasAssistenteVirtualFinanceiroPermission
-    });
-  }, [hasGestaoComprasPermission, hasGestaoFinanceiraPermission, hasAssistenteVirtualRHPermission, hasAssistenteVirtualFinanceiroPermission]);
 
-  const toggleExpanded = (itemId: string) => {
-    console.log(`⚡ toggleExpanded chamado para: ${itemId}`, {
-      expandedItems,
-      hasGestaoComprasPermission,
-      hasGestaoFinanceiraPermission
-    });
+  const toggleExpanded = (itemId: string, event?: React.MouseEvent) => {
+    // Prevenir propagação de eventos e múltiplos cliques
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    
+    // Prevenir múltiplas chamadas rápidas
+    if (isToggling) {
+      return;
+    }
+    
+    setIsToggling(true);
     
     // Se for o menu de Gestão de Compras e não tiver permissão, não permitir expansão
     if (itemId === 'gestao-compras' && !hasGestaoComprasPermission) {
-      console.log('❌ Bloqueado: Gestão de Compras sem permissão');
+      setIsToggling(false);
       return;
     }
     
     // Se for o menu de Gestão Financeira e não tiver permissão, não permitir expansão
     if (itemId === 'gestao-financeira' && !hasGestaoFinanceiraPermission) {
-      console.log('❌ Bloqueado: Gestão Financeira sem permissão');
+      setIsToggling(false);
       return;
     }
     
     // Removida a condição que impedia a expansão do menu de Assistentes Virtuais sem permissão
     // Agora o menu pode ser expandido mesmo sem permissão, mostrando os sub-menus com cadeados
     
-    setExpandedItems(prev => {
-      const newExpanded = prev.includes(itemId) 
+    setExpandedItems(prev => 
+      prev.includes(itemId) 
         ? prev.filter(id => id !== itemId) 
-        : [...prev, itemId];
-      console.log(`📝 Atualizando expandedItems de [${prev.join(', ')}] para [${newExpanded.join(', ')}]`);
-      return newExpanded;
-    });
+        : [...prev, itemId]
+    );
+    
+    // Reset do flag após um delay pequeno
+    setTimeout(() => setIsToggling(false), 100);
   };
 
   const renderMenuItem = (item: MenuItem) => {
-    // Debug para assistentes virtuais
-    if (item.id === 'assistentes-virtuais') {
-      console.log('🔧 Renderizando assistentes-virtuais:', {
-        hasAssistenteVirtualRHPermission,
-        hasAssistenteVirtualFinanceiroPermission,
-        expandedItems,
-        isExpanded: expandedItems.includes(item.id)
-      });
-    }
     const isActive = item.path === location;
     const Icon = item.icon;
     const hasChildren = item.children && item.children.length > 0;
@@ -209,7 +190,7 @@ export function Sidebar({
                 ? "opacity-50 cursor-not-allowed text-muted-foreground" 
                 : "hover:bg-muted/50"
             )}
-            onClick={() => toggleExpanded(item.id)}
+            onClick={(e) => toggleExpanded(item.id, e)}
           >
             <Icon className={cn("mr-2.5 h-4 w-4 shrink-0", isDisabled && "opacity-50")} />
             <span className="truncate text-sm">{item.label}</span>
@@ -249,15 +230,6 @@ export function Sidebar({
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
                   
-                  // Debug para cada child
-                  if (item.id === 'assistentes-virtuais') {
-                    console.log(`🔍 Renderizando ${child.id}:`, {
-                      isChildDisabled,
-                      hasGrandchildren,
-                      willRenderDisabled: isChildDisabled,
-                      willShowLock: isChildDisabled
-                    });
-                  }
                   
                 
                 if (hasGrandchildren) {
@@ -272,7 +244,7 @@ export function Sidebar({
                             ? "opacity-50 cursor-not-allowed text-muted-foreground" 
                             : "hover:bg-muted/50"
                         )}
-                        onClick={() => !isChildDisabled && toggleExpanded(child.id)}
+                        onClick={(e) => !isChildDisabled && toggleExpanded(child.id, e)}
                       >
                         <ChildIcon className={cn("mr-2.5 h-4 w-4 shrink-0", isChildDisabled && "opacity-50")} />
                         <span className="truncate text-sm">{child.label}</span>
