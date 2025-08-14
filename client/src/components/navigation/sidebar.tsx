@@ -153,9 +153,9 @@ export function Sidebar({
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
                       (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
     
-    // Para o menu de Assistentes Virtuais, mostramos o cadeado quando há pelo menos um sub-menu sem permissão
-    // mas ainda permitimos que seja expandido para mostrar os sub-menus
-    const showLockIcon = item.id === 'assistentes-virtuais' && (!hasAssistenteVirtualRHPermission || !hasAssistenteVirtualFinanceiroPermission);
+    // Para o menu de Assistentes Virtuais, não mostramos cadeado no menu pai
+    // Os cadeados ficam apenas nos sub-menus que não têm permissão
+    const showLockIcon = false;
 
     if (hasChildren) {
       return (
@@ -174,9 +174,6 @@ export function Sidebar({
             <Icon className={cn("mr-2.5 h-4 w-4 shrink-0", isDisabled && "opacity-50")} />
             <span className="truncate text-sm">{item.label}</span>
             <span className="ml-auto">
-              {showLockIcon && (
-                <span className="mr-2 text-xs text-muted-foreground">🔒</span>
-              )}
               {!isDisabled && (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -193,7 +190,7 @@ export function Sidebar({
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               )}
-              {isDisabled && !showLockIcon && (
+              {isDisabled && (
                 <span className="text-xs text-muted-foreground">🔒</span>
               )}
             </span>
