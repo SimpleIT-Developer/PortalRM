@@ -149,15 +149,6 @@ export function Sidebar({
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.includes(item.id);
     
-    // Debug temporário para verificar expansão
-    if (item.id === 'assistentes-virtuais') {
-      console.log(`🔧 Menu ${item.id}:`, {
-        isExpanded,
-        expandedItems,
-        hasChildren: hasChildren,
-        childrenLength: item.children?.length
-      });
-    }
     
     // Verificar se o item está desabilitado por falta de permissão
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
@@ -208,7 +199,7 @@ export function Sidebar({
           {isExpanded && item.children && (
             <div className="pl-5 mt-2 space-y-2">
               {item.children
-                .map(child => {
+                .map((child, index) => {
                   const isChildActive = child.path === location;
                   const ChildIcon = child.icon;
                   const hasGrandchildren = child.children && child.children.length > 0;
@@ -219,15 +210,6 @@ export function Sidebar({
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
                     (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
                   
-                  // Debug temporário
-                  if (item.id === 'assistentes-virtuais') {
-                    console.log(`🔍 Debug ${child.id}:`, {
-                      isChildDisabled,
-                      hasAssistenteVirtualRHPermission,
-                      hasAssistenteVirtualFinanceiroPermission,
-                      hasGrandchildren
-                    });
-                  }
                 
                 if (hasGrandchildren) {
                   return (
@@ -317,7 +299,7 @@ export function Sidebar({
                 return isChildDisabled ? (
                   // Renderizar botão desabilitado quando não tem permissão
                   <Button
-                    key={child.id}
+                    key={`${child.id}-disabled-${isChildDisabled}`}
                     variant="ghost"
                     disabled
                     className={cn(
@@ -331,7 +313,7 @@ export function Sidebar({
                   </Button>
                 ) : (
                   // Renderizar link normal quando tem permissão
-                  <Link key={child.id} href={child.path!}>
+                  <Link key={`${child.id}-enabled-${!isChildDisabled}`} href={child.path!}>
                     <Button
                       variant={isChildActive ? "secondary" : "ghost"}
                       className={cn(
