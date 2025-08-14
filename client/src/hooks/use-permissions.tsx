@@ -47,6 +47,8 @@ export function usePermissions(username: string | null): UsePermissionsReturn {
   const hasGestaoComprasPermission = permissions ? permissions.MNUSC !== 0 : false;
   const hasGestaoFinanceiraPermission = permissions ? permissions.MNULF !== 0 : false;
   const hasAssistenteVirtualRHPermission = permissions ? permissions.MNULB !== 0 : false;
+  // Usando MNULF para o Assistente Virtual Financeiro, conforme solicitado
+  // Quando MNULF = 0, o menu Assistente Virtual - Financeiro deve ser bloqueado
   const hasAssistenteVirtualFinanceiroPermission = permissions ? permissions.MNULF !== 0 : false;
 
   return {

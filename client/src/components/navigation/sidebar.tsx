@@ -133,12 +133,8 @@ export function Sidebar({
       return;
     }
     
-    // Se for o menu de Assistentes Virtuais e não tiver permissão para nenhum dos assistentes, não permitir expansão
-    if (itemId === 'assistentes-virtuais' && 
-        !hasAssistenteVirtualRHPermission && 
-        !hasAssistenteVirtualFinanceiroPermission) {
-      return;
-    }
+    // Removida a condição que impedia a expansão do menu de Assistentes Virtuais sem permissão
+    // Agora o menu pode ser expandido mesmo sem permissão, mostrando os sub-menus com cadeados
     
     setExpandedItems(prev => 
       prev.includes(itemId) 
@@ -155,8 +151,11 @@ export function Sidebar({
     
     // Verificar se o item está desabilitado por falta de permissão
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
-                      (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission) ||
-                      (item.id === 'assistentes-virtuais' && !hasAssistenteVirtualRHPermission && !hasAssistenteVirtualFinanceiroPermission);
+                      (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
+    
+    // Para o menu de Assistentes Virtuais, mostramos como desabilitado apenas para exibir o ícone de cadeado
+    // mas ainda permitimos que seja expandido para mostrar os sub-menus
+    const showLockIcon = item.id === 'assistentes-virtuais' && !hasAssistenteVirtualRHPermission && !hasAssistenteVirtualFinanceiroPermission;
 
     if (hasChildren) {
       return (
@@ -174,8 +173,11 @@ export function Sidebar({
           >
             <Icon className={cn("mr-2.5 h-4 w-4 shrink-0", isDisabled && "opacity-50")} />
             <span className="truncate text-sm">{item.label}</span>
-            {!isDisabled && (
-              <span className="ml-auto">
+            <span className="ml-auto">
+              {showLockIcon && (
+                <span className="mr-2 text-xs text-muted-foreground">🔒</span>
+              )}
+              {!isDisabled && (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -190,47 +192,46 @@ export function Sidebar({
                 >
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
-              </span>
-            )}
-            {isDisabled && (
-              <span className="ml-auto text-xs text-muted-foreground">🔒</span>
-            )}
+              )}
+              {isDisabled && !showLockIcon && (
+                <span className="text-xs text-muted-foreground">🔒</span>
+              )}
+            </span>
           </Button>
-          {isExpanded && item.children && !isDisabled && (
+          {isExpanded && item.children && (
             <div className="pl-5 mt-2 space-y-2">
               {item.children
-                .filter(child => {
-                  // Filtrar os assistentes virtuais com base nas permissões
-                  if (item.id === 'assistentes-virtuais') {
-                    if (child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) {
-                      return false;
-                    }
-                    if (child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission) {
-                      return false;
-                    }
-                  }
-                  return true;
-                })
                 .map(child => {
                   const isChildActive = child.path === location;
                   const ChildIcon = child.icon;
                   const hasGrandchildren = child.children && child.children.length > 0;
                   const isChildExpanded = expandedItems.includes(child.id);
+                  
+                  // Verificar se o sub-item está desabilitado por falta de permissão
+                  const isChildDisabled = 
+                    (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
+                    (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
                 
                 if (hasGrandchildren) {
                   return (
                     <div key={child.id} className="w-full">
                       <Button
                         variant="ghost"
+                        disabled={isChildDisabled}
                         className={cn(
                           "w-full justify-start text-left h-auto py-2.5 px-4",
-                          "hover:bg-muted/50"
+                          isChildDisabled 
+                            ? "opacity-50 cursor-not-allowed text-muted-foreground" 
+                            : "hover:bg-muted/50"
                         )}
-                        onClick={() => toggleExpanded(child.id)}
+                        onClick={() => !isChildDisabled && toggleExpanded(child.id)}
                       >
-                        <ChildIcon className="mr-2.5 h-4 w-4 shrink-0" />
+                        <ChildIcon className={cn("mr-2.5 h-4 w-4 shrink-0", isChildDisabled && "opacity-50")} />
                         <span className="truncate text-sm">{child.label}</span>
                         <span className="ml-auto">
+                          {isChildDisabled ? (
+                            <span className="text-xs mr-2">🔒</span>
+                          ) : (
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="16"
@@ -245,6 +246,7 @@ export function Sidebar({
                           >
                             <polyline points="6 9 12 15 18 9" />
                           </svg>
+                          )}
                         </span>
                       </Button>
                       {isChildExpanded && child.children && (
@@ -253,7 +255,27 @@ export function Sidebar({
                             const isGrandchildActive = grandchild.path === location;
                             const GrandchildIcon = grandchild.icon;
                             
-                            return (
+                            // Verificar se o grandchild está desabilitado por falta de permissão
+                            // Aqui você pode adicionar lógica específica para desabilitar grandchildren se necessário
+                            const isGrandchildDisabled = false; // Por enquanto, não temos lógica específica para desabilitar grandchildren
+                            
+                            return isGrandchildDisabled ? (
+                              // Renderizar botão desabilitado quando não tem permissão
+                              <Button
+                                key={grandchild.id}
+                                variant="ghost"
+                                disabled
+                                className={cn(
+                                  "w-full justify-start text-left h-auto py-2.5 px-4",
+                                  "opacity-50 cursor-not-allowed text-muted-foreground"
+                                )}
+                              >
+                                <GrandchildIcon className="mr-2.5 h-4 w-4 shrink-0 opacity-50" />
+                                <span className="truncate text-sm">{grandchild.label}</span>
+                                <span className="ml-auto text-xs">🔒</span>
+                              </Button>
+                            ) : (
+                              // Renderizar link normal quando tem permissão
                               <Link key={grandchild.id} href={grandchild.path!}>
                                 <Button
                                   variant={isGrandchildActive ? "secondary" : "ghost"}
@@ -275,7 +297,23 @@ export function Sidebar({
                   );
                 }
                 
-                return (
+                return isChildDisabled ? (
+                  // Renderizar botão desabilitado quando não tem permissão
+                  <Button
+                    key={child.id}
+                    variant="ghost"
+                    disabled
+                    className={cn(
+                      "w-full justify-start text-left h-auto py-2.5 px-4",
+                      "opacity-50 cursor-not-allowed text-muted-foreground"
+                    )}
+                  >
+                    <ChildIcon className="mr-2.5 h-4 w-4 shrink-0 opacity-50" />
+                    <span className="truncate text-sm">{child.label}</span>
+                    <span className="ml-auto text-xs">🔒</span>
+                  </Button>
+                ) : (
+                  // Renderizar link normal quando tem permissão
                   <Link key={child.id} href={child.path!}>
                     <Button
                       variant={isChildActive ? "secondary" : "ghost"}
