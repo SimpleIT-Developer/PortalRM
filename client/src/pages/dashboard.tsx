@@ -216,11 +216,8 @@ function DashboardContent({ location }: { location: string }) {
     return <DashboardHome />;
   }
   
-  if (location === '/dashboard/assistente-virtual' && !hasAssistenteVirtualFinanceiroPermission) {
-    // Redirecionar para dashboard se não tiver permissão
-    setLocation('/dashboard');
-    return <DashboardHome />;
-  }
+  // Removida verificação de permissão para o Assistente Virtual - Financeiro
+  // Agora o chat abre independentemente do valor de MNULF
 
   // Render the appropriate component based on the current location
   const Component = dashboardRoutes[location] || dashboardRoutes['/dashboard'];

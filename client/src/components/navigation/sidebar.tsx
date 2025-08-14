@@ -196,6 +196,7 @@ export function Sidebar({
     
     
     // Verificar se o item está desabilitado por falta de permissão
+    // Removida a verificação para o menu de Assistentes Virtuais
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
                       (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
     
@@ -251,9 +252,8 @@ export function Sidebar({
                   const isChildExpanded = expandedItems.includes(child.id);
                   
                   // Verificar se o sub-item está desabilitado por falta de permissão
-                  const isChildDisabled = 
-                    (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) ||
-                    (item.id === 'assistentes-virtuais' && child.id === 'assistente-virtual-financeiro' && !hasAssistenteVirtualFinanceiroPermission);
+                  // Removida a verificação de permissão para Assistentes Virtuais
+                  const isChildDisabled = false;
                   
                   
                   
