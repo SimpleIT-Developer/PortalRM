@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Search, Filter, FileText, Calendar, User } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function SolicitacaoCompras() {
+  const [, setLocation] = useLocation();
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -19,7 +21,10 @@ export default function SolicitacaoCompras() {
             Gerencie e crie solicitações de compras para sua empresa
           </p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button 
+          className="flex items-center gap-2"
+          onClick={() => setLocation("/dashboard/nova-solicitacao-compras")}
+        >
           <Plus className="h-4 w-4" />
           Nova Solicitação
         </Button>
