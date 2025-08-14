@@ -121,26 +121,56 @@ export function Sidebar({
 }: SidebarProps) {
   const [location] = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  
+  // Debug para detectar mudanças no expandedItems
+  useEffect(() => {
+    console.log('🔄 expandedItems mudou:', expandedItems);
+  }, [expandedItems]);
+  
+  // Debug para detectar re-renderizações completas do Sidebar
+  useEffect(() => {
+    console.log('🏗️ Sidebar componente foi montado/re-montado');
+  }, []);
+  
+  // Debug para detectar mudanças nas props de permissão
+  useEffect(() => {
+    console.log('🔐 Permissões mudaram:', {
+      hasGestaoComprasPermission,
+      hasGestaoFinanceiraPermission,
+      hasAssistenteVirtualRHPermission,
+      hasAssistenteVirtualFinanceiroPermission
+    });
+  }, [hasGestaoComprasPermission, hasGestaoFinanceiraPermission, hasAssistenteVirtualRHPermission, hasAssistenteVirtualFinanceiroPermission]);
 
   const toggleExpanded = (itemId: string) => {
+    console.log(`⚡ toggleExpanded chamado para: ${itemId}`, {
+      expandedItems,
+      hasGestaoComprasPermission,
+      hasGestaoFinanceiraPermission
+    });
+    
     // Se for o menu de Gestão de Compras e não tiver permissão, não permitir expansão
     if (itemId === 'gestao-compras' && !hasGestaoComprasPermission) {
+      console.log('❌ Bloqueado: Gestão de Compras sem permissão');
       return;
     }
     
     // Se for o menu de Gestão Financeira e não tiver permissão, não permitir expansão
     if (itemId === 'gestao-financeira' && !hasGestaoFinanceiraPermission) {
+      console.log('❌ Bloqueado: Gestão Financeira sem permissão');
       return;
     }
     
     // Removida a condição que impedia a expansão do menu de Assistentes Virtuais sem permissão
     // Agora o menu pode ser expandido mesmo sem permissão, mostrando os sub-menus com cadeados
     
-    setExpandedItems(prev => 
-      prev.includes(itemId) 
+    setExpandedItems(prev => {
+      const newExpanded = prev.includes(itemId) 
         ? prev.filter(id => id !== itemId) 
-        : [...prev, itemId]
-    );
+        : [...prev, itemId];
+      console.log(`📝 Atualizando expandedItems de [${prev.join(', ')}] para [${newExpanded.join(', ')}]`);
+      return newExpanded;
+    });
   };
 
   const renderMenuItem = (item: MenuItem) => {
