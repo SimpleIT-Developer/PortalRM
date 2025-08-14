@@ -149,6 +149,16 @@ export function Sidebar({
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.includes(item.id);
     
+    // Debug temporário para verificar expansão
+    if (item.id === 'assistentes-virtuais') {
+      console.log(`🔧 Menu ${item.id}:`, {
+        isExpanded,
+        expandedItems,
+        hasChildren: hasChildren,
+        childrenLength: item.children?.length
+      });
+    }
+    
     // Verificar se o item está desabilitado por falta de permissão
     const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
                       (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission);
