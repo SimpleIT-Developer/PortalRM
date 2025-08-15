@@ -13,6 +13,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Eye, EyeOff, User, Server, AlertCircle, CheckCircle, Box, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import LoadingScreen from "@/components/loading-screen";
+
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -22,6 +24,7 @@ export default function LoginPage() {
   const [authError, setAuthError] = useState<AuthenticationError | null>(null);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   
   // Estados para gerenciamento de endpoints
   const [endpoints, setEndpoints] = useState<EndpointOption[]>([]);
@@ -115,13 +118,11 @@ export default function LoginPage() {
       setShowSuccess(true);
       toast({
         title: "Login realizado com sucesso!",
-        description: "Redirecionando para o dashboard...",
+        description: "Carregando sistema...",
       });
 
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        setLocation("/dashboard");
-      }, 1500);
+      // Mostrar tela de loading por 5 segundos antes de redirecionar
+      setShowLoadingScreen(true);
 
     } catch (error) {
       if (error instanceof AuthenticationError) {
@@ -147,8 +148,16 @@ export default function LoginPage() {
     }
   };
 
+  // Função para redirecionar após o loading
+  const handleLoadingComplete = () => {
+    setLocation("/dashboard");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-background">
+      {showLoadingScreen && (
+        <LoadingScreen duration={5000} onComplete={handleLoadingComplete} />
+      )}
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">

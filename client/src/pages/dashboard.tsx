@@ -14,6 +14,7 @@ import {
   Home
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { EndpointService } from "@/lib/endpoint";
 
 // Import pages
 import TokenInfoPage from "./token-info";
@@ -25,6 +26,7 @@ import AssistenteVirtualRH from "./assistente-virtual-rh";
 import DashboardFinanceiro from "./dashboard-financeiro";
 import DashboardCompras from "./dashboard-compras";
 import DashboardRH from "./dashboard-rh";
+import CadastroFuncionarios from "./cadastro-funcionarios";
 
 // Import icons for dashboard cards
 import { 
@@ -42,6 +44,7 @@ export default function DashboardPage() {
   const [location, setLocation] = useLocation();
   const [token, setToken] = useState<StoredToken | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [rmVersion, setRmVersion] = useState<string>("");
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -65,6 +68,155 @@ export default function DashboardPage() {
 
 
 
+  // Função para buscar a versão do RM
+  const fetchRmVersion = async (endpoint: string) => {
+    console.log("🔄 Iniciando busca da versão do RM...");
+    console.log("🔄 Endpoint recebido:", endpoint);
+    
+    try {
+      // Verificar se o usuário está autenticado
+      const token = AuthService.getStoredToken();
+      console.log("🔄 Token obtido:", token ? "Sim" : "Não");
+      
+      if (!token || !token.access_token) {
+        console.error('❌ Token não encontrado para consulta da versão do RM');
+        setRmVersion("Erro: Não autenticado");
+        return;
+      }
+
+      // Garantir que o endpoint tenha o protocolo http:// 
+      const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
+      const endpointWithProtocol = `http://${formattedEndpoint}`;
+      console.log("🔗 Endpoint formatado:", endpointWithProtocol);
+      
+      // Caminho da API para consulta SQL que retorna a versão do RM
+      // Adicionando os parâmetros '/1/F' conforme solicitado
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIMPLEIT.IA.0003/1/F`;
+      console.log("🔗 Path da consulta:", path);
+      
+      // Consulta via proxy backend para evitar problemas de CORS
+      console.log("🔗 Consultando versão do RM via proxy backend");
+      
+      // Importante: O token deve ser passado como parâmetro de consulta na URL
+      // Testando com formato diferente para o endpoint (sem protocolo)
+      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      console.log("🔗 URL completa da requisição:", fullUrl);
+      
+      // Fazer a requisição
+      console.log("🔄 Iniciando requisição fetch...");
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log("🔄 Resposta recebida. Status:", response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro na consulta da versão do RM:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
+        setRmVersion(`Erro: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      // Ler o corpo da resposta como texto
+      console.log("🔄 Lendo corpo da resposta...");
+      const responseText = await response.text();
+      console.log("🔄 Texto da resposta recebido. Tamanho:", responseText.length);
+      
+      if (!responseText || responseText.trim() === '') {
+        console.error('❌ Resposta vazia recebida');
+        setRmVersion("Erro: Resposta vazia");
+        return;
+      }
+      
+      // Tentar fazer o parse do JSON
+      console.log("🔄 Tentando fazer parse do JSON...");
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log("✅ Parse JSON bem-sucedido");
+      } catch (parseError) {
+        console.error('❌ Erro ao fazer parse da resposta JSON:', parseError);
+        console.log('❌ Resposta recebida (não é JSON válido):', responseText.substring(0, 200) + '...');
+        setRmVersion("Erro: Formato inválido");
+        return;
+      }
+      
+      console.log("🔄 Estrutura da resposta:", JSON.stringify(data).substring(0, 200) + '...');
+      
+      // Verificar a estrutura da resposta e extrair a versão
+      // Suportar múltiplos formatos de resposta
+      let dataArray = null;
+      
+      // Verificar diferentes estruturas possíveis
+      if (data && data.data && Array.isArray(data.data)) {
+        // Formato: { data: [...] }
+        dataArray = data.data;
+        console.log("🔄 Dados encontrados no formato data.data. Quantidade:", dataArray.length);
+      } else if (Array.isArray(data)) {
+        // Formato: [...]
+        dataArray = data;
+        console.log("🔄 Dados encontrados no formato array direto. Quantidade:", dataArray.length);
+      } else if (data && typeof data === 'object') {
+        // Tentar encontrar a versão diretamente no objeto
+        if (data.VERSAOBASE) {
+          console.log("✅ Versão do RM encontrada diretamente no objeto:", data.VERSAOBASE);
+          setRmVersion(data.VERSAOBASE);
+          return;
+        }
+        
+        // Verificar se há alguma propriedade que seja um array
+        const arrayProps = Object.keys(data).filter(key => Array.isArray(data[key]));
+        if (arrayProps.length > 0) {
+          dataArray = data[arrayProps[0]];
+          console.log(`🔄 Dados encontrados no formato data.${arrayProps[0]}. Quantidade:`, dataArray.length);
+        }
+      }
+      
+      // Processar o array de dados se foi encontrado
+      if (dataArray && dataArray.length > 0) {
+        console.log("🔄 Primeiro item:", JSON.stringify(dataArray[0]).substring(0, 200) + '...');
+        
+        // Extrair a tag VERSAOBASE da resposta
+        const versaoBase = dataArray[0].VERSAOBASE;
+        console.log("🔄 VERSAOBASE encontrada:", versaoBase);
+        
+        if (versaoBase) {
+          console.log("✅ Versão do RM encontrada:", versaoBase);
+          setRmVersion(versaoBase);
+        } else {
+          // Tentar encontrar qualquer campo que possa conter a versão
+          const firstItem = dataArray[0];
+          const versionFields = Object.keys(firstItem).filter(key => 
+            key.toLowerCase().includes('versao') || 
+            key.toLowerCase().includes('version')
+          );
+          
+          if (versionFields.length > 0) {
+            const version = firstItem[versionFields[0]];
+            console.log(`✅ Versão encontrada no campo ${versionFields[0]}:`, version);
+            setRmVersion(version);
+          } else {
+            console.error('❌ Nenhum campo de versão encontrado no item');
+            setRmVersion("Versão não identificada");
+          }
+        }
+      } else {
+        console.error('❌ Não foi possível encontrar dados na resposta');
+        setRmVersion("Dados não disponíveis");
+      }
+    } catch (error) {
+      console.error('❌ Erro ao buscar versão do RM:', error);
+      setRmVersion("Erro: Exceção");
+    }
+  };
+
   useEffect(() => {
     const storedToken = AuthService.getStoredToken();
     if (!storedToken) {
@@ -84,6 +236,20 @@ export default function DashboardPage() {
     }
 
     setToken(storedToken);
+
+    // Buscar a versão do RM
+    const loadEndpointAndFetchVersion = async () => {
+      try {
+        const endpoint = await EndpointService.getDefaultEndpoint();
+        if (endpoint) {
+          fetchRmVersion(endpoint);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar endpoint:', error);
+      }
+    };
+
+    loadEndpointAndFetchVersion();
   }, [setLocation, toast]);
 
   const handleLogout = () => {
@@ -147,11 +313,26 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="flex">
-        {/* Desktop Sidebar */}
-        {!isMobile && (
-          <Sidebar 
-            className="hidden md:block h-[calc(100vh-4rem)] sticky top-16" 
+      <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+        <div className="flex flex-1">
+          {/* Desktop Sidebar */}
+          {!isMobile && (
+            <Sidebar 
+              className="hidden md:block h-[calc(100vh-4rem-24px)] sticky top-16" 
+              hasGestaoComprasPermission={hasGestaoComprasPermission}
+              hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
+              hasGestaoRHPermission={hasGestaoRHPermission}
+              hasAssistenteVirtualRHPermission={permissions?.MNULB !== 0}
+              hasAssistenteVirtualFinanceiroPermission={permissions?.MNULF !== 0}
+              debugInfo={debugInfo}
+            />
+          )}
+
+          {/* Mobile Sidebar */}
+          <Sidebar
+            isMobile
+            isOpen={mobileMenuOpen}
+            onClose={() => setMobileMenuOpen(false)}
             hasGestaoComprasPermission={hasGestaoComprasPermission}
             hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
             hasGestaoRHPermission={hasGestaoRHPermission}
@@ -159,25 +340,26 @@ export default function DashboardPage() {
             hasAssistenteVirtualFinanceiroPermission={permissions?.MNULF !== 0}
             debugInfo={debugInfo}
           />
-        )}
 
-        {/* Mobile Sidebar */}
-        <Sidebar
-          isMobile
-          isOpen={mobileMenuOpen}
-          onClose={() => setMobileMenuOpen(false)}
-          hasGestaoComprasPermission={hasGestaoComprasPermission}
-          hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
-          hasGestaoRHPermission={hasGestaoRHPermission}
-          hasAssistenteVirtualRHPermission={permissions?.MNULB !== 0}
-          hasAssistenteVirtualFinanceiroPermission={permissions?.MNULF !== 0}
-          debugInfo={debugInfo}
-        />
-
-        {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <DashboardContent location={location} />
-        </main>
+          {/* Main Content */}
+          <main className="flex-1 p-4 md:p-6 lg:p-8 pb-8">
+            <DashboardContent location={location} />
+          </main>
+        </div>
+        
+        {/* Status Bar */}
+        <div className="h-6 bg-slate-200 border-t border-border text-xs text-muted-foreground px-4 fixed bottom-0 left-0 right-0 z-10">
+          <div className="flex justify-between items-center h-full max-w-full">
+            <div className="flex items-center space-x-4">
+              <span>Versão RM: {rmVersion || "Carregando..."}</span>
+              <span>Versão Portal: 1.0.0</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span>Data: {new Date().toLocaleDateString('pt-BR')}</span>
+              <span>Usuário: {token?.username}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -195,6 +377,7 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/financeiro': DashboardFinanceiro,
   '/dashboard/compras': DashboardCompras,
   '/dashboard/rh': DashboardRH,
+  '/dashboard/cadastro-funcionarios': CadastroFuncionarios,
 };
 
 // Router component that handles all dashboard routes
@@ -229,6 +412,12 @@ function DashboardContent({ location }: { location: string }) {
   }
   
   if (location === '/dashboard/assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+  
+  if (location === '/dashboard/cadastro-funcionarios' && !hasGestaoRHPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;

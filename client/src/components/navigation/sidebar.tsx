@@ -94,7 +94,14 @@ const menuItems: MenuItem[] = [
     id: "gestao-rh",
     label: "Gestão de RH",
     icon: Users,
-    children: [],
+    children: [
+      {
+        id: "cadastro-funcionarios",
+        label: "Cadastro de Funcionários",
+        icon: Users,
+        path: "/dashboard/cadastro-funcionarios",
+      },
+    ],
   },
   {
     id: "assistentes-virtuais",

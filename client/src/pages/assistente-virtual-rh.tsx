@@ -173,7 +173,7 @@ export default function AssistenteVirtualRH() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl h-[calc(100vh-8rem)] flex flex-col">
+    <div className="container mx-auto p-6 max-w-4xl h-[calc(100vh-8rem-6px)] flex flex-col">
       {/* Cabeçalho */}
       <div className="pb-6 border-b bg-white/80 backdrop-blur-sm">
         <div className="flex items-center space-x-3">
@@ -191,7 +191,7 @@ export default function AssistenteVirtualRH() {
       {/* Área do Chat */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* Área de Mensagens */}
-        <ScrollArea className="flex-1 px-4 py-6" ref={scrollAreaRef}>
+        <ScrollArea className="flex-1 px-4 pt-6 pb-12" ref={scrollAreaRef}>
           <div className="space-y-6 min-h-full">
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-32 text-gray-500">
@@ -263,8 +263,8 @@ export default function AssistenteVirtualRH() {
               </div>
             )}
             
-            {/* Espaçamento final para scroll suave */}
-            <div className="h-4"></div>
+            {/* Espaçamento final para scroll suave e evitar sobreposição com a barra de status */}
+            <div className="h-16"></div>
           </div>
         </ScrollArea>
 

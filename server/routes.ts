@@ -117,7 +117,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Endpoint e path são obrigatórios" });
       }
 
-      const fullUrl = `${endpoint}${path}`;
+      // Garantir que o endpoint tenha o protocolo http://
+      const formattedEndpoint = endpoint.toString().replace(/^https?:\/\//i, '');
+      const fullUrl = `http://${formattedEndpoint}${path}`;
       console.log("🔗 Proxy GET - Consultando:", fullUrl);
 
       const headers: Record<string, string> = {
@@ -125,6 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       if (token) {
+        // Usar o token exatamente como foi passado pelo cliente
         headers["Authorization"] = `Bearer ${token}`;
       }
 
@@ -133,7 +136,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         headers,
       });
 
-      const data = await response.json();
+      // Verificar se a resposta é válida antes de tentar parsear como JSON
+      let data;
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (error) {
+        console.log("❌ Proxy GET - Erro ao parsear resposta:", error.message);
+        return res.status(500).json({ error: "Erro ao processar resposta do servidor", message: error.message });
+      }
       
       if (!response.ok) {
         console.log("⚠️ Proxy GET - Erro:", response.status, data);
