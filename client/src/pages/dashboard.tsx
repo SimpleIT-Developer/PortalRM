@@ -217,11 +217,12 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => {
+  // Função para verificar a validade do token e redirecionar se necessário
+  const checkTokenValidity = () => {
     const storedToken = AuthService.getStoredToken();
     if (!storedToken) {
       setLocation("/");
-      return;
+      return false;
     }
 
     if (!AuthService.isTokenValid(storedToken)) {
@@ -232,10 +233,23 @@ export default function DashboardPage() {
       });
       AuthService.clearToken();
       setLocation("/");
-      return;
+      return false;
     }
 
     setToken(storedToken);
+    return true;
+  };
+
+  useEffect(() => {
+    // Verificação inicial do token
+    if (!checkTokenValidity()) return;
+    
+    // Verificar o token periodicamente a cada 30 segundos
+    const tokenCheckInterval = setInterval(() => {
+      checkTokenValidity();
+    }, 30000);
+    
+    return () => clearInterval(tokenCheckInterval);
 
     // Buscar a versão do RM
     const loadEndpointAndFetchVersion = async () => {

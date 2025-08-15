@@ -17,6 +17,9 @@ export function TokenIndicator({ token, onTokenRefresh }: TokenIndicatorProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
+  // Estado para controlar o alerta de expiração
+  const [showExpirationAlert, setShowExpirationAlert] = useState(false);
+  
   useEffect(() => {
     const updateTimeLeft = () => {
       if (!token.expires_at) {
@@ -31,11 +34,29 @@ export function TokenIndicator({ token, onTokenRefresh }: TokenIndicatorProps) {
       if (diff <= 0) {
         setTimeLeft("Expirado");
         setIsExpiringSoon(true);
+        // Redirecionar para a tela de login quando o token expirar
+        window.location.href = "/";
         return;
       }
 
-      // Marcar como expirando em breve se restam menos de 10 minutos
-      setIsExpiringSoon(diff < 10 * 60 * 1000);
+      // Marcar como expirando em breve se restam menos de 1 minuto (60 segundos)
+      const isExpiringInOneMinute = diff < 60 * 1000;
+      setIsExpiringSoon(isExpiringInOneMinute);
+      
+      // Mostrar alerta se estiver expirando em 1 minuto
+      if (isExpiringInOneMinute && !showExpirationAlert) {
+        setShowExpirationAlert(true);
+        toast({
+          title: "Atenção: Token expirando",
+          description: "Seu token expirará em menos de 1 minuto. Deseja renovar?",
+          action: (
+            <Button variant="default" size="sm" onClick={handleRefresh}>
+              Renovar
+            </Button>
+          ),
+          duration: 50000, // Manter o toast visível por mais tempo
+        });
+      }
 
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -54,7 +75,7 @@ export function TokenIndicator({ token, onTokenRefresh }: TokenIndicatorProps) {
     const interval = setInterval(updateTimeLeft, 1000);
 
     return () => clearInterval(interval);
-  }, [token.expires_at]);
+  }, [token.expires_at, showExpirationAlert, toast]);
 
   const handleRefresh = async () => {
     try {
@@ -65,6 +86,9 @@ export function TokenIndicator({ token, onTokenRefresh }: TokenIndicatorProps) {
         console.log("TokenIndicator: Token renovado com sucesso");
         // Notifica o componente pai sobre a atualização
         onTokenRefresh?.(newToken);
+        
+        // Resetar o estado de alerta de expiração
+        setShowExpirationAlert(false);
         
         // Recarrega a página para garantir que todos os componentes usem o token atualizado
         console.log("TokenIndicator: Recarregando página...");
