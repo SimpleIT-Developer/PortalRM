@@ -170,8 +170,10 @@ export function Sidebar({
   // Recuperar estado expandido do sessionStorage
   const [expandedItems, setExpandedItems] = useState<string[]>(() => {
     try {
-      const saved = sessionStorage.getItem('sidebar-expanded-items');
-      return saved ? JSON.parse(saved) : [];
+      // Ao acessar o sistema, todos os menus iniciam fechados
+      // Limpar qualquer estado salvo anteriormente
+      sessionStorage.removeItem('sidebar-expanded-items');
+      return [];
     } catch {
       return [];
     }
