@@ -249,8 +249,6 @@ export default function DashboardPage() {
       checkTokenValidity();
     }, 30000);
     
-    return () => clearInterval(tokenCheckInterval);
-
     // Buscar a versão do RM
     const loadEndpointAndFetchVersion = async () => {
       try {
@@ -264,6 +262,8 @@ export default function DashboardPage() {
     };
 
     loadEndpointAndFetchVersion();
+    
+    return () => clearInterval(tokenCheckInterval);
   }, [setLocation, toast]);
 
   const handleLogout = () => {
