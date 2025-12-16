@@ -357,30 +357,21 @@ export default function LoginPage() {
 
         {/* System Info */}
         <div className="text-center text-xs text-muted-foreground space-y-2">
-          {/* Endpoint Selection */}
-          {isLoadingEndpoints ? (
-            <div className="flex items-center justify-center gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>Carregando endpoint...</span>
+          {/* Endpoint Input */}
+          <div className="w-full max-w-[250px] mx-auto">
+            <div className="relative">
+              <Input
+                type="text"
+                value={selectedEndpoint}
+                onChange={(e) => handleEndpointChange(e.target.value)}
+                placeholder="URL do WebService (ex: erp.empresa.com.br:8051)"
+                className="h-8 text-xs text-center pr-8"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <Server className="h-3 w-3 text-muted-foreground" />
+              </div>
             </div>
-          ) : endpoints.length > 1 ? (
-            <Select value={selectedEndpoint} onValueChange={handleEndpointChange}>
-              <SelectTrigger className="h-7 text-xs px-3 py-1 w-auto min-w-64 mx-auto">
-                <SelectValue placeholder="Selecione o endpoint" />
-              </SelectTrigger>
-              <SelectContent>
-                {endpoints.map((endpoint) => (
-                  <SelectItem key={endpoint.url} value={endpoint.url}>
-                    {endpoint.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-xs text-muted-foreground">
-              {selectedEndpoint ? selectedEndpoint.replace('https://', '').replace('http://', '') : 'Carregando...'}
-            </div>
-          )}
+          </div>
           
           {/* Copyright */}
           <p>© 2024 TOTVS S.A. Todos os direitos reservados.</p>
