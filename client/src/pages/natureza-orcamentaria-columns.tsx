@@ -1,7 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { AccountingAccount } from "@/lib/accounting-plan";
+import { BudgetaryNature } from "@/lib/budgetary-nature";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, CheckCircle2, XCircle, ChevronRight, ChevronDown, Eye } from "lucide-react";
+import { ArrowUpDown, ChevronRight, ChevronDown, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -23,70 +23,56 @@ const formatDate = (dateString: string) => {
   }
 };
 
-const AccountingAccountDetails = ({ data }: { data: AccountingAccount }) => {
+const BudgetaryNatureDetails = ({ data }: { data: BudgetaryNature }) => {
   return (
     <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">ID</h4>
-          <p className="text-sm font-semibold">{data.id}</p>
+          <h4 className="text-sm font-medium text-muted-foreground">ID Interno</h4>
+          <p className="text-sm font-semibold">{data.internalId}</p>
         </div>
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground">Coligada</h4>
           <p className="text-sm font-semibold">{data.companyId}</p>
         </div>
         <div className="col-span-2 space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Conta</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">Código</h4>
           <p className="text-sm font-semibold">{data.code}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Reduzida</h4>
-          <p className="text-sm font-semibold">{data.reduced || "-"}</p>
         </div>
         <div className="col-span-2 space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground">Descrição</h4>
           <p className="text-sm font-semibold">{data.description}</p>
         </div>
         <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Tipo</h4>
-          <Badge variant={data.analytics === 1 ? "default" : "secondary"}>
-             {data.analytics === 1 ? "Analítica" : "Sintética"}
-          </Badge>
+          <h4 className="text-sm font-medium text-muted-foreground">Natureza</h4>
+          <p className="text-sm font-semibold">{data.nature}</p>
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-sm font-medium text-muted-foreground">Tipo de Natureza</h4>
+          <p className="text-sm font-semibold">{data.natureType}</p>
         </div>
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
-          <div className="flex items-center gap-2">
-            {data.inactive === 0 ? (
-                <Badge variant="outline" className="text-green-600 border-green-600">
-                    <CheckCircle2 className="h-3 w-3 mr-1" /> Ativa
-                </Badge>
-            ) : (
-                <Badge variant="outline" className="text-red-600 border-red-600">
-                    <XCircle className="h-3 w-3 mr-1" /> Inativa
-                </Badge>
-            )}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Natureza SPED</h4>
-          <p className="text-sm font-semibold">{data.spedNature || "-"}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Tipo Correção</h4>
-          <p className="text-sm font-semibold">{data.correctionType}</p>
+          <Badge variant={data.inactive ? "destructive" : "default"}>
+             {data.inactive ? "Inativo" : "Ativo"}
+          </Badge>
         </div>
          <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Rateio</h4>
-          <p className="text-sm font-semibold">{data.apportionment === 1 ? "Sim" : "Não"}</p>
+          <h4 className="text-sm font-medium text-muted-foreground">Permite Transferência</h4>
+          <p className="text-sm font-semibold">{data.dontAllowTransfer ? "Não" : "Sim"}</p>
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-sm font-medium text-muted-foreground">Data de Criação</h4>
+          <p className="text-sm font-semibold">{formatDate(data.recCreatedOn)}</p>
         </div>
         <div className="col-span-2 space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground">Última Modificação</h4>
-          <p className="text-sm font-semibold">{formatDate(data.recordModifiedOn)}</p>
+          <p className="text-sm font-semibold">{formatDate(data.recModifiedOn)}</p>
         </div>
       </div>
   );
 };
 
-export const columns: ColumnDef<AccountingAccount>[] = [
+export const columns: ColumnDef<BudgetaryNature>[] = [
   {
     accessorKey: "code",
     header: ({ column }) => {
@@ -95,7 +81,7 @@ export const columns: ColumnDef<AccountingAccount>[] = [
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Conta
+          Código
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       )
@@ -126,25 +112,6 @@ export const columns: ColumnDef<AccountingAccount>[] = [
     }
   },
   {
-    accessorKey: "companyId",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Coligada
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => <div className="pl-4">{row.getValue("companyId")}</div>,
-  },
-  {
-    accessorKey: "reduced",
-    header: "Reduzida",
-  },
-  {
     accessorKey: "description",
     header: ({ column }) => {
       return (
@@ -157,46 +124,27 @@ export const columns: ColumnDef<AccountingAccount>[] = [
         </Button>
       )
     },
-    cell: ({ row }) => {
-      const isAnalytic = row.original.analytics === 1;
-      return (
-        <span className={isAnalytic ? "" : "font-bold"}>
-          {row.getValue("description")}
-        </span>
-      );
-    }
+    cell: ({ row }) => <div className="pl-4">{row.getValue("description")}</div>,
   },
   {
-    accessorKey: "analytics",
+    accessorKey: "nature",
+    header: "Natureza",
+    cell: ({ row }) => <div className="pl-4">{row.getValue("nature")}</div>,
+  },
+  {
+    accessorKey: "natureType",
     header: "Tipo",
-    cell: ({ row }) => {
-      const isAnalytic = row.getValue("analytics") === 1;
-      return (
-        <Badge variant={isAnalytic ? "default" : "secondary"}>
-          {isAnalytic ? "Analítica" : "Sintética"}
-        </Badge>
-      );
-    }
+    cell: ({ row }) => <div className="pl-4">{row.getValue("natureType")}</div>,
   },
   {
     accessorKey: "inactive",
     header: "Status",
     cell: ({ row }) => {
-      const isInactive = row.getValue("inactive") === 1;
+      const isInactive = row.getValue("inactive");
       return (
-        <div className="flex items-center gap-2">
-          {isInactive ? (
-            <>
-              <XCircle className="h-4 w-4 text-red-500" />
-              <span className="text-muted-foreground">Inativa</span>
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span>Ativa</span>
-            </>
-          )}
-        </div>
+        <Badge variant={isInactive ? "destructive" : "default"}>
+          {isInactive ? "Inativo" : "Ativo"}
+        </Badge>
       );
     }
   },
@@ -213,12 +161,12 @@ export const columns: ColumnDef<AccountingAccount>[] = [
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Detalhes da Conta Contábil</DialogTitle>
+              <DialogTitle>Detalhes da Natureza Orçamentária</DialogTitle>
               <DialogDescription>
                 Informações completas do registro.
               </DialogDescription>
             </DialogHeader>
-            <AccountingAccountDetails data={row.original} />
+            <BudgetaryNatureDetails data={row.original} />
           </DialogContent>
         </Dialog>
       );

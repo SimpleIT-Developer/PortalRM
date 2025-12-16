@@ -1,8 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, PieChart, Activity } from "lucide-react";
+import { 
+  DollarSign, 
+  TrendingUp, 
+  TrendingDown, 
+  BarChart3, 
+  PieChart, 
+  Activity,
+  ShoppingCart,
+  Users
+} from "lucide-react";
 
 export default function DashboardFinanceiro() {
-  // Dados simulados para demonstração
+  // Dados simulados para demonstração (anteriormente no Dashboard Geral)
   const metricsData = [
     {
       title: "Receita Total",
@@ -13,24 +22,24 @@ export default function DashboardFinanceiro() {
       color: "text-green-600"
     },
     {
-      title: "Contas a Pagar",
-      value: "R$ 45.230,00",
-      change: "+5.2%",
+      title: "Vendas do Mês",
+      value: "1.234",
+      change: "+8.2%",
       trend: "up",
-      icon: DollarSign,
+      icon: ShoppingCart,
       color: "text-blue-600"
     },
     {
-      title: "Contas a Receber",
-      value: "R$ 78.450,00",
-      change: "+8.7%",
+      title: "Clientes Ativos",
+      value: "856",
+      change: "+5.1%",
       trend: "up",
-      icon: DollarSign,
+      icon: Users,
       color: "text-purple-600"
     },
     {
-      title: "Fluxo de Caixa",
-      value: "R$ 33.220,00",
+      title: "Taxa de Conversão",
+      value: "3.2%",
       change: "-2.1%",
       trend: "down",
       icon: Activity,
@@ -38,13 +47,21 @@ export default function DashboardFinanceiro() {
     }
   ];
 
-  const fluxoCaixaData = [
+  const salesData = [
     { month: "Jan", value: 45000 },
     { month: "Fev", value: 52000 },
     { month: "Mar", value: 48000 },
     { month: "Abr", value: 61000 },
     { month: "Mai", value: 55000 },
     { month: "Jun", value: 67000 }
+  ];
+
+  const recentActivities = [
+    { id: 1, action: "Nova venda realizada", time: "2 min atrás", type: "sale" },
+    { id: 2, action: "Cliente cadastrado", time: "15 min atrás", type: "customer" },
+    { id: 3, action: "Pagamento recebido", time: "1 hora atrás", type: "payment" },
+    { id: 4, action: "Produto atualizado", time: "2 horas atrás", type: "product" },
+    { id: 5, action: "Relatório gerado", time: "3 horas atrás", type: "report" }
   ];
 
   return (
@@ -103,17 +120,17 @@ export default function DashboardFinanceiro() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Fluxo de Caixa Chart */}
+        {/* Sales Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <BarChart3 className="mr-2 h-5 w-5 text-primary" />
-              Fluxo de Caixa - Últimos 6 Meses
+              Vendas dos Últimos 6 Meses
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {fluxoCaixaData.map((item, index) => (
+              {salesData.map((item, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">
                     {item.month}
@@ -135,47 +152,111 @@ export default function DashboardFinanceiro() {
           </CardContent>
         </Card>
 
-        {/* Distribuição de Despesas */}
+        {/* Recent Activities */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Activity className="mr-2 h-5 w-5 text-primary" />
+              Atividades Recentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {activity.action}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {activity.time}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <PieChart className="mr-2 h-5 w-5 text-primary" />
-              Distribuição de Despesas
+              Distribuição de Vendas
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Operacionais</span>
-                <span className="text-sm font-medium">45%</span>
+                <span className="text-sm text-muted-foreground">Produtos</span>
+                <span className="text-sm font-medium">65%</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: "45%" }} />
+                <div className="bg-blue-600 h-2 rounded-full" style={{ width: "65%" }} />
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Administrativas</span>
-                <span className="text-sm font-medium">30%</span>
+                <span className="text-sm text-muted-foreground">Serviços</span>
+                <span className="text-sm font-medium">35%</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" style={{ width: "30%" }} />
+                <div className="bg-green-600 h-2 rounded-full" style={{ width: "35%" }} />
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Financeiras</span>
-                <span className="text-sm font-medium">15%</span>
+        <Card>
+          <CardHeader>
+            <CardTitle>Metas do Mês</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Vendas</span>
+                  <span className="text-sm font-medium">78%</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full" style={{ width: "78%" }} />
+                </div>
               </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-purple-600 h-2 rounded-full" style={{ width: "15%" }} />
+              
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Receita</span>
+                  <span className="text-sm font-medium">92%</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-green-600 h-2 rounded-full" style={{ width: "92%" }} />
+                </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Outras</span>
-                <span className="text-sm font-medium">10%</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-orange-600 h-2 rounded-full" style={{ width: "10%" }} />
-              </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo Financeiro</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+               <div className="flex justify-between border-b pb-2">
+                 <span className="text-sm text-muted-foreground">Entradas</span>
+                 <span className="text-sm font-medium text-green-600">+ R$ 145.000</span>
+               </div>
+               <div className="flex justify-between border-b pb-2">
+                 <span className="text-sm text-muted-foreground">Saídas</span>
+                 <span className="text-sm font-medium text-red-600">- R$ 85.000</span>
+               </div>
+               <div className="flex justify-between pt-2">
+                 <span className="text-sm font-bold">Saldo</span>
+                 <span className="text-sm font-bold text-primary">R$ 60.000</span>
+               </div>
             </div>
           </CardContent>
         </Card>

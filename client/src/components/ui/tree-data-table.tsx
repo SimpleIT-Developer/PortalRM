@@ -63,7 +63,16 @@ export function TreeDataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getSubRows,
+    filterFromLeafRows: true,
   })
+
+  React.useEffect(() => {
+    if (columnFilters.length > 0) {
+      table.toggleAllRowsExpanded(true)
+    } else {
+      table.toggleAllRowsExpanded(false)
+    }
+  }, [columnFilters])
 
   return (
     <div>

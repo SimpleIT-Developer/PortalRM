@@ -11,16 +11,25 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { 
   LogOut,
   Box,
-  Home
+  Home,
+  Clock,
+  CloudSun,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EndpointService } from "@/lib/endpoint";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 
 // Import pages
 import TokenInfoPage from "./token-info";
 import SolicitacaoCompras from "./solicitacao-compras";
 import NovaSolicitacaoCompras from "./nova-solicitacao-compras";
 import LancamentosContasPagar from "./lancamentos-contas-pagar";
+import AprovacaoBordero from "./aprovacao-bordero";
 import AssistenteVirtual from "./assistente-virtual";
 import AssistenteVirtualRH from "./assistente-virtual-rh";
 import DashboardFinanceiro from "./dashboard-financeiro";
@@ -29,6 +38,8 @@ import DashboardRH from "./dashboard-rh";
 import CadastroFuncionarios from "./cadastro-funcionarios";
 import FiliaisPage from "./filiais";
 import PlanoContasPage from "./plano-contas";
+import NaturezaOrcamentariaPage from "./natureza-orcamentaria";
+import CentroCustoPage from "./centro-custo";
 
 // Import icons for dashboard cards
 import { 
@@ -268,6 +279,18 @@ export default function DashboardPage() {
     return () => clearInterval(tokenCheckInterval);
   }, [setLocation, toast]);
 
+  // Global keyboard shortcut: Esc returns to Dashboard Geral
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLocation('/dashboard');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setLocation]);
+
   const handleLogout = () => {
     AuthService.clearToken();
     setLocation("/");
@@ -388,6 +411,7 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/solicitacao-compras': SolicitacaoCompras,
   '/dashboard/nova-solicitacao-compras': NovaSolicitacaoCompras,
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
+  '/dashboard/aprovacao-bordero': AprovacaoBordero,
   '/dashboard/assistente-virtual': AssistenteVirtual,
   '/dashboard/assistente-virtual-rh': AssistenteVirtualRH,
   '/dashboard/financeiro': DashboardFinanceiro,
@@ -396,6 +420,8 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/cadastro-funcionarios': CadastroFuncionarios,
   '/dashboard/filiais': FiliaisPage,
   '/dashboard/plano-contas': PlanoContasPage,
+  '/dashboard/natureza-orcamentaria': NaturezaOrcamentariaPage,
+  '/dashboard/centro-custo': CentroCustoPage,
 };
 
 // Router component that handles all dashboard routes
@@ -418,6 +444,12 @@ function DashboardContent({ location }: { location: string }) {
   }
 
   if (location === '/dashboard/lancamentos-contas-pagar' && !hasGestaoFinanceiraPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/aprovacao-bordero' && !hasGestaoFinanceiraPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;
@@ -450,58 +482,17 @@ function DashboardContent({ location }: { location: string }) {
 }
 
 function DashboardHome() {
-  // Dados simulados para demonstração
-  const metricsData = [
-    {
-      title: "Receita Total",
-      value: "R$ 125.430,00",
-      change: "+12.5%",
-      trend: "up",
-      icon: DollarSign,
-      color: "text-green-600"
-    },
-    {
-      title: "Vendas do Mês",
-      value: "1.234",
-      change: "+8.2%",
-      trend: "up",
-      icon: ShoppingCart,
-      color: "text-blue-600"
-    },
-    {
-      title: "Clientes Ativos",
-      value: "856",
-      change: "+5.1%",
-      trend: "up",
-      icon: Users,
-      color: "text-purple-600"
-    },
-    {
-      title: "Taxa de Conversão",
-      value: "3.2%",
-      change: "-2.1%",
-      trend: "down",
-      icon: Activity,
-      color: "text-orange-600"
-    }
-  ];
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const token = AuthService.getStoredToken();
+  const username = token?.username || "Usuário";
 
-  const salesData = [
-    { month: "Jan", value: 45000 },
-    { month: "Fev", value: 52000 },
-    { month: "Mar", value: 48000 },
-    { month: "Abr", value: 61000 },
-    { month: "Mai", value: 55000 },
-    { month: "Jun", value: 67000 }
-  ];
-
-  const recentActivities = [
-    { id: 1, action: "Nova venda realizada", time: "2 min atrás", type: "sale" },
-    { id: 2, action: "Cliente cadastrado", time: "15 min atrás", type: "customer" },
-    { id: 3, action: "Pagamento recebido", time: "1 hora atrás", type: "payment" },
-    { id: 4, action: "Produto atualizado", time: "2 horas atrás", type: "product" },
-    { id: 5, action: "Relatório gerado", time: "3 horas atrás", type: "report" }
-  ];
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -509,197 +500,86 @@ function DashboardHome() {
       <div>
         <h1 className="text-3xl font-bold text-foreground flex items-center">
           <Home className="mr-3 h-8 w-8 text-primary" />
-          Dashboard
+          Olá, {username}!
         </h1>
-        <p className="text-muted-foreground mt-2">
-          Visão geral do seu negócio e métricas importantes
+        <p className="text-muted-foreground mt-2 text-lg">
+          Seja bem-vindo ao Portal RM. Tenha um excelente trabalho.
         </p>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metricsData.map((metric, index) => {
-          const Icon = metric.icon;
-          const TrendIcon = metric.trend === "up" ? TrendingUp : TrendingDown;
-          
-          return (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {metric.title}
-                    </p>
-                    <p className="text-2xl font-bold text-foreground mt-2">
-                      {metric.value}
-                    </p>
-                    <div className="flex items-center mt-2">
-                      <TrendIcon className={`h-4 w-4 mr-1 ${
-                        metric.trend === "up" ? "text-green-600" : "text-red-600"
-                      }`} />
-                      <span className={`text-sm font-medium ${
-                        metric.trend === "up" ? "text-green-600" : "text-red-600"
-                      }`}>
-                        {metric.change}
-                      </span>
-                      <span className="text-sm text-muted-foreground ml-1">
-                        vs mês anterior
-                      </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Date and Weather Widget */}
+        <Card className="flex flex-col justify-between hover:shadow-lg transition-shadow">
+            <CardHeader>
+                <CardTitle className="flex items-center">
+                    <CloudSun className="mr-2 h-5 w-5 text-primary" />
+                    Data e Clima
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col items-center justify-center p-6">
+                <div className="text-4xl font-bold text-foreground mb-2 text-center capitalize">
+                    {format(currentTime, "dd 'de' MMMM", { locale: ptBR })}
+                </div>
+                <div className="text-xl text-muted-foreground mb-6 capitalize">
+                    {format(currentTime, "EEEE", { locale: ptBR })}
+                </div>
+                <div className="flex items-center space-x-4 bg-muted/30 p-4 rounded-xl">
+                     <CloudSun className="h-12 w-12 text-yellow-500" />
+                     <div className="text-left">
+                        <div className="text-3xl font-bold">25°C</div>
+                        <div className="text-sm text-muted-foreground">Ensolarado</div>
+                     </div>
+                </div>
+            </CardContent>
+        </Card>
+
+        {/* Clock Widget */}
+        <Card className="flex flex-col justify-between hover:shadow-lg transition-shadow">
+            <CardHeader>
+                <CardTitle className="flex items-center">
+                    <Clock className="mr-2 h-5 w-5 text-primary" />
+                    Horário
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex items-center justify-center p-6">
+                 <div className="flex flex-col items-center">
+                    <div className="text-6xl font-mono font-bold text-primary tracking-widest tabular-nums">
+                        {format(currentTime, "HH:mm:ss")}
                     </div>
-                  </div>
-                  <div className={`p-3 rounded-full bg-muted ${metric.color}`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sales Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <BarChart3 className="mr-2 h-5 w-5 text-primary" />
-              Vendas dos Últimos 6 Meses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {salesData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {item.month}
-                  </span>
-                  <div className="flex items-center space-x-2 flex-1 mx-4">
-                    <div className="flex-1 bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-primary h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(item.value / 70000) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-foreground">
-                    R$ {(item.value / 1000).toFixed(0)}k
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
+                 </div>
+            </CardContent>
         </Card>
 
-        {/* Recent Activities */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Activity className="mr-2 h-5 w-5 text-primary" />
-              Atividades Recentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {activity.action}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Additional Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <PieChart className="mr-2 h-5 w-5 text-primary" />
-              Distribuição de Vendas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Produtos</span>
-                <span className="text-sm font-medium">65%</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: "65%" }} />
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Serviços</span>
-                <span className="text-sm font-medium">35%</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" style={{ width: "35%" }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Metas do Mês</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-muted-foreground">Vendas</span>
-                  <span className="text-sm font-medium">78%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-primary h-2 rounded-full" style={{ width: "78%" }} />
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-muted-foreground">Receita</span>
-                  <span className="text-sm font-medium">92%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: "92%" }} />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo Financeiro</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Receita Bruta</span>
-                <span className="text-sm font-medium text-green-600">R$ 125.430</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Despesas</span>
-                <span className="text-sm font-medium text-red-600">R$ 45.230</span>
-              </div>
-              <div className="border-t pt-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Lucro Líquido</span>
-                  <span className="text-sm font-bold text-green-600">R$ 80.200</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
+        {/* Calendar Widget */}
+        <Card className="flex flex-col hover:shadow-lg transition-shadow h-full">
+            <CardHeader className="pb-2">
+                <CardTitle className="flex items-center">
+                    <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
+                    Calendário
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 p-0">
+                <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    className="w-full h-full flex flex-col items-center justify-center border-none shadow-none rounded-b-xl p-0"
+                    locale={ptBR}
+                    classNames={{
+                        months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 flex-1",
+                        month: "space-y-4 w-full flex flex-col flex-1",
+                        table: "w-full h-full border-collapse space-y-1",
+                        head_row: "flex w-full mt-2",
+                        head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem] flex-1",
+                        row: "flex w-full mt-2 flex-1",
+                        cell: "h-auto w-full text-center text-sm p-0 relative flex-1 [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                        day: cn(
+                            buttonVariants({ variant: "ghost" }),
+                            "h-full w-full p-0 font-normal aria-selected:opacity-100 aspect-square"
+                        ),
+                    }}
+                />
+            </CardContent>
         </Card>
       </div>
     </div>

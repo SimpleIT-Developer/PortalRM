@@ -3,6 +3,12 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   Home,
   Menu,
@@ -16,7 +22,10 @@ import {
   MessageCircle,
   Users,
   Building,
-  Calculator
+  Calculator,
+  PieChart,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +99,12 @@ const menuItems: MenuItem[] = [
         icon: Receipt,
         path: "/dashboard/aprovacao-bordero",
       },
+      {
+        id: "natureza-orcamentaria",
+        label: "Natureza Orçamentária",
+        icon: PieChart,
+        path: "/dashboard/natureza-orcamentaria",
+      },
     ],
   },
   {
@@ -115,6 +130,12 @@ const menuItems: MenuItem[] = [
         label: "Plano de Contas",
         icon: FileText,
         path: "/dashboard/plano-contas",
+      },
+      {
+        id: "centro-custo",
+        label: "Centro de Custo",
+        icon: Building,
+        path: "/dashboard/centro-custo",
       },
     ],
   },
@@ -207,7 +228,15 @@ export function Sidebar({
     }
   });
   const [isToggling, setIsToggling] = useState(false);
-  
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sidebar-collapsed');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // Salvar estado expandido no sessionStorage sempre que mudar
   useEffect(() => {
     try {
@@ -216,9 +245,41 @@ export function Sidebar({
       // Ignorar erros de storage
     }
   }, [expandedItems]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sidebar-collapsed', String(isCollapsed));
+    } catch {}
+  }, [isCollapsed]);
+  
+  // Efeito para colapsar menus ao pressionar ESC
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setExpandedItems([]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   
 
   const toggleExpanded = (itemId: string, event?: React.MouseEvent) => {
+    // Se estiver colapsado e o usuário clicar em um item pai, expandir a sidebar
+    if (isCollapsed) {
+        setIsCollapsed(false);
+        // Pequeno delay para permitir a animação da sidebar antes de expandir o item
+        setTimeout(() => {
+             setExpandedItems(prev => 
+                prev.includes(itemId) 
+                  ? prev.filter(id => id !== itemId) 
+                  : [...prev, itemId]
+              );
+        }, 100);
+        return;
+    }
+
     // Prevenir propagação de eventos e múltiplos cliques
     if (event) {
       event.stopPropagation();
@@ -289,8 +350,7 @@ export function Sidebar({
     const showLockIcon = false;
 
     if (hasChildren) {
-      return (
-        <div key={item.id} className="w-full">
+      const buttonContent = (
           <Button
             variant="ghost"
             disabled={isDisabled}
@@ -298,35 +358,57 @@ export function Sidebar({
               "w-full justify-start text-left h-auto py-2.5 px-4",
               isDisabled 
                 ? "opacity-50 cursor-not-allowed text-muted-foreground" 
-                : "hover:bg-muted/50"
+                : "hover:bg-muted/50",
+              isCollapsed && "px-2 justify-center"
             )}
             onClick={(e) => toggleExpanded(item.id, e)}
           >
-            <Icon className={cn("mr-2.5 h-4 w-4 shrink-0", isDisabled && "opacity-50")} />
-            <span className="truncate text-sm">{item.label}</span>
-            <span className="ml-auto">
-              {!isDisabled && (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={cn("transition-transform", isExpanded ? "rotate-180" : "")}
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              )}
-              {isDisabled && (
-                <span className="text-xs text-muted-foreground">🔒</span>
-              )}
-            </span>
+            <Icon className={cn("h-4 w-4 shrink-0", isDisabled && "opacity-50", !isCollapsed && "mr-2.5")} />
+            {!isCollapsed && (
+              <>
+                <span className="truncate text-sm">{item.label}</span>
+                <span className="ml-auto">
+                  {!isDisabled && (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={cn("transition-transform", isExpanded ? "rotate-180" : "")}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  )}
+                  {isDisabled && (
+                    <span className="text-xs text-muted-foreground">🔒</span>
+                  )}
+                </span>
+              </>
+            )}
           </Button>
-          {isExpanded && item.children && (
+      );
+
+      return (
+        <div key={item.id} className="w-full">
+          {isCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {buttonContent}
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{item.label}</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            buttonContent
+          )}
+          
+          {isExpanded && !isCollapsed && item.children && (
             <div className="pl-5 mt-2 space-y-2">
               {item.children
                 .map((child, index) => {
@@ -465,6 +547,21 @@ export function Sidebar({
       );
     }
 
+    const buttonContent = (
+        <Button
+          variant={isActive ? "secondary" : "ghost"}
+          className={cn(
+            "w-full justify-start text-left h-auto py-2.5 px-4",
+            "hover:bg-muted/50",
+            isCollapsed && "px-2 justify-center"
+          )}
+          onClick={() => isMobile && onClose?.()}
+        >
+          <Icon className={cn("h-4 w-4 shrink-0", !isCollapsed && "mr-2.5")} />
+          {!isCollapsed && <span className="truncate text-sm">{item.label}</span>}
+        </Button>
+    );
+
     return (
       <div key={item.id} className="w-full">
         {isDisabled ? (
@@ -473,27 +570,35 @@ export function Sidebar({
             disabled
             className={cn(
               "w-full justify-start text-left h-auto py-2.5 px-4",
-              "opacity-50 cursor-not-allowed text-muted-foreground"
+              "opacity-50 cursor-not-allowed text-muted-foreground",
+              isCollapsed && "px-2 justify-center"
             )}
           >
-            <Icon className="mr-2.5 h-4 w-4 shrink-0 opacity-50" />
-            <span className="truncate text-sm">{item.label}</span>
-            <span className="ml-auto text-xs">🔒</span>
+            <Icon className={cn("h-4 w-4 shrink-0 opacity-50", !isCollapsed && "mr-2.5")} />
+            {!isCollapsed && (
+              <>
+                <span className="truncate text-sm">{item.label}</span>
+                <span className="ml-auto text-xs">🔒</span>
+              </>
+            )}
           </Button>
         ) : (
-          <Link href={item.path!}>
-            <Button
-              variant={isActive ? "secondary" : "ghost"}
-              className={cn(
-                "w-full justify-start text-left h-auto py-2.5 px-4",
-                "hover:bg-muted/50"
-              )}
-              onClick={() => isMobile && onClose?.()}
-            >
-              <Icon className="mr-2.5 h-4 w-4 shrink-0" />
-              <span className="truncate text-sm">{item.label}</span>
-            </Button>
-          </Link>
+          isCollapsed ? (
+            <Link href={item.path!}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {buttonContent}
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            </Link>
+          ) : (
+            <Link href={item.path!}>
+              {buttonContent}
+            </Link>
+          )
         )}
       </div>
     );
@@ -502,23 +607,38 @@ export function Sidebar({
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Portal RM</h2>
-          {isMobile && (
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+      <div className={cn("flex items-center border-b border-border h-16", isCollapsed ? "justify-center p-2" : "justify-between p-4")}>
+        {!isCollapsed && <h2 className="text-lg font-semibold whitespace-nowrap overflow-hidden">Portal RM</h2>}
+        {isCollapsed && <h2 className="text-lg font-semibold">RM</h2>}
+        {isMobile && (
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Menu Items */}
       <ScrollArea className="flex-1 p-3">
-        <div className="space-y-2">
-          {menuItems.map((item) => renderMenuItem(item))}
-        </div>
+        <TooltipProvider delayDuration={0}>
+          <div className="space-y-2">
+            {menuItems.map((item) => renderMenuItem(item))}
+          </div>
+        </TooltipProvider>
       </ScrollArea>
+
+      {/* Footer Toggle */}
+      {!isMobile && (
+        <div className="p-4 border-t border-border flex justify-end">
+           <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="ml-auto"
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+           </Button>
+        </div>
+      )}
     </div>
   );
 
@@ -534,7 +654,7 @@ export function Sidebar({
   }
 
   return (
-    <div className={cn("w-72 bg-card border-r border-border", className)}>
+    <div className={cn(isCollapsed ? "w-16" : "w-72", "bg-card border-r border-border transition-all duration-300", className)}>
       {sidebarContent}
     </div>
   );
