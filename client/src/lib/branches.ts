@@ -1,13 +1,24 @@
 import { AuthService } from './auth';
 
 export interface Branch {
-  CODCOLIGADA: number;
-  CODFILIAL: number;
-  NOME: string;
-  NOMEFANTASIA?: string;
+  BranchInternalId?: string;
+  CompanyCode: number;
+  Code: number;
+  Description: string;
+  Title?: string;
   CGC?: string;
-  TELEFONE?: string;
-  EMAIL?: string;
+  StateRegistration?: string;
+  Phone?: string;
+  Street?: string;
+  Complement?: string;
+  Neighborhood?: string;
+  State?: string;
+  City?: string;
+  ZipCode?: string;
+  CityCode?: string;
+  DTRE?: string;
+  Suframa?: string;
+  Active?: number;
   [key: string]: any;
 }
 

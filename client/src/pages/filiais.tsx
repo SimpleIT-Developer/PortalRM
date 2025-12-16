@@ -88,11 +88,11 @@ export default function FiliaisPage() {
                 </TableHeader>
                 <TableBody>
                   {branches.map((branch) => (
-                    <TableRow key={`${branch.CODCOLIGADA}-${branch.CODFILIAL}`}>
-                      <TableCell className="font-medium">{branch.CODCOLIGADA}</TableCell>
-                      <TableCell>{branch.CODFILIAL}</TableCell>
-                      <TableCell>{branch.NOME}</TableCell>
-                      <TableCell>{branch.NOMEFANTASIA || '-'}</TableCell>
+                    <TableRow key={`${branch.CompanyCode}-${branch.Code}`}>
+                      <TableCell className="font-medium">{branch.CompanyCode}</TableCell>
+                      <TableCell>{branch.Code}</TableCell>
+                      <TableCell>{branch.Description}</TableCell>
+                      <TableCell>{branch.Title || '-'}</TableCell>
                       <TableCell>{branch.CGC || '-'}</TableCell>
                     </TableRow>
                   ))}
