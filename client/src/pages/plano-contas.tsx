@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Calculator, RefreshCw, Loader2 } from "lucide-react";
 import { AccountingPlanService, AccountingAccount } from "@/lib/accounting-plan";
 import { useToast } from "@/hooks/use-toast";
-import { DataTable } from "@/components/ui/data-table";
+import { TreeDataTable } from "@/components/ui/tree-data-table";
 import { columns } from "./plano-contas-columns";
 
 export default function PlanoContasPage() {
@@ -16,7 +16,9 @@ export default function PlanoContasPage() {
     setIsLoading(true);
     try {
       const data = await AccountingPlanService.getAccountingPlan();
-      setAccounts(data);
+      // Transforma a lista plana em árvore
+      const treeData = AccountingPlanService.buildTree(data);
+      setAccounts(treeData);
     } catch (error) {
       console.error(error);
       toast({
@@ -61,7 +63,7 @@ export default function PlanoContasPage() {
         <CardHeader>
           <CardTitle>Estrutura de Contas</CardTitle>
           <CardDescription>
-            Total de {accounts.length} contas encontradas.
+            Exibindo estrutura hierárquica do plano de contas.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -76,11 +78,12 @@ export default function PlanoContasPage() {
               <p>Nenhuma conta encontrada.</p>
             </div>
           ) : (
-            <DataTable 
+            <TreeDataTable 
               columns={columns} 
               data={accounts} 
               filterColumn="description"
               filterPlaceholder="Filtrar por descrição..."
+              getSubRows={(row) => row.children && row.children.length > 0 ? row.children : undefined}
             />
           )}
         </CardContent>

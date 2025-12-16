@@ -15,6 +15,7 @@ export interface AccountingAccount {
   historyAffiliateCode: number;
   spedNature: string;
   recordModifiedOn: string;
+  children?: AccountingAccount[]; // Para estrutura de árvore
   [key: string]: any;
 }
 
@@ -25,6 +26,59 @@ export interface AccountingPlanResponse {
 }
 
 export class AccountingPlanService {
+  /**
+   * Constrói a árvore de contas a partir da lista plana
+   */
+  static buildTree(accounts: AccountingAccount[]): AccountingAccount[] {
+    const accountMap = new Map<string, AccountingAccount>();
+    const rootAccounts: AccountingAccount[] = [];
+
+    // Primeiro passo: Criar um mapa de contas para acesso rápido e garantir que children seja inicializado
+    // Também ordenamos por código para garantir que pais venham antes (ou pelo menos estejam disponíveis)
+    const sortedAccounts = [...accounts].sort((a, b) => a.code.localeCompare(b.code));
+
+    sortedAccounts.forEach(account => {
+      // Cria uma cópia rasa para não mutar o objeto original se ele for usado em outro lugar
+      // e inicializa o array de filhos
+      const accountWithChildren = { ...account, children: [] };
+      accountMap.set(account.code, accountWithChildren);
+    });
+
+    // Segundo passo: Construir a hierarquia
+    sortedAccounts.forEach(account => {
+      const currentAccount = accountMap.get(account.code)!;
+      
+      // Tenta encontrar o pai
+      // A lógica assume que o pai tem o código igual ao do filho sem o último nível
+      // Ex: 1.1.01 -> Pai é 1.1
+      // Ex: 1.1 -> Pai é 1
+      // Ex: 1 -> Não tem pai (Raiz)
+      
+      // Remove o último segmento do código para achar o potencial pai
+      const parts = account.code.split('.');
+      let parentCode = '';
+      
+      if (parts.length > 1) {
+        // Se tem pontos (ex: 1.1.01), remove o último
+        parentCode = parts.slice(0, -1).join('.');
+      } else {
+         // Se não tem pontos, mas pode ser um sub-nível implícito (menos comum em planos bem estruturados, mas possível)
+         // Vamos assumir que se não tem pontos, é raiz, a menos que a lógica de negócio seja diferente.
+         // Para este caso, vamos considerar apenas a estrutura com pontos.
+      }
+
+      const parentAccount = parentCode ? accountMap.get(parentCode) : null;
+
+      if (parentAccount) {
+        parentAccount.children!.push(currentAccount);
+      } else {
+        rootAccounts.push(currentAccount);
+      }
+    });
+
+    return rootAccounts;
+  }
+
   /**
    * Busca o plano de contas no endpoint TOTVS
    */

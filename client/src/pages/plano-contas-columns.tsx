@@ -1,10 +1,48 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { AccountingAccount } from "@/lib/accounting-plan";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, XCircle, ChevronRight, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export const columns: ColumnDef<AccountingAccount>[] = [
+  {
+    accessorKey: "code",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Conta
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => {
+      return (
+        <div 
+          className="flex items-center pl-2" 
+          style={{ paddingLeft: `${row.depth * 20}px` }}
+        >
+          {row.getCanExpand() ? (
+            <button
+              onClick={row.getToggleExpandedHandler()}
+              className="mr-2 cursor-pointer p-1 hover:bg-muted rounded-sm"
+            >
+              {row.getIsExpanded() ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          ) : (
+            <span className="w-6 mr-2" /> // Espaçador para alinhamento
+          )}
+          <span className="font-medium">{row.getValue("code")}</span>
+        </div>
+      );
+    }
+  },
   {
     accessorKey: "companyId",
     header: ({ column }) => {
@@ -19,20 +57,6 @@ export const columns: ColumnDef<AccountingAccount>[] = [
       )
     },
     cell: ({ row }) => <div className="pl-4">{row.getValue("companyId")}</div>,
-  },
-  {
-    accessorKey: "code",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Conta
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
   },
   {
     accessorKey: "reduced",
