@@ -15,7 +15,8 @@ import {
   Receipt,
   MessageCircle,
   Users,
-  Building
+  Building,
+  Calculator
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -101,6 +102,19 @@ const menuItems: MenuItem[] = [
         label: "Filiais",
         icon: Building,
         path: "/dashboard/filiais",
+      },
+    ],
+  },
+  {
+    id: "gestao-contabil",
+    label: "Gestão Contábil",
+    icon: Calculator,
+    children: [
+      {
+        id: "plano-contas",
+        label: "Plano de Contas",
+        icon: FileText,
+        path: "/dashboard/plano-contas",
       },
     ],
   },

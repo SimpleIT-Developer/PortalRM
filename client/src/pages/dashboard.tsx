@@ -28,6 +28,7 @@ import DashboardCompras from "./dashboard-compras";
 import DashboardRH from "./dashboard-rh";
 import CadastroFuncionarios from "./cadastro-funcionarios";
 import FiliaisPage from "./filiais";
+import PlanoContasPage from "./plano-contas";
 
 // Import icons for dashboard cards
 import { 
@@ -394,6 +395,7 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/rh': DashboardRH,
   '/dashboard/cadastro-funcionarios': CadastroFuncionarios,
   '/dashboard/filiais': FiliaisPage,
+  '/dashboard/plano-contas': PlanoContasPage,
 };
 
 // Router component that handles all dashboard routes
