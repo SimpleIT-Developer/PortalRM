@@ -366,7 +366,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center h-full max-w-full">
             <div className="flex items-center space-x-4">
               <span>Versão RM: {rmVersion || "Carregando..."}</span>
-              <span>Versão Portal: 1.0.0</span>
+              <span>Versão Portal: 1.0.01</span>
             </div>
             <div className="flex items-center space-x-4">
               <span>Data: {new Date().toLocaleDateString('pt-BR')}</span>
