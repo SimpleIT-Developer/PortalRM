@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Building, RefreshCw, Loader2 } from "lucide-react";
 import { BranchesService, Branch } from "@/lib/branches";
 import { useToast } from "@/hooks/use-toast";
+import { DataTable } from "@/components/ui/data-table";
+import { columns } from "./filiais-columns";
 
 export default function FiliaisPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -26,19 +27,6 @@ export default function FiliaisPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const formatCNPJ = (cnpj: string | undefined) => {
-    if (!cnpj) return '-';
-    
-    // Remove caracteres não numéricos
-    const numbers = cnpj.replace(/\D/g, '');
-    
-    // Verifica se tem 14 dígitos
-    if (numbers.length !== 14) return cnpj;
-    
-    // Formata: XX.XXX.XXX/0001-XX
-    return numbers.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
   };
 
   useEffect(() => {
@@ -88,30 +76,12 @@ export default function FiliaisPage() {
               <p>Nenhuma filial encontrada.</p>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[100px]">Coligada</TableHead>
-                    <TableHead className="w-[100px]">Código</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Nome Fantasia</TableHead>
-                    <TableHead>CNPJ</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {branches.map((branch) => (
-                    <TableRow key={`${branch.CompanyCode}-${branch.Code}`}>
-                      <TableCell className="font-medium">{branch.CompanyCode}</TableCell>
-                      <TableCell>{branch.Code}</TableCell>
-                      <TableCell>{branch.Description}</TableCell>
-                      <TableCell>{branch.Title || '-'}</TableCell>
-                      <TableCell>{formatCNPJ(branch.CGC)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <DataTable 
+              columns={columns} 
+              data={branches} 
+              filterColumn="Description"
+              filterPlaceholder="Filtrar por nome..."
+            />
           )}
         </CardContent>
       </Card>
