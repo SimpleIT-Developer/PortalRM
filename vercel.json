@@ -1,6 +1,8 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/api/auth/login", "destination": "/api/auth/login" },
+    { "source": "/api/auth/refresh", "destination": "/api/auth/refresh" },
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
