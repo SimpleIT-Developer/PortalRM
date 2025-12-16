@@ -14,7 +14,8 @@ import {
   DollarSign,
   Receipt,
   MessageCircle,
-  Users
+  Users,
+  Building
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -87,6 +88,19 @@ const menuItems: MenuItem[] = [
         label: "Aprovação de Borderô",
         icon: Receipt,
         path: "/dashboard/aprovacao-bordero",
+      },
+    ],
+  },
+  {
+    id: "gestao-fiscal",
+    label: "Gestão Fiscal",
+    icon: Building,
+    children: [
+      {
+        id: "filiais",
+        label: "Filiais",
+        icon: Building,
+        path: "/dashboard/filiais",
       },
     ],
   },
