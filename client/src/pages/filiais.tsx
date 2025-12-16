@@ -1,29 +1,105 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Building, RefreshCw, Loader2 } from "lucide-react";
+import { BranchesService, Branch } from "@/lib/branches";
+import { useToast } from "@/hooks/use-toast";
 
 export default function FiliaisPage() {
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchBranches = async () => {
+    setIsLoading(true);
+    try {
+      const data = await BranchesService.getBranches();
+      setBranches(data);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar filiais",
+        description: "Não foi possível obter a lista de filiais. Tente novamente.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Building className="h-6 w-6" />
-        <h1 className="text-3xl font-bold">Gestão de Filiais</h1>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Building className="h-8 w-8 text-primary" />
+            Gestão de Filiais
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Visualize e gerencie as filiais da sua empresa.
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={fetchBranches} 
+          disabled={isLoading}
+          className="gap-2"
+        >
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          Atualizar
+        </Button>
       </div>
-      
+
       <Card>
         <CardHeader>
-          <CardTitle>Filiais</CardTitle>
+          <CardTitle>Listagem de Filiais</CardTitle>
           <CardDescription>
-            Gerencie as filiais da empresa.
+            Total de {branches.length} filiais encontradas.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <Building className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">Módulo em Desenvolvimento</h3>
-            <p className="text-muted-foreground">
-              A gestão de filiais estará disponível em breve.
-            </p>
-          </div>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-4" />
+              <p>Carregando dados das filiais...</p>
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhuma filial encontrada.</p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[100px]">Coligada</TableHead>
+                    <TableHead className="w-[100px]">Código</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Nome Fantasia</TableHead>
+                    <TableHead>CNPJ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {branches.map((branch) => (
+                    <TableRow key={`${branch.CODCOLIGADA}-${branch.CODFILIAL}`}>
+                      <TableCell className="font-medium">{branch.CODCOLIGADA}</TableCell>
+                      <TableCell>{branch.CODFILIAL}</TableCell>
+                      <TableCell>{branch.NOME}</TableCell>
+                      <TableCell>{branch.NOMEFANTASIA || '-'}</TableCell>
+                      <TableCell>{branch.CGC || '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
