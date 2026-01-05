@@ -55,19 +55,22 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
   }, [duration, onComplete]);
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-background z-50">
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#121212] z-50">
       <div className="text-center space-y-8 max-w-md w-full px-4">
         {/* Logo */}
-        <div className="mx-auto h-16 w-16 bg-primary rounded-full flex items-center justify-center mb-6">
-          <Box className="text-primary-foreground text-2xl" size={24} />
+        <div className="mx-auto h-20 w-20 bg-yellow-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_15px_rgba(234,179,8,0.5)]">
+          <Box className="text-black text-4xl" size={40} />
         </div>
         
-        <h1 className="text-3xl font-medium text-foreground mb-2">TOTVS RM</h1>
+        <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">TOTVS RM</h1>
         
         {/* Barra de progresso */}
         <div className="space-y-4 w-full">
-          <Progress value={progress} className="h-2 w-full" />
-          <p className="text-sm text-muted-foreground">{message}</p>
+          <Progress 
+            value={progress} 
+            className="h-2 w-full bg-[#2D2D2D] [&>div]:bg-yellow-500" 
+          />
+          <p className="text-sm text-gray-400 font-medium">{message}</p>
         </div>
       </div>
     </div>

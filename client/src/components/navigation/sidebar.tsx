@@ -25,11 +25,12 @@ import {
   Calculator,
   PieChart,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FileCode
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface MenuItem {
+export interface MenuItem {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -37,10 +38,10 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const menuItems: MenuItem[] = [
+export const menuItems: MenuItem[] = [
   {
     id: "dashboard-principal",
-    label: "Dashboard Principal",
+    label: "Dashboards",
     icon: Home,
     children: [
       {
@@ -79,6 +80,30 @@ const menuItems: MenuItem[] = [
         label: "Solicitação de Compras",
         icon: FileText,
         path: "/dashboard/solicitacao-compras",
+      },
+      {
+        id: "importacao-xml",
+        label: "Importação de Arquivo XML",
+        icon: FileCode,
+        path: "/dashboard/importacao-xml",
+      },
+      {
+        id: "xml-nfe",
+        label: "XML NFe",
+        icon: FileCode,
+        path: "/dashboard/xml-nfe",
+      },
+      {
+        id: "xml-nfse",
+        label: "XML NFSe",
+        icon: FileCode,
+        path: "/dashboard/xml-nfse",
+      },
+      {
+        id: "xml-cte",
+        label: "XML CTe",
+        icon: FileCode,
+        path: "/dashboard/xml-cte",
       },
     ],
   },
@@ -196,6 +221,7 @@ interface SidebarProps {
   hasGestaoRHPermission?: boolean;
   hasAssistenteVirtualRHPermission?: boolean;
   hasAssistenteVirtualFinanceiroPermission?: boolean;
+  items?: MenuItem[];
   debugInfo?: {
     username?: string;
     permissions?: any;
@@ -213,6 +239,7 @@ export function Sidebar({
   hasGestaoRHPermission = false,
   hasAssistenteVirtualRHPermission = false,
   hasAssistenteVirtualFinanceiroPermission = false,
+  items,
   debugInfo
 }: SidebarProps) {
   const [location] = useLocation();
@@ -621,7 +648,7 @@ export function Sidebar({
       <ScrollArea className="flex-1 p-3">
         <TooltipProvider delayDuration={0}>
           <div className="space-y-2">
-            {menuItems.map((item) => renderMenuItem(item))}
+            {(items || menuItems).map((item) => renderMenuItem(item))}
           </div>
         </TooltipProvider>
       </ScrollArea>

@@ -84,32 +84,30 @@ export default function DashboardFinanceiro() {
           const TrendIcon = metric.trend === "up" ? TrendingUp : TrendingDown;
           
           return (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
+            <Card key={index} className="bg-card border-none hover:shadow-[0_0_15px_rgba(234,179,8,0.1)] transition-all duration-300 group">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">
+                    <p className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
                       {metric.title}
                     </p>
-                    <p className="text-2xl font-bold text-foreground mt-2">
+                    <p className="text-2xl font-bold text-white mt-2">
                       {metric.value}
                     </p>
                     <div className="flex items-center mt-2">
                       <TrendIcon className={`h-4 w-4 mr-1 ${
-                        metric.trend === "up" ? "text-green-600" : "text-red-600"
+                        metric.trend === "up" ? "text-green-500" : "text-red-500"
                       }`} />
                       <span className={`text-sm font-medium ${
-                        metric.trend === "up" ? "text-green-600" : "text-red-600"
+                        metric.trend === "up" ? "text-green-500" : "text-red-500"
                       }`}>
                         {metric.change}
                       </span>
-                      <span className="text-sm text-muted-foreground ml-1">
-                        vs mês anterior
-                      </span>
+                      <span className="text-xs text-muted-foreground ml-2">vs. mês anterior</span>
                     </div>
                   </div>
-                  <div className={`p-3 rounded-full bg-muted ${metric.color}`}>
-                    <Icon className="h-6 w-6" />
+                  <div className={`p-3 rounded-full ${metric.color.replace('text-', 'bg-').replace('600', '500/10')} border border-white/5`}>
+                    <Icon className={`h-6 w-6 ${metric.color === "text-green-600" ? "text-green-500" : metric.color === "text-blue-600" ? "text-blue-500" : metric.color === "text-purple-600" ? "text-purple-500" : "text-orange-500"}`} />
                   </div>
                 </div>
               </CardContent>
@@ -118,55 +116,37 @@ export default function DashboardFinanceiro() {
         })}
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sales Chart */}
-        <Card>
+        <Card className="lg:col-span-2 bg-card border-none">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <BarChart3 className="mr-2 h-5 w-5 text-primary" />
-              Vendas dos Últimos 6 Meses
-            </CardTitle>
+            <CardTitle className="text-white">Receita Mensal</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {salesData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {item.month}
-                  </span>
-                  <div className="flex items-center space-x-2 flex-1 mx-4">
-                    <div className="flex-1 bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-primary h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(item.value / 70000) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-foreground">
-                    R$ {(item.value / 1000).toFixed(0)}k
-                  </span>
-                </div>
-              ))}
+            <div className="h-[300px] flex items-center justify-center bg-secondary/30 rounded-lg border border-white/5">
+              <BarChart3 className="h-16 w-16 text-muted-foreground/20" />
+              <span className="ml-4 text-muted-foreground">Gráfico de Receita (Simulação)</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Recent Activities */}
-        <Card>
+        {/* Recent Activity */}
+        <Card className="bg-card border-none">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Activity className="mr-2 h-5 w-5 text-primary" />
-              Atividades Recentes
-            </CardTitle>
+            <CardTitle className="text-white">Atividade Recente</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
+                <div key={activity.id} className="flex items-start pb-4 border-b border-white/5 last:border-0 last:pb-0">
+                  <div className={`mt-1 h-2 w-2 rounded-full ${
+                    activity.type === "sale" ? "bg-green-500" :
+                    activity.type === "customer" ? "bg-blue-500" :
+                    activity.type === "payment" ? "bg-yellow-500" :
+                    "bg-gray-500"
+                  }`} />
+                  <div className="ml-4 space-y-1">
+                    <p className="text-sm font-medium text-white leading-none">
                       {activity.action}
                     </p>
                     <p className="text-xs text-muted-foreground">

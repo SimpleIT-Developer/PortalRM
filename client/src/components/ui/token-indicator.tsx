@@ -90,9 +90,8 @@ export function TokenIndicator({ token, onTokenRefresh }: TokenIndicatorProps) {
         // Resetar o estado de alerta de expiração
         setShowExpirationAlert(false);
         
-        // Recarrega a página para garantir que todos os componentes usem o token atualizado
-        console.log("TokenIndicator: Recarregando página...");
-        window.location.reload();
+        // Permanecer na mesma tela: atualizar estado e evitar recarregar a página
+        console.log("TokenIndicator: Permanecendo na mesma tela após renovação");
       } else {
         console.warn("TokenIndicator: Falha ao renovar token");
       }

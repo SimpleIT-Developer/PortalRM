@@ -3,7 +3,7 @@ import { useLocation, Switch, Route } from "wouter";
 import { AuthService, type StoredToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sidebar } from "@/components/navigation/sidebar";
+import { Sidebar, menuItems } from "@/components/navigation/sidebar";
 import { MobileMenuButton } from "@/components/navigation/mobile-menu-button";
 import { TokenIndicator } from "@/components/ui/token-indicator";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -23,6 +23,13 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Import pages
 import TokenInfoPage from "./token-info";
@@ -40,6 +47,10 @@ import FiliaisPage from "./filiais";
 import PlanoContasPage from "./plano-contas";
 import NaturezaOrcamentariaPage from "./natureza-orcamentaria";
 import CentroCustoPage from "./centro-custo";
+import ImportacaoXmlPage from "./importacao-xml";
+import XmlNfePage from "./xml-nfe";
+import XmlNfsePage from "./xml-nfse";
+import XmlCtePage from "./xml-cte";
 
 // Import icons for dashboard cards
 import { 
@@ -71,6 +82,27 @@ export default function DashboardPage() {
     permissions,
     refetch: refetchPermissions 
   } = usePermissions(token?.username || null);
+
+  const [selectedModuleId, setSelectedModuleId] = useState<string>("dashboard-principal");
+
+  // Filtrar módulos disponíveis com base nas permissões
+  const availableModules = menuItems.filter(item => {
+    if (item.id === "gestao-compras") return hasGestaoComprasPermission;
+    if (item.id === "gestao-financeira") return hasGestaoFinanceiraPermission;
+    if (item.id === "gestao-rh") return hasGestaoRHPermission;
+    return true;
+  });
+
+  // Atualizar o módulo selecionado se o atual não estiver mais disponível (ex: perdeu permissão)
+  useEffect(() => {
+    const isCurrentModuleAvailable = availableModules.some(m => m.id === selectedModuleId);
+    if (!isCurrentModuleAvailable && availableModules.length > 0) {
+      setSelectedModuleId(availableModules[0].id);
+    }
+  }, [availableModules, selectedModuleId]);
+
+  // Obter os itens do sidebar para o módulo selecionado
+  const sidebarItems = menuItems.find(m => m.id === selectedModuleId)?.children || [];
 
   // Debug info para o Sidebar
   const debugInfo = {
@@ -335,7 +367,25 @@ export default function DashboardPage() {
               <div className="h-8 w-8 bg-primary rounded flex items-center justify-center mr-3">
                 <Box className="text-primary-foreground text-sm" size={16} />
               </div>
-              <h1 className="text-xl font-medium text-foreground">TOTVS RM</h1>
+              <h1 className="text-xl font-medium text-foreground mr-6 hidden md:block">TOTVS RM</h1>
+              
+              <div className="w-[200px] md:w-[280px]">
+                <Select value={selectedModuleId} onValueChange={setSelectedModuleId}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione o Módulo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableModules.map((module) => (
+                      <SelectItem key={module.id} value={module.id}>
+                        <div className="flex items-center gap-2">
+                          <module.icon className="h-4 w-4" />
+                          <span>{module.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-muted-foreground hidden sm:block">
@@ -358,6 +408,7 @@ export default function DashboardPage() {
           {!isMobile && (
             <Sidebar 
               className="hidden md:block h-[calc(100vh-4rem-24px)] sticky top-16" 
+              items={sidebarItems}
               hasGestaoComprasPermission={hasGestaoComprasPermission}
               hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
               hasGestaoRHPermission={hasGestaoRHPermission}
@@ -372,6 +423,7 @@ export default function DashboardPage() {
             isMobile
             isOpen={mobileMenuOpen}
             onClose={() => setMobileMenuOpen(false)}
+            items={sidebarItems}
             hasGestaoComprasPermission={hasGestaoComprasPermission}
             hasGestaoFinanceiraPermission={hasGestaoFinanceiraPermission}
             hasGestaoRHPermission={hasGestaoRHPermission}
@@ -387,7 +439,7 @@ export default function DashboardPage() {
         </div>
         
         {/* Status Bar */}
-        <div className="h-6 bg-slate-200 border-t border-border text-xs text-muted-foreground px-4 fixed bottom-0 left-0 right-0 z-10">
+        <div className="h-6 bg-card border-t border-border text-xs text-muted-foreground px-4 fixed bottom-0 left-0 right-0 z-10">
           <div className="flex justify-between items-center h-full max-w-full">
             <div className="flex items-center space-x-4">
               <span>Versão RM: {rmVersion || "Carregando..."}</span>
@@ -410,6 +462,10 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/token-info': TokenInfoPage,
   '/dashboard/solicitacao-compras': SolicitacaoCompras,
   '/dashboard/nova-solicitacao-compras': NovaSolicitacaoCompras,
+  '/dashboard/importacao-xml': ImportacaoXmlPage,
+  '/dashboard/xml-nfe': XmlNfePage,
+  '/dashboard/xml-nfse': XmlNfsePage,
+  '/dashboard/xml-cte': XmlCtePage,
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
   '/dashboard/aprovacao-bordero': AprovacaoBordero,
   '/dashboard/assistente-virtual': AssistenteVirtual,
@@ -456,6 +512,30 @@ function DashboardContent({ location }: { location: string }) {
   }
   
   if (location === '/dashboard/nova-solicitacao-compras' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/importacao-xml' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/xml-nfe' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/xml-nfse' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/xml-cte' && !hasGestaoComprasPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;

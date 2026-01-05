@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Eye, EyeOff, User, Server, AlertCircle, CheckCircle, Box, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingScreen from "@/components/loading-screen";
@@ -106,6 +105,11 @@ export default function LoginPage() {
     console.log("📍 Endpoint selecionado:", selectedEndpoint);
 
     try {
+      // Salvar a senha temporariamente para o SOAP proxy
+      // ATENÇÃO: Isso não é ideal para segurança, mas necessário para o requisito de 
+      // usar as credenciais do login na chamada SOAP via proxy
+      sessionStorage.setItem("totvs_password", data.password);
+
       // Remove servicealias if empty
       const credentials = { ...data };
       if (!credentials.servicealias?.trim()) {
@@ -154,56 +158,52 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-background">
+    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-[#121212] text-white">
       {showLoadingScreen && (
         <LoadingScreen duration={5000} onComplete={handleLoadingComplete} />
       )}
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
+      
+      <div className="max-w-md w-full space-y-8 relative z-10">
+        {/* Header with Logo */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-primary rounded-full flex items-center justify-center mb-6">
-            <Box className="text-primary-foreground text-2xl" size={24} />
+          <div className="mx-auto h-20 w-20 bg-yellow-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_15px_rgba(234,179,8,0.5)]">
+            <Box className="text-black text-4xl" size={40} />
           </div>
-          <h1 className="text-3xl font-medium text-foreground mb-2">TOTVS RM</h1>
-          <p className="text-sm text-muted-foreground">Entre com suas credenciais para acessar o sistema</p>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">TOTVS RM</h1>
+          <p className="text-sm text-gray-400">Entre com suas credenciais para acessar o sistema</p>
         </div>
 
-        {/* Login Form */}
-        <Card className="shadow-lg">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center">
-              <div className="text-center w-full pt-2" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        {/* Login Form Card */}
+        <Card className="bg-[#1E1E1E] border-t-4 border-t-yellow-500 border-x-0 border-b-0 shadow-2xl">
+          <CardContent className="space-y-6 pt-8 pb-8 px-8">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 {/* Username Field */}
                 <FormField
                   control={form.control}
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Usuário</FormLabel>
+                      <FormLabel className="text-gray-300">Usuário</FormLabel>
                       <FormControl>
-                        <div className="relative">
+                        <div className="relative group">
                           <Input
                             {...field}
                             type="text"
                             placeholder="Digite seu usuário"
-                            className="pr-10"
+                            className="bg-[#2D2D2D] border-gray-700 text-white placeholder:text-gray-500 focus:border-yellow-500 focus:ring-yellow-500/20 h-12 pr-10 transition-all"
                             disabled={isLoading}
                             onChange={(e) => {
                               field.onChange(e);
                               clearErrors();
                             }}
                           />
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                            <User className="h-4 w-4 text-muted-foreground" />
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <User className="h-5 w-5 text-gray-500 group-focus-within:text-yellow-500 transition-colors" />
                           </div>
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-400" />
                     </FormItem>
                   )}
                 />
@@ -214,14 +214,14 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Senha</FormLabel>
+                      <FormLabel className="text-gray-300">Senha</FormLabel>
                       <FormControl>
-                        <div className="relative">
+                        <div className="relative group">
                           <Input
                             {...field}
                             type={showPassword ? "text" : "password"}
                             placeholder="Digite sua senha"
-                            className="pr-10"
+                            className="bg-[#2D2D2D] border-gray-700 text-white placeholder:text-gray-500 focus:border-yellow-500 focus:ring-yellow-500/20 h-12 pr-10 transition-all"
                             disabled={isLoading}
                             onChange={(e) => {
                               field.onChange(e);
@@ -232,19 +232,19 @@ export default function LoginPage() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="absolute inset-y-0 right-0 px-3 py-0 h-full hover:bg-transparent"
+                            className="absolute inset-y-0 right-0 px-3 py-0 h-full hover:bg-transparent text-gray-500 hover:text-yellow-500 transition-colors"
                             onClick={() => setShowPassword(!showPassword)}
                             disabled={isLoading}
                           >
                             {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              <EyeOff className="h-5 w-5" />
                             ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
+                              <Eye className="h-5 w-5" />
                             )}
                           </Button>
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-400" />
                     </FormItem>
                   )}
                 />
@@ -255,35 +255,35 @@ export default function LoginPage() {
                   name="servicealias"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Alias do Serviço (Opcional)</FormLabel>
+                      <FormLabel className="text-gray-300">Alias do Serviço (Opcional)</FormLabel>
                       <FormControl>
-                        <div className="relative">
+                        <div className="relative group">
                           <Input
                             {...field}
                             type="text"
                             placeholder="Digite o alias do serviço"
-                            className="pr-10"
+                            className="bg-[#2D2D2D] border-gray-700 text-white placeholder:text-gray-500 focus:border-yellow-500 focus:ring-yellow-500/20 h-12 pr-10 transition-all"
                             disabled={isLoading}
                             onChange={(e) => {
                               field.onChange(e);
                               clearErrors();
                             }}
                           />
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                            <Server className="h-4 w-4 text-muted-foreground" />
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <Server className="h-5 w-5 text-gray-500 group-focus-within:text-yellow-500 transition-colors" />
                           </div>
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-400" />
                     </FormItem>
                   )}
                 />
 
                 {/* Error Message */}
                 {authError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
+                  <Alert variant="destructive" className="bg-red-900/20 border-red-900/50 text-red-200">
+                    <AlertCircle className="h-4 w-4 text-red-400" />
+                    <AlertDescription className="text-red-200">
                       <div className="space-y-3">
                         <div>
                           <strong>Não foi possível fazer o login</strong>
@@ -297,7 +297,7 @@ export default function LoginPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-                            className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                            className="h-auto p-1 text-xs text-red-300 hover:text-red-100 hover:bg-red-900/40"
                           >
                             {showTechnicalDetails ? (
                               <>
@@ -314,7 +314,7 @@ export default function LoginPage() {
                         </div>
                         
                         {showTechnicalDetails && (
-                          <div className="bg-muted/50 p-2 rounded text-xs font-mono text-muted-foreground border">
+                          <div className="bg-black/50 p-2 rounded text-xs font-mono text-red-300 border border-red-900/30">
                             {authError.technicalDetails}
                           </div>
                         )}
@@ -325,9 +325,9 @@ export default function LoginPage() {
 
                 {/* Success Message */}
                 {showSuccess && (
-                  <Alert className="border-green-200 bg-green-50">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-green-800">
+                  <Alert className="bg-green-900/20 border-green-900/50 text-green-200">
+                    <CheckCircle className="h-4 w-4 text-green-400" />
+                    <AlertDescription className="text-green-200">
                       <strong>Login Realizado com Sucesso</strong>
                       <br />
                       Redirecionando para o sistema...
@@ -338,16 +338,16 @@ export default function LoginPage() {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full h-12 text-base font-bold bg-yellow-500 text-black hover:bg-yellow-400 transition-all shadow-lg hover:shadow-yellow-500/20"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Autenticando...
                     </>
                   ) : (
-                    "Entrar"
+                    "ENTRAR"
                   )}
                 </Button>
               </form>
@@ -356,19 +356,19 @@ export default function LoginPage() {
         </Card>
 
         {/* System Info */}
-        <div className="text-center text-xs text-muted-foreground space-y-2">
+        <div className="text-center text-xs text-gray-500 space-y-4">
           {/* Endpoint Input */}
           <div className="w-full max-w-[250px] mx-auto">
-            <div className="relative">
+            <div className="relative group">
               <Input
                 type="text"
                 value={selectedEndpoint}
                 onChange={(e) => handleEndpointChange(e.target.value)}
-                placeholder="URL do WebService (ex: erp.empresa.com.br:8051)"
-                className="h-8 text-xs text-center pr-8"
+                placeholder="URL do WebService"
+                className="h-9 text-xs text-center pr-8 bg-transparent border-gray-800 text-gray-500 focus:border-yellow-500/50 focus:text-gray-300 transition-all"
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <Server className="h-3 w-3 text-muted-foreground" />
+                <Server className="h-3 w-3 text-gray-600 group-focus-within:text-yellow-500/50" />
               </div>
             </div>
           </div>
