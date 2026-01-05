@@ -268,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         try {
             const eventsResult = await queryExternalDb(eventsQuery);
-            const events = eventsResult.rows || [];
+            const events: any[] = eventsResult.rows || [];
             console.log(`✅ [MySQL] Eventos de cancelamento encontrados: ${events.length}`);
 
             // 4. Merge em Memória
@@ -352,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          
          try {
              const eventsResult = await queryExternalDb(eventsQuery);
-             const events = eventsResult.rows || [];
+             const events: any[] = eventsResult.rows || [];
              
              // 4. Merge
              const docsWithStatus = docs.map((doc: any) => {
@@ -439,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          
          try {
              const eventsResult = await queryExternalDb(eventsQuery);
-             const events = eventsResult.rows || [];
+             const events: any[] = eventsResult.rows || [];
              
              // 4. Merge
              const docsWithStatus = docs.map((doc: any) => {
