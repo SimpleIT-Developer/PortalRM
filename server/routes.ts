@@ -155,11 +155,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("✅ Proxy GET - Sucesso");
       res.json(data);
-    } catch (error) {
+    } catch (err) {
+      const error = err as any;
       console.error("❌ Proxy GET - Erro:", error);
       res.status(500).json({ 
         error: "Erro interno do servidor",
-        message: error instanceof Error ? error.message : "Erro desconhecido"
+        message: error.message || "Erro desconhecido"
       });
     }
   });
