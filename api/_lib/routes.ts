@@ -2,10 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { readFileSync, writeFile } from "fs";
 import { join } from "path";
-// @ts-ignore
-import { storage } from "./storage.js";
-// @ts-ignore
-import { queryExternalDb } from "./external-db.js";
+import { storage } from "./storage";
+import { queryExternalDb } from "./external-db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
