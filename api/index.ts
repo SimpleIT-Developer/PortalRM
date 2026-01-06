@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "../server/routes";
+// @ts-ignore
+import { registerRoutes } from "./_lib/routes.js";
 
 const app = express();
 app.use(express.json());

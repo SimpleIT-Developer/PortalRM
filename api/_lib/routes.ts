@@ -21,7 +21,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/endpoints", (req, res) => {
     try {
       const endpointsPath = join(process.cwd(), "env", "endpoint.txt");
-      const content = readFileSync(endpointsPath, "utf-8");
+      // Fallback se o arquivo não existir (Vercel)
+      let content = "";
+      try {
+          content = readFileSync(endpointsPath, "utf-8");
+      } catch (e) {
+          console.warn("Arquivo env/endpoint.txt não encontrado, usando env var ou padrão");
+          content = process.env.ERP_ENDPOINT || "erp-simpleit.sytes.net:8051";
+      }
+      
       const lines = content.split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
@@ -183,19 +191,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🔗 Proxy SOAP - Enviando para:", fullUrl);
       console.log("⚡ Action:", action);
 
-      // Log request to file
+      // Log request to file (Tentativa)
       try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const actionName = action ? action.split('/').pop() : 'unknown';
         const filename = `req_${timestamp}_${actionName}.xml`;
+        // Ajuste de path para evitar erro em Linux/Vercel se pasta não existir
+        // Mas o usuário pediu d:\PortalRM. Vou manter mas proteger com try/catch silencioso ou log
         const filePath = join("d:\\PortalRM\\requisições", filename);
         
+        console.log("📝 XML Content:", xml); // Logando para Vercel Logs
+
+        // Tentar escrever apenas se estiver em ambiente que parece Windows ou local
+        // Na Vercel, isso vai falhar silenciosamente com o callback de erro
         writeFile(filePath, xml, (err) => {
-            if (err) console.error("❌ Erro ao salvar log da requisição:", err);
-            else console.log("📝 Log da requisição salvo em:", filePath);
+            if (err) {
+                 // console.error("❌ Erro ao salvar log da requisição (esperado em prod):", err.message);
+            } else {
+                 console.log("📝 Log da requisição salvo em:", filePath);
+            }
         });
       } catch (logError) {
-        console.error("❌ Erro ao tentar salvar log:", logError);
+        // Ignora erro de path
       }
 
       const headers: Record<string, string> = {
