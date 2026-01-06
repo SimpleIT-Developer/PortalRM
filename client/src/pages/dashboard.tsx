@@ -51,6 +51,8 @@ import ImportacaoXmlPage from "./importacao-xml";
 import XmlNfePage from "./xml-nfe";
 import XmlNfsePage from "./xml-nfse";
 import XmlCtePage from "./xml-cte";
+import ProdutosPage from "./produtos";
+import ServicosPage from "./servicos";
 
 // Import icons for dashboard cards
 import { 
@@ -69,6 +71,7 @@ export default function DashboardPage() {
   const [token, setToken] = useState<StoredToken | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [rmVersion, setRmVersion] = useState<string>("");
+  const [currentEndpoint, setCurrentEndpoint] = useState<string>("");
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -299,6 +302,7 @@ export default function DashboardPage() {
       try {
         const endpoint = await EndpointService.getDefaultEndpoint();
         if (endpoint) {
+          setCurrentEndpoint(endpoint);
           fetchRmVersion(endpoint);
         }
       } catch (error) {
@@ -442,6 +446,7 @@ export default function DashboardPage() {
         <div className="h-6 bg-card border-t border-border text-xs text-muted-foreground px-4 fixed bottom-0 left-0 right-0 z-10">
           <div className="flex justify-between items-center h-full max-w-full">
             <div className="flex items-center space-x-4">
+              <span>Ambiente: {currentEndpoint || "Não configurado"}</span>
               <span>Versão RM: {rmVersion || "Carregando..."}</span>
               <span>Versão Portal: 1.0.01</span>
             </div>
@@ -466,6 +471,8 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/xml-nfe': XmlNfePage,
   '/dashboard/xml-nfse': XmlNfsePage,
   '/dashboard/xml-cte': XmlCtePage,
+  '/dashboard/produtos': ProdutosPage,
+  '/dashboard/servicos': ServicosPage,
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
   '/dashboard/aprovacao-bordero': AprovacaoBordero,
   '/dashboard/assistente-virtual': AssistenteVirtual,
@@ -530,6 +537,12 @@ function DashboardContent({ location }: { location: string }) {
   }
 
   if (location === '/dashboard/xml-nfse' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if ((location === '/dashboard/produtos' || location === '/dashboard/servicos') && !hasGestaoComprasPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;

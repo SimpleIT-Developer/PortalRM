@@ -26,7 +26,10 @@ import {
   PieChart,
   ChevronLeft,
   ChevronRight,
-  FileCode
+  FileCode,
+  Package,
+  Box,
+  Wrench
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +78,25 @@ export const menuItems: MenuItem[] = [
     label: "Gestão de Compras",
     icon: ShoppingCart,
     children: [
+      {
+        id: "itens",
+        label: "Itens",
+        icon: Package,
+        children: [
+          {
+            id: "produtos",
+            label: "Produtos",
+            icon: Box,
+            path: "/dashboard/produtos",
+          },
+          {
+            id: "servicos",
+            label: "Serviços",
+            icon: Wrench,
+            path: "/dashboard/servicos",
+          },
+        ],
+      },
       {
         id: "solicitacao-compras",
         label: "Solicitação de Compras",

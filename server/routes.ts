@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { readFileSync } from "fs";
+import { readFileSync, writeFile } from "fs";
 import { join } from "path";
 import { storage } from "./storage";
 import { queryExternalDb } from "./external-db";
@@ -180,6 +180,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fullUrl = `http://${formattedEndpoint}${path}`;
       console.log("🔗 Proxy SOAP - Enviando para:", fullUrl);
       console.log("⚡ Action:", action);
+
+      // Log request to file
+      try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const actionName = action ? action.split('/').pop() : 'unknown';
+        const filename = `req_${timestamp}_${actionName}.xml`;
+        const filePath = join("d:\\PortalRM\\requisições", filename);
+        
+        writeFile(filePath, xml, (err) => {
+            if (err) console.error("❌ Erro ao salvar log da requisição:", err);
+            else console.log("📝 Log da requisição salvo em:", filePath);
+        });
+      } catch (logError) {
+        console.error("❌ Erro ao tentar salvar log:", logError);
+      }
 
       const headers: Record<string, string> = {
         "Content-Type": "text/xml; charset=utf-8",

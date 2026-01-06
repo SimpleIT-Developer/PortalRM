@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Loader2, RefreshCw, FileText, ArrowUpDown, Eye, List, ShoppingCart, FileCode, Play, Link as LinkIcon, Check, X, ArrowRight } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Loader2, RefreshCw, FileText, ArrowUpDown, Eye, List, ShoppingCart, FileCode, Play, Link as LinkIcon, Check, X, ArrowRight, Search } from "lucide-react";
 import { AuthService } from "@/lib/auth";
 import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { getRecebimentoXmlSoap } from "@/lib/soap-templates";
+import { getRecebimentoXmlSoap, getFaturamentoMovimentoSoap, getReadRecordMovDocNfeEntradaSoap, getSaveRecordMovDocNfeEntradaSoap } from "@/lib/soap-templates";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -28,6 +28,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 
 export interface XmlItem {
   CODCOLIGADA: number;
@@ -35,6 +37,7 @@ export interface XmlItem {
   CODFILIAL: number;
   CODCOLCFO: number;
   CODCFO: string;
+  NOMEFANTASIA: string;
   CHAVEACESSO: string;
   DATAEMISSAO: string;
   NUMERO: string;
@@ -101,66 +104,118 @@ export interface PurchaseOrderItem {
   DATAEMISSAO: string;
   VALORBRUTO: number;
   STATUS: string;
-  CODTMV: string;
+  CODCFO: string;
+  NOMEFANTASIA: string;
   [key: string]: any;
 }
 
-const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, open: boolean, onOpenChange: (open: boolean) => void }) => {
+const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { xmlItem: XmlItem, open: boolean, onOpenChange: (open: boolean) => void, onBack?: () => void, onSuccess?: () => void }) => {
   const [step, setStep] = useState(1);
-  const [selectedPo, setSelectedPo] = useState<PurchaseOrderItem | null>(null);
-  
-  // Step 1 data
   const [poList, setPoList] = useState<PurchaseOrderItem[]>([]);
   const [loadingPo, setLoadingPo] = useState(false);
-
-  // Step 2 data
+  const [selectedPo, setSelectedPo] = useState<PurchaseOrderItem | null>(null);
   const [xmlLines, setXmlLines] = useState<any[]>([]);
   const [poLines, setPoLines] = useState<PurchaseOrderLineItem[]>([]);
   const [loadingLines, setLoadingLines] = useState(false);
   
   const [selectedXmlLineIndex, setSelectedXmlLineIndex] = useState<number | null>(null);
   const [selectedPoLineIndex, setSelectedPoLineIndex] = useState<number | null>(null);
-  const [mappings, setMappings] = useState<{xmlIndex: number, poIndex: number}[]>([]);
+  
+  const [mappings, setMappings] = useState<{ xmlIndex: number, poIndex: number }[]>([]);
+  const [showPartialAlert, setShowPartialAlert] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const { toast } = useToast();
 
-  // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setStep(1);
-      setSelectedPo(null);
       setMappings([]);
+      setSelectedPo(null);
       setSelectedXmlLineIndex(null);
       setSelectedPoLineIndex(null);
-      fetchOrders();
+      fetchPurchaseOrders();
+      if (xmlItem.XML) {
+        setXmlLines(parseNfeItems(xmlItem.XML));
+      }
     }
   }, [open, xmlItem]);
 
-  const fetchOrders = async () => {
-    if (!xmlItem.CODCFO) return;
-    
+  const fetchPurchaseOrders = async () => {
+    console.log("Iniciando busca de ordens de compra...");
+    console.log("XML Item:", xmlItem);
+
+    if (!xmlItem.CODCFO) {
+        console.warn("Fornecedor (CODCFO) não identificado no XML.");
+        toast({ 
+            title: "Aviso", 
+            description: "O código do fornecedor (CODCFO) não está preenchido neste item. Verifique se o cadastro está correto.", 
+            variant: "destructive" 
+        });
+        return;
+    }
+
     setLoadingPo(true);
     try {
       const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
+      
+      console.log("Endpoint:", endpoint);
+      console.log("Token exists:", !!token);
 
-      if (!token) return;
+      if (!token) {
+        console.error("Token não encontrado.");
+        toast({ title: "Erro de Autenticação", description: "Token não encontrado. Faça login novamente.", variant: "destructive" });
+        return;
+      }
 
-      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.009/1/T?parameters=CODCFO=${xmlItem.CODCFO}`;
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      // Ensure endpoint has protocol
+      const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
+      
+      // Use dynamic CODCOLIGADA if available, otherwise default to 1
+      const coligada = xmlItem.CODCOLIGADA || 1;
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.009/${coligada}/T?parameters=CODCFO=${encodeURIComponent(xmlItem.CODCFO)}`;
+      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+
+      console.log("URL de requisição:", fullUrl);
 
       const response = await fetch(fullUrl);
-      if (!response.ok) throw new Error("Falha ao buscar ordens");
+      console.log("Response status:", response.status);
 
-      const data = await response.json();
-      const filteredItems = Array.isArray(data) 
-        ? data.filter((item: any) => item.STATUS === "A" && item.CODTMV === "1.1.03") 
-        : [];
+      if (response.ok) {
+        const responseText = await response.text();
+        console.log("Response text:", responseText);
         
-      setPoList(filteredItems);
-    } catch (error) {
-      console.error("Error fetching orders", error);
-      toast({ title: "Erro", description: "Falha ao carregar ordens de compra.", variant: "destructive" });
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Erro ao fazer parse do JSON:", e);
+            throw new Error(`Resposta inválida do servidor: ${responseText.substring(0, 100)}...`);
+        }
+        
+        // Handle "data" wrapper if present (common in some RM APIs or proxy responses)
+        const items = Array.isArray(data) ? data : (data.data || []);
+        
+        console.log("Itens retornados:", items);
+
+        // Filter for A (Aberto) or V (Validado/Vinculado?) as per request
+        const filtered = Array.isArray(items) ? items.filter((d: any) => d.STATUS === "A" || d.STATUS === "V") : [];
+        console.log("Itens filtrados (STATUS=A ou V):", filtered);
+        
+        setPoList(filtered);
+      } else {
+        const errorText = await response.text();
+        console.error("Erro na resposta:", errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+    } catch (error: any) {
+      console.error("Erro no fetchPurchaseOrders:", error);
+      toast({ 
+        title: "Erro ao buscar ordens de compra", 
+        description: error.message || "Erro desconhecido. Verifique o console.", 
+        variant: "destructive" 
+      });
     } finally {
       setLoadingPo(false);
     }
@@ -168,14 +223,7 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
 
   const handleNextStep = async () => {
     if (!selectedPo) return;
-    setStep(2);
     setLoadingLines(true);
-    
-    // Parse XML Items
-    const parsedXmlItems = parseNfeItems(xmlItem.XML);
-    setXmlLines(parsedXmlItems);
-
-    // Fetch PO Lines
     try {
       const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
@@ -185,13 +233,14 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
       const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       const response = await fetch(fullUrl);
-      if (!response.ok) throw new Error("Falha ao buscar itens da ordem");
-
-      const data = await response.json();
-      setPoLines(Array.isArray(data) ? data : [data].filter(Boolean));
+      if (response.ok) {
+        const data = await response.json();
+        setPoLines(Array.isArray(data) ? data : []);
+        setStep(2);
+      }
     } catch (error) {
-      console.error("Error fetching order lines", error);
-      toast({ title: "Erro", description: "Falha ao carregar itens da ordem.", variant: "destructive" });
+      console.error(error);
+      toast({ title: "Erro", description: "Falha ao buscar itens da ordem.", variant: "destructive" });
     } finally {
       setLoadingLines(false);
     }
@@ -199,13 +248,29 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
 
   const handleLink = () => {
     if (selectedXmlLineIndex !== null && selectedPoLineIndex !== null) {
-      // Check if already mapped
-      const isXmlMapped = mappings.some(m => m.xmlIndex === selectedXmlLineIndex);
-      const isPoMapped = mappings.some(m => m.poIndex === selectedPoLineIndex);
-      
-      if (isXmlMapped || isPoMapped) {
-        toast({ title: "Aviso", description: "Um dos itens já está vinculado.", variant: "destructive" });
-        return;
+      const xmlItem = xmlLines[selectedXmlLineIndex];
+      const poItem = poLines[selectedPoLineIndex];
+
+      // Validação de Quantidade
+      // Usando uma pequena margem de erro para ponto flutuante
+      if (Math.abs(xmlItem.qCom - poItem.QUANTIDADE) > 0.001) {
+          toast({
+              title: "Divergência de Quantidade",
+              description: `A quantidade do XML (${xmlItem.qCom}) é diferente da Ordem de Compra (${poItem.QUANTIDADE}).`,
+              variant: "destructive"
+          });
+          return;
+      }
+
+      // Validação de Valor
+      // xmlItem.vProd vs poItem.VALORLIQUIDO
+      if (Math.abs(xmlItem.vProd - poItem.VALORLIQUIDO) > 0.01) {
+          toast({
+              title: "Divergência de Valor",
+              description: `O valor do XML (${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(xmlItem.vProd)}) é diferente da Ordem de Compra (${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(poItem.VALORLIQUIDO)}).`,
+              variant: "destructive"
+          });
+          return;
       }
 
       setMappings([...mappings, { xmlIndex: selectedXmlLineIndex, poIndex: selectedPoLineIndex }]);
@@ -220,85 +285,276 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
 
   const isXmlItemMapped = (index: number) => mappings.some(m => m.xmlIndex === index);
   const isPoItemMapped = (index: number) => mappings.some(m => m.poIndex === index);
-  const getMappedPoIndex = (xmlIndex: number) => mappings.find(m => m.xmlIndex === xmlIndex)?.poIndex;
-
-  const [showPartialAlert, setShowPartialAlert] = useState(false);
-
-  const processFinish = async () => {
-    if (!selectedPo) return;
-
-    try {
-      const token = AuthService.getStoredToken();
-      if (!token) {
-        toast({ title: "Erro", description: "Usuário não autenticado.", variant: "destructive" });
-        return;
-      }
-      
-      const endpoint = await EndpointService.getDefaultEndpoint();
-      const soapXml = getRecebimentoXmlSoap(
-        xmlItem as any, 
-        selectedPo as any, 
-        xmlLines, 
-        poLines, 
-        mappings, 
-        token.username
-      );
-      
-      const soapPath = "/wsProcess/IwsProcess";
-      const proxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
-
-      const response = await fetch(proxyUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            xml: soapXml,
-            action: "http://www.totvs.com/IwsProcess/ExecuteWithXmlParams"
-          })
-      });
-
-      const responseText = await response.text();
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch(e) {
-        throw new Error("Resposta inválida do servidor.");
-      }
-
-      if (!response.ok) {
-         throw new Error(data.details || data.error || "Erro na requisição SOAP");
-      }
-
-      if (data.response && (data.response.includes("Processo executado com sucesso") || data.response.includes("ExecuteWithXmlParamsResponse"))) {
-         console.log("SOAP Success Response:", data.response);
-         toast({ title: "Sucesso", description: "Recebimento de NF processado com sucesso." });
-         onOpenChange(false);
-      } else {
-         console.error("SOAP Error Response:", data);
-         throw new Error("Erro no retorno do SOAP: " + (data.response || "").slice(0, 100));
-      }
-
-    } catch (error) {
-       console.error("Erro no recebimento XML", error);
-       toast({ title: "Erro", description: error instanceof Error ? error.message : "Falha ao processar recebimento.", variant: "destructive" });
-    }
-  };
 
   const handleFinish = () => {
-    // Check if there are unmapped PO items
-    const mappedPoIndices = new Set(mappings.map(m => m.poIndex));
-    const unmappedPoItems = poLines.filter((_, idx) => !mappedPoIndices.has(idx));
+      // Check if all PO items are mapped? Or if all XML items are mapped?
+      // Usually we want to ensure all XML items are accounted for.
+      // But we also want to know if PO is fully consumed.
+      
+      // For now, let's just assume we want to process what is mapped.
+      // But if there are unmapped PO items, warn about partial receipt?
+      const unmappedPoItems = poLines.filter((_, idx) => !isPoItemMapped(idx));
+      
+      if (unmappedPoItems.length > 0) {
+          setShowPartialAlert(true);
+      } else {
+          confirmPartialFinish();
+      }
+  };
 
-    if (unmappedPoItems.length > 0) {
-      setShowPartialAlert(true);
-    } else {
-      processFinish();
+  const confirmPartialFinish = async () => {
+    setShowPartialAlert(false);
+
+    if (!selectedPo) {
+        toast({ title: "Erro", description: "Nenhuma Ordem de Compra selecionada.", variant: "destructive" });
+        return;
+    }
+
+    const token = AuthService.getStoredToken();
+    if (!token) {
+        toast({ title: "Erro", description: "Usuário não autenticado.", variant: "destructive" });
+        return;
+    }
+
+    setIsProcessing(true); // Bloqueia a interface
+
+    try {
+        const endpoint = await EndpointService.getDefaultEndpoint();
+        const soapXml = getFaturamentoMovimentoSoap(token.username, selectedPo.IDMOV, selectedPo.CODCOLIGADA, selectedPo.CODFILIAL);
+        
+        const soapPath = "/wsProcess/IwsProcess";
+        const proxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+
+        toast({
+            title: "Processando...",
+            description: "Enviando dados para o RM...",
+        });
+
+        console.log("🚀 [1/4] Enviando Processo SOAP para:", proxyUrl);
+
+        const response = await fetch(proxyUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                xml: soapXml,
+                action: "http://www.totvs.com/IwsProcess/ExecuteWithXmlParams"
+            })
+        });
+
+        const responseText = await response.text();
+        console.log("📥 [1/4] Resposta SOAP Recebimento:", responseText);
+
+        if (response.ok && !responseText.includes(":Fault>")) {
+             console.log("✅ [1/4] Recebimento OK. Iniciando atualização TNFEENTRADA...");
+             
+             // Início da atualização da TNFEENTRADA
+             try {
+                 toast({ title: "Atualizando...", description: "Atualizando vínculo da NFe..." });
+
+                 // 1. ReadRecord
+                 console.log(`🚀 [2/4] ReadRecord (ID: ${xmlItem.ID})...`);
+                 const readXml = getReadRecordMovDocNfeEntradaSoap(xmlItem.ID, xmlItem.CODCOLIGADA, token.username);
+                 const readPath = "/wsDataServer/IwsDataServer";
+                 const readProxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(readPath)}&token=${encodeURIComponent(token.access_token)}`;
+
+                 const readResponse = await fetch(readProxyUrl, {
+                     method: "POST",
+                     headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify({
+                         xml: readXml,
+                         action: "http://www.totvs.com/IwsDataServer/ReadRecord"
+                     })
+                 });
+
+                 const readRespText = await readResponse.text();
+                 console.log("📥 [2/4] Resposta ReadRecord:", readRespText);
+
+                 if (!readResponse.ok || readRespText.includes(":Fault>")) {
+                     console.error("❌ Erro ReadRecord:", readRespText);
+                     throw new Error("Erro ao ler dados da NFe (ReadRecord).");
+                 }
+
+                 const matchResult = readRespText.match(/<ReadRecordResult>([\s\S]*?)<\/ReadRecordResult>/);
+                 if (!matchResult) throw new Error("Não foi possível ler o retorno do ReadRecord.");
+                 
+                 let innerXml = matchResult[1];
+                 
+                 // Handle CDATA if present
+                 if (innerXml.trim().startsWith("<![CDATA[")) {
+                    innerXml = innerXml.replace(/^<!\[CDATA\[|\]\]>$/g, "");
+                 }
+
+                 // Unescape entities
+                const unescapeXml = (str: string) => {
+                   return str
+                       .replace(/&lt;/g, '<')
+                       .replace(/&gt;/g, '>')
+                       .replace(/&amp;/g, '&')
+                       .replace(/&quot;/g, '"')
+                       .replace(/&apos;/g, "'");
+                };
+                
+                // Unescape until we find the start tag, but be careful not to over-unescape inner content
+                let loopCount = 0;
+                while (!innerXml.includes("<TNFEENTRADA") && innerXml.includes("&lt;") && loopCount < 5) {
+                   innerXml = unescapeXml(innerXml);
+                   loopCount++;
+                }
+
+                // Protect XML tag content from cleanup
+                let xmlContentPlaceholder = "";
+                const xmlTagMatch = innerXml.match(/<XML>([\s\S]*?)<\/XML>/i);
+                if (xmlTagMatch) {
+                    let rawContent = xmlTagMatch[1];
+                    console.log("📜 Conteúdo ORIGINAL da tag XML:", rawContent);
+                    
+                    // CORREÇÃO: Remover escape de aspas duplas tipo JSON (\") se existir
+                    // Isso corrige o erro "Uma cadeia de caracteres literal era esperada"
+                    if (rawContent.includes('\\"')) {
+                        console.warn("⚠️ Detectado escape incorreto (\\\") no XML. Corrigindo...");
+                        rawContent = rawContent.replace(/\\"/g, '"');
+                    }
+                    
+                    xmlContentPlaceholder = rawContent;
+                    innerXml = innerXml.replace(xmlTagMatch[0], `<XML>__XML_CONTENT_PLACEHOLDER__</XML>`);
+                }
+
+                // Cleanup artifacts from the structure only
+                innerXml = innerXml
+                    .replace(/&#xD;/g, "")
+                    .replace(/&#xA;/g, "");
+
+                // Restore XML tag content
+                if (xmlContentPlaceholder) {
+                    innerXml = innerXml.replace("__XML_CONTENT_PLACEHOLDER__", xmlContentPlaceholder);
+                }
+
+                console.log("📜 XML Lido (Processado):", innerXml);
+
+                 // Extract TNFEENTRADA block
+                 const tnfeMatch = innerXml.match(/<TNFEENTRADA[\s\S]*?<\/TNFEENTRADA>/i);
+                 if (!tnfeMatch) {
+                     console.error("❌ TNFEENTRADA não encontrada no XML:", innerXml);
+                     throw new Error("Estrutura TNFEENTRADA não encontrada no XML.");
+                 }
+                 let tnfeBlock = tnfeMatch[0];
+
+                 // 2. Buscar IDMOVDESTINO via REST
+                 console.log(`🚀 [3/4] Buscando IDMOVDESTINO para IDMOV ${selectedPo.IDMOV}...`);
+                 const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
+                 const restPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.013/1/T?parameters=IDMOVORIGEM=${selectedPo.IDMOV}`;
+                 const restUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(restPath)}&token=${encodeURIComponent(token.access_token)}`;
+
+                 const restResponse = await fetch(restUrl);
+                 if (!restResponse.ok) throw new Error("Erro ao consultar IDMOV destino.");
+                 
+                 const restData = await restResponse.json();
+                 console.log("📥 [3/4] Dados REST IDMOVDESTINO:", restData);
+
+                 let idMovDestino = null;
+                 
+                 // Handle different response structures
+                 if (Array.isArray(restData) && restData.length > 0) {
+                     idMovDestino = restData[0].IDMOVDESTINO;
+                 } else if (restData.data && Array.isArray(restData.data) && restData.data.length > 0) {
+                     idMovDestino = restData.data[0].IDMOVDESTINO;
+                 } else if (restData.IDMOVDESTINO) {
+                     idMovDestino = restData.IDMOVDESTINO;
+                 }
+
+                 if (!idMovDestino) {
+                     console.error("❌ IDMOVDESTINO não encontrado. Dados:", restData);
+                     throw new Error("IDMOVDESTINO não encontrado na consulta.");
+                 }
+                 console.log("✅ IDMOVDESTINO encontrado:", idMovDestino);
+
+                 // 3. Atualizar IDMOV no XML
+                 const idMovRegex = /<IDMOV(\s[^>]*)?>[\s\S]*?<\/IDMOV>|<IDMOV(\s[^>]*)?\/>/gi;
+                 
+                 if (idMovRegex.test(tnfeBlock)) {
+                    tnfeBlock = tnfeBlock.replace(idMovRegex, `<IDMOV>${idMovDestino}</IDMOV>`);
+                 } else {
+                    tnfeBlock = tnfeBlock.replace(/<\/TNFEENTRADA>/i, `<IDMOV>${idMovDestino}</IDMOV></TNFEENTRADA>`);
+                 }
+                 
+                 // Re-wrap with specific MovNfeEntrada tag (with space) as requested
+                 const finalXml = `<MovNfeEntrada >\n${tnfeBlock}\n</MovNfeEntrada>`;
+
+                 console.log("🚀 [4/4] Enviando SaveRecord com XML:", finalXml);
+
+                 // 4. SaveRecord
+                 const saveXml = getSaveRecordMovDocNfeEntradaSoap(finalXml, token.username, xmlItem.CODCOLIGADA);
+                 
+                 const saveResponse = await fetch(readProxyUrl, {
+                     method: "POST",
+                     headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify({
+                         xml: saveXml,
+                         action: "http://www.totvs.com/IwsDataServer/SaveRecord"
+                     })
+                 });
+
+                 const saveRespText = await saveResponse.text();
+                 console.log("📥 [4/4] Resposta SaveRecord:", saveRespText);
+
+                 if (!saveResponse.ok || saveRespText.includes(":Fault>")) {
+                     console.error("❌ Erro SaveRecord:", saveRespText);
+                     throw new Error("Erro ao salvar dados da NFe (SaveRecord).");
+                 }
+
+                 console.log("✅ Atualização TNFEENTRADA concluída com sucesso.");
+
+             } catch (updateError: any) {
+                 console.error("❌ Erro na atualização da TNFEENTRADA:", updateError);
+                 toast({
+                     title: "Aviso",
+                     description: "Recebimento realizado, mas houve erro ao atualizar NFe: " + (updateError.message || "Erro desconhecido"),
+                     variant: "warning"
+                 });
+             }
+
+             toast({
+                title: "Sucesso",
+                description: "Recebimento realizado com sucesso!",
+             });
+             onOpenChange(false);
+             processFinish();
+        } else {
+            console.error("❌ Erro na resposta SOAP Recebimento:", responseText);
+            
+            let errorMessage = "Ocorreu um erro ao processar no RM.";
+            if (responseText.includes(":Fault>")) {
+                const faultStringMatch = responseText.match(/<faultstring>(.*?)<\/faultstring>/);
+                if (faultStringMatch) {
+                    errorMessage = faultStringMatch[1];
+                }
+            }
+
+            toast({
+                title: "Erro no RM",
+                description: errorMessage,
+                variant: "destructive"
+            });
+        }
+
+    } catch (error: any) {
+        console.error("❌ Erro fatal ao finalizar:", error);
+        toast({
+            title: "Erro",
+            description: error.message || "Erro desconhecido ao finalizar.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsProcessing(false); // Libera a interface
     }
   };
-
-  const confirmPartialFinish = () => {
-    setShowPartialAlert(false);
-    processFinish();
-  };
+  
+  const processFinish = () => {
+      // triggers parent refresh if needed
+      onSuccess?.();
+  }
 
   return (
     <>
@@ -306,7 +562,9 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
         <DialogHeader>
           <DialogTitle>Recebimento de NF via XML - Passo {step}</DialogTitle>
           <DialogDescription>
-            {step === 1 ? "Selecione a Ordem de Compra para vincular." : "Vincule os itens da NF com os itens da Ordem de Compra."}
+            {step === 1 
+                ? `Selecione a Ordem de Compra para vincular. (Fornecedor: ${xmlItem.CODCFO || "N/A"})` 
+                : "Vincule os itens da NF com os itens da Ordem de Compra."}
           </DialogDescription>
         </DialogHeader>
 
@@ -317,15 +575,17 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">Sel</TableHead>
+                    <TableHead>ID (IDMOV)</TableHead>
                     <TableHead>Número</TableHead>
                     <TableHead>Data Emissão</TableHead>
                     <TableHead>Valor Bruto</TableHead>
                     <TableHead>Filial</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loadingPo ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
                   ) : poList.length > 0 ? (
                     poList.map((po) => (
                       <TableRow key={po.IDMOV} className="cursor-pointer" onClick={() => setSelectedPo(po)}>
@@ -334,14 +594,24 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
                             {selectedPo?.IDMOV === po.IDMOV && <Check className="h-3 w-3 text-white" />}
                           </div>
                         </TableCell>
+                        <TableCell>{po.IDMOV}</TableCell>
                         <TableCell>{po.NUMEROMOV}</TableCell>
-                        <TableCell>{formatarData(po.DATAEMISSAO)}</TableCell>
+                        <TableCell>{new Date(po.DATAEMISSAO).toLocaleDateString()}</TableCell>
                         <TableCell>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(po.VALORBRUTO)}</TableCell>
                         <TableCell>{po.CODFILIAL}</TableCell>
+                        <TableCell>
+                            {po.STATUS === 'V' ? (
+                                <Badge className="bg-green-500 hover:bg-green-600">VALIDADO</Badge>
+                            ) : po.STATUS === 'A' ? (
+                                <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">PENDENTE</Badge>
+                            ) : (
+                                <Badge variant="secondary">{po.STATUS}</Badge>
+                            )}
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
-                    <TableRow><TableCell colSpan={5} className="text-center">Nenhuma ordem de compra encontrada.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center">Nenhuma ordem de compra encontrada.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -458,7 +728,7 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
             </div>
           )}
 
-          {/* Mapped Items Summary (Optional or just rely on visual cues) */}
+          {/* Mapped Items Summary */}
           {step === 2 && mappings.length > 0 && (
             <div className="mt-4 border rounded-md p-2 bg-muted/20 h-32 overflow-auto">
                <h4 className="text-sm font-semibold mb-2">Itens Vinculados ({mappings.length})</h4>
@@ -484,22 +754,36 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
 
         <DialogFooter className="mt-4">
           {step === 2 && (
-            <Button variant="outline" onClick={() => setStep(1)}>
+            <Button variant="outline" onClick={() => setStep(1)} disabled={isProcessing}>
               Voltar
             </Button>
           )}
           {step === 1 && (
-            <Button onClick={handleNextStep} disabled={!selectedPo}>
-              Avançar
-            </Button>
+            <>
+              {onBack && (
+                <Button variant="outline" onClick={onBack} className="mr-auto" disabled={isProcessing}>
+                  Voltar
+                </Button>
+              )}
+              <Button onClick={handleNextStep} disabled={!selectedPo || isProcessing}>
+                Avançar
+              </Button>
+            </>
           )}
           {step === 2 && (
             <Button 
               onClick={handleFinish}
-              disabled={mappings.length !== xmlLines.length}
+              disabled={mappings.length !== xmlLines.length || isProcessing}
               title={mappings.length !== xmlLines.length ? "Vincule todos os itens do XML para finalizar" : ""}
             >
-              Finalizar
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                "Finalizar"
+              )}
             </Button>
           )}
         </DialogFooter>
@@ -523,219 +807,274 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange }: { xmlItem: XmlItem, o
   );
 };
 
-const PurchaseOrderDialog = ({ codcfo }: { codcfo: string }) => {
-  const [items, setItems] = useState<PurchaseOrderItem[]>([]);
-  const [loading, setLoading] = useState(false);
+interface SystemItem {
+  IDPRD: number;
+  CODIGOPRD: string;
+  NOMEFANTASIA: string;
+  CODUNDCONTROLE: string;
+  TIPO: "Produto" | "Serviço";
+}
+
+const ReceiveXmlWithoutPoWizard = ({ xmlItem, open, onOpenChange, onBack }: { xmlItem: XmlItem, open: boolean, onOpenChange: (open: boolean) => void, onBack: () => void }) => {
+  const [xmlLines, setXmlLines] = useState<any[]>([]);
+  const [selectedXmlLineIndex, setSelectedXmlLineIndex] = useState<number | null>(null);
+  
+  const [searchType, setSearchType] = useState<"produto" | "servico">("produto");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<SystemItem[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [selectedSystemItem, setSelectedSystemItem] = useState<SystemItem | null>(null);
+  
+  const [mappings, setMappings] = useState<{ xmlIndex: number, systemItem: SystemItem }[]>([]);
+  
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      if (!codcfo) return;
-      
-      setLoading(true);
-      try {
-        const endpoint = await EndpointService.getDefaultEndpoint();
-        const token = AuthService.getStoredToken();
+    if (xmlItem?.XML) {
+      const items = parseNfeItems(xmlItem.XML);
+      setXmlLines(items);
+    }
+    setMappings([]);
+    setSelectedXmlLineIndex(null);
+    setSelectedSystemItem(null);
+    setSearchResults([]);
+    setSearchTerm("");
+  }, [xmlItem, open]);
 
-        if (!token) {
-          toast({
-            title: "Erro de autenticação",
-            description: "Você precisa estar logado para acessar esta página.",
-            variant: "destructive",
-          });
-          return;
-        }
+  const handleSearch = async () => {
+    // Permite busca vazia para trazer todos, ou exige termo? 
+    // O usuario disse "a busca... nao funciona". 
+    // Se ele digita e nao vem nada, eh o problema.
+    // Vamos permitir buscar tudo se ele quiser, mas o foco eh corrigir o filtro.
+    
+    setLoadingSearch(true);
+    try {
+      const endpoint = await EndpointService.getDefaultEndpoint();
+      const token = AuthService.getStoredToken();
+      if (!token) return;
 
-        const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.009/1/T?parameters=CODCFO=${codcfo}`;
-        const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const dataServer = searchType === "produto" ? "SIT.PORTALRM.011" : "SIT.PORTALRM.012";
+      // Removido filtro de URL para garantir compatibilidade com a consulta SQL existente
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/${dataServer}/1/T`;
+      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
-        const response = await fetch(fullUrl);
-        if (!response.ok) {
-          throw new Error("Falha ao buscar ordens de compra");
-        }
-
+      const response = await fetch(fullUrl);
+      if (response.ok) {
         const data = await response.json();
-        // Filter by STATUS = "A" as requested
-        const filteredItems = Array.isArray(data) 
-          ? data.filter((item: any) => item.STATUS === "A") 
-          : [];
-          
-        setItems(filteredItems);
-      } catch (error) {
-        console.error("Error fetching purchase orders", error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar as ordens de compra.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+        let items = Array.isArray(data) ? data.map((item: any) => ({
+          ...item,
+          TIPO: searchType === "produto" ? "Produto" : "Serviço"
+        })) : [];
+        
+        // Filtragem no cliente
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            items = items.filter((item: SystemItem) => 
+                (item.NOMEFANTASIA && item.NOMEFANTASIA.toLowerCase().includes(lowerTerm)) ||
+                (item.CODIGOPRD && item.CODIGOPRD.toLowerCase().includes(lowerTerm))
+            );
+        }
+        
+        setSearchResults(items);
+      } else {
+          setSearchResults([]);
+          toast({ title: "Aviso", description: "Nenhum item retornado pelo servidor.", variant: "warning" });
       }
-    };
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Erro na busca", description: "Não foi possível buscar os itens. Verifique a conexão.", variant: "destructive" });
+    } finally {
+      setLoadingSearch(false);
+    }
+  };
 
-    fetchOrders();
-  }, [codcfo, toast]);
+  const handleLink = () => {
+    if (selectedXmlLineIndex !== null && selectedSystemItem) {
+      setMappings([...mappings, { xmlIndex: selectedXmlLineIndex, systemItem: selectedSystemItem }]);
+      setSelectedXmlLineIndex(null);
+      setSelectedSystemItem(null);
+    }
+  };
 
-  return (
-    <div className="rounded-md border max-h-[300px] overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Coligada</TableHead>
-            <TableHead>ID Mov</TableHead>
-            <TableHead>Filial</TableHead>
-            <TableHead>Número</TableHead>
-            <TableHead>Tipo Mov</TableHead>
-            <TableHead>Emissão</TableHead>
-            <TableHead>Valor Bruto</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
-             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                <span className="sr-only">Carregando...</span>
-              </TableCell>
-            </TableRow>
-          ) : items.length > 0 ? (
-            items.map((item, idx) => (
-              <TableRow key={idx}>
-                <TableCell>{item.CODCOLIGADA}</TableCell>
-                <TableCell>{item.IDMOV}</TableCell>
-                <TableCell>{item.CODFILIAL}</TableCell>
-                <TableCell>{item.NUMEROMOV}</TableCell>
-                <TableCell>{item.CODTMV}</TableCell>
-                <TableCell>{formatarData(item.DATAEMISSAO)}</TableCell>
-                <TableCell>
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(item.VALORBRUTO)}
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center">
-                Nenhuma ordem de compra encontrada com Status "A".
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
-};
+  const handleUnlink = (index: number) => {
+    setMappings(mappings.filter(m => m.xmlIndex !== index));
+  };
 
-const formatarData = (dataString: string) => {
-  if (!dataString) return "";
-  try {
-    const data = new Date(dataString);
-    return data.toLocaleDateString('pt-BR');
-  } catch (error) {
-    return dataString;
-  }
-};
+  const isXmlItemMapped = (index: number) => mappings.some(m => m.xmlIndex === index);
 
-const NfeItemsDialog = ({ xmlContent }: { xmlContent: string }) => {
-  const [items, setItems] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!xmlContent) return;
-    const items = parseNfeItems(xmlContent);
-    setItems(items);
-  }, [xmlContent]);
+  const handleFinish = () => {
+    // Placeholder for finish logic
+    toast({ title: "Sucesso", description: "Itens vinculados com sucesso! (Gravação simulada)" });
+    onOpenChange(false);
+  };
 
   return (
-    <div className="rounded-md border max-h-[300px] overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Produto</TableHead>
-            <TableHead>Qtd</TableHead>
-            <TableHead>Und</TableHead>
-            <TableHead>Valor</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.length > 0 ? (
-            items.map((item, idx) => (
-              <TableRow key={idx}>
-                <TableCell>{item.xProd}</TableCell>
-                <TableCell>{item.qCom}</TableCell>
-                <TableCell>{item.uCom}</TableCell>
-                <TableCell>{item.vProd}</TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center">
-                Nenhum item encontrado no XML.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
-};
+    <DialogContent className="max-w-[95vw] w-full max-h-[95vh] flex flex-col sm:max-w-6xl">
+        <DialogHeader>
+          <DialogTitle>Vincular Itens sem Ordem de Compra</DialogTitle>
+          <DialogDescription>
+            Vincule os itens do XML com Produtos ou Serviços do sistema.
+          </DialogDescription>
+        </DialogHeader>
 
-const XmlDetails = ({ data }: { data: XmlItem }) => {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">ID</h4>
-          <p className="text-sm font-semibold">{data.ID}</p>
+        <div className="flex-1 overflow-hidden flex gap-4">
+             {/* Left Side: XML Items */}
+              <div className="flex-1 flex flex-col border rounded-md overflow-hidden">
+                <div className="bg-muted p-2 font-semibold text-center border-b">Itens do XML</div>
+                <div className="flex-1 overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Produto XML</TableHead>
+                        <TableHead>Qtd</TableHead>
+                        <TableHead>Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {xmlLines.map((item, idx) => {
+                        const isMapped = isXmlItemMapped(idx);
+                        if (isMapped) return null;
+
+                        const isSelected = selectedXmlLineIndex === idx;
+                        return (
+                          <TableRow 
+                            key={idx} 
+                            className={cn("cursor-pointer transition-colors", isSelected && "bg-accent text-accent-foreground")}
+                            onClick={() => setSelectedXmlLineIndex(idx)}
+                          >
+                            <TableCell>{item.nItem}</TableCell>
+                            <TableCell>
+                              <div className="text-xs font-semibold">{item.cProd}</div>
+                              <div className="text-xs text-muted-foreground" title={item.xProd}>{item.xProd}</div>
+                            </TableCell>
+                            <TableCell>{item.qCom} {item.uCom}</TableCell>
+                            <TableCell>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.vProd)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col justify-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  disabled={selectedXmlLineIndex === null || !selectedSystemItem}
+                  onClick={handleLink}
+                >
+                  <LinkIcon className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Right Side: System Items */}
+              <div className="flex-1 flex flex-col border rounded-md overflow-hidden">
+                 <div className="bg-muted p-2 font-semibold text-center border-b">
+                    Itens do Sistema
+                 </div>
+                 <div className="p-2 border-b space-y-2 bg-background">
+                    <Tabs value={searchType} onValueChange={(v: any) => { setSearchType(v); setSearchResults([]); setSearchTerm(""); }}>
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="produto">Produtos</TabsTrigger>
+                            <TabsTrigger value="servico">Serviços</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    <div className="flex gap-2">
+                        <Input 
+                            placeholder={`Buscar ${searchType}...`}
+                            value={searchTerm} 
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        />
+                        <Button size="icon" onClick={handleSearch} disabled={loadingSearch}>
+                            {loadingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                    </div>
+                 </div>
+                 <div className="flex-1 overflow-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Cód.</TableHead>
+                                <TableHead>Nome</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {searchResults.map((item) => (
+                                <TableRow 
+                                    key={item.IDPRD} 
+                                    className={cn("cursor-pointer", selectedSystemItem?.IDPRD === item.IDPRD && "bg-accent text-accent-foreground")}
+                                    onClick={() => setSelectedSystemItem(item)}
+                                >
+                                    <TableCell className="text-xs">{item.CODIGOPRD}</TableCell>
+                                    <TableCell className="text-xs">{item.NOMEFANTASIA}</TableCell>
+                                </TableRow>
+                            ))}
+                            {searchResults.length === 0 && !loadingSearch && (
+                                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-sm py-4">
+                                    {searchTerm ? "Nenhum item encontrado" : "Digite para buscar"}
+                                </TableCell></TableRow>
+                            )}
+                            {loadingSearch && (
+                                <TableRow><TableCell colSpan={2} className="text-center py-4"><Loader2 className="animate-spin mx-auto h-6 w-6" /></TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                 </div>
+              </div>
         </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Chave de Acesso</h4>
-          <p className="text-sm font-semibold break-all">{data.CHAVEACESSO}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Número</h4>
-          <p className="text-sm font-semibold">{data.NUMERO}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
-          <p className="text-sm font-semibold">{data.STATUS === "V" ? "Validado" : data.STATUS}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Emissão</h4>
-          <p className="text-sm font-semibold">{formatarData(data.DATAEMISSAO)}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Autorização</h4>
-          <p className="text-sm font-semibold">{formatarData(data.DATAAUTORIZACAO)}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Fornecedor</h4>
-          <p className="text-sm font-semibold">{data.CODCFO}</p>
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground">Filial</h4>
-          <p className="text-sm font-semibold">{data.CODFILIAL}</p>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium text-muted-foreground">XML</h4>
-        <div className="bg-muted p-4 rounded-md overflow-x-auto">
-          <pre className="text-xs">{data.XML}</pre>
-        </div>
-      </div>
-    </div>
+
+        {/* Mapped Items */}
+        {mappings.length > 0 && (
+            <div className="mt-4 border rounded-md p-2 bg-muted/20 h-32 overflow-auto">
+               <h4 className="text-sm font-semibold mb-2">Itens Vinculados ({mappings.length})</h4>
+               <div className="space-y-1">
+                 {mappings.map((m, i) => {
+                   const xml = xmlLines[m.xmlIndex];
+                   return (
+                     <div key={i} className="flex items-center text-xs gap-2 border-b pb-1 last:border-0">
+                       <div className="flex-1 flex items-center gap-2">
+                            <span className="font-medium">XML: {xml.nItem} - {xml.xProd}</span>
+                            <span className="text-muted-foreground">({xml.qCom} {xml.uCom} - {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(xml.vProd)})</span>
+                       </div>
+                       <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                       <div className="flex-1 flex items-center gap-2">
+                            <span className="font-medium">Sistema: {m.systemItem.CODIGOPRD} - {m.systemItem.NOMEFANTASIA}</span>
+                            <span className="text-muted-foreground">({xml.qCom} {xml.uCom} - {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(xml.vProd)})</span>
+                       </div>
+                       <Button variant="ghost" size="icon" className="h-4 w-4 ml-auto" onClick={() => handleUnlink(m.xmlIndex)}>
+                         <X className="h-3 w-3" />
+                       </Button>
+                     </div>
+                   )
+                 })}
+               </div>
+            </div>
+        )}
+
+        <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={onBack} className="mr-auto">Voltar</Button>
+            <Button 
+                onClick={handleFinish} 
+                disabled={mappings.length !== xmlLines.length}
+                title={mappings.length !== xmlLines.length ? "Vincule todos os itens do XML para finalizar" : ""}
+            >
+                Finalizar
+            </Button>
+        </DialogFooter>
+    </DialogContent>
   );
 };
 
 const formatXml = (xml: string) => {
-  if (!xml) return "";
   let formatted = '';
-  const reg = /(>)(<)(\/*)/g;
+  let reg = /(>)(<)(\/*)/g;
   xml = xml.replace(reg, '$1\r\n$2$3');
   let pad = 0;
-  xml.split('\r\n').forEach(function(node) {
+  xml.split('\r\n').forEach((node, index) => {
       let indent = 0;
       if (node.match( /.+<\/\w[^>]*>$/ )) {
           indent = 0;
@@ -762,283 +1101,285 @@ const formatXml = (xml: string) => {
 
 const XmlContentDialog = ({ xmlContent }: { xmlContent: string }) => {
   const formattedXml = formatXml(xmlContent);
+  const items = parseNfeItems(xmlContent);
+
   return (
-    <div className="rounded-md border bg-muted p-4 overflow-auto max-h-[600px]">
-      <pre className="text-xs font-mono whitespace-pre-wrap break-all">{formattedXml}</pre>
+    <div className="h-[600px] flex flex-col">
+      <Tabs defaultValue="items" className="h-full flex flex-col">
+        <TabsList>
+          <TabsTrigger value="items">Itens da Nota</TabsTrigger>
+          <TabsTrigger value="xml">XML Original</TabsTrigger>
+        </TabsList>
+        <TabsContent value="items" className="flex-1 overflow-auto border rounded-md mt-2">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Qtd</TableHead>
+                        <TableHead>Valor Unit.</TableHead>
+                        <TableHead>Valor Total</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {items.map((item: any, idx: number) => (
+                        <TableRow key={idx}>
+                            <TableCell>{item.nItem}</TableCell>
+                            <TableCell>{item.cProd}</TableCell>
+                            <TableCell>{item.xProd}</TableCell>
+                            <TableCell>{item.qCom} {item.uCom}</TableCell>
+                            <TableCell>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.vUnCom)}</TableCell>
+                            <TableCell>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.vProd)}</TableCell>
+                        </TableRow>
+                    ))}
+                    {items.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4">Nenhum item encontrado no XML</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </TabsContent>
+        <TabsContent value="xml" className="flex-1 overflow-auto border rounded-md bg-muted p-4 mt-2">
+            <pre className="text-xs font-mono whitespace-pre-wrap break-all">{formattedXml}</pre>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
-const ReceiveXmlWizardDialogWrapper = ({ row }: { row: XmlItem }) => {
-  const [open, setOpen] = useState(false);
+const ReceiveXmlDialog = ({ xmlItem, open, onOpenChange, onSuccess }: { xmlItem: XmlItem, open: boolean, onOpenChange: (open: boolean) => void, onSuccess?: () => void }) => {
+  const [mode, setMode] = useState<"selection" | "with-po" | "without-po">("selection");
+
+  useEffect(() => {
+    if (open) {
+      setMode("selection");
+    }
+  }, [open]);
+
+  if (mode === "with-po") {
+    return (
+      <ReceiveXmlWizard 
+        xmlItem={xmlItem} 
+        open={open} 
+        onOpenChange={onOpenChange} 
+        onBack={() => setMode("selection")} 
+        onSuccess={onSuccess}
+      />
+    );
+  }
+
+  if (mode === "without-po") {
+    return (
+      <ReceiveXmlWithoutPoWizard
+        xmlItem={xmlItem}
+        open={open}
+        onOpenChange={onOpenChange}
+        onBack={() => setMode("selection")}
+      />
+    );
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" title="Receber NF pelo XML">
-          <Play className="h-4 w-4" />
-          <span className="sr-only">Receber NF</span>
+    <DialogContent className="sm:max-w-[500px]">
+      <DialogHeader>
+        <DialogTitle>Como deseja receber esta Nota Fiscal?</DialogTitle>
+        <DialogDescription>
+          Selecione o método de recebimento para a nota {xmlItem.NUMERO}.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="grid grid-cols-2 gap-4 py-6">
+        <Button 
+          variant="outline" 
+          className="h-32 flex flex-col gap-3 hover:border-primary hover:bg-primary/5" 
+          onClick={() => setMode("with-po")}
+        >
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+             <FileText className="h-6 w-6 text-primary" />
+          </div>
+          <span className="font-semibold">Com Ordem de Compra</span>
         </Button>
-      </DialogTrigger>
-      <ReceiveXmlWizard xmlItem={row} open={open} onOpenChange={setOpen} />
-    </Dialog>
+        <Button 
+          variant="outline" 
+          className="h-32 flex flex-col gap-3 hover:border-primary hover:bg-primary/5" 
+          onClick={() => setMode("without-po")}
+        >
+          <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+             <FileCode className="h-6 w-6 text-orange-600" />
+          </div>
+          <span className="font-semibold">Sem Ordem de Compra</span>
+        </Button>
+      </div>
+    </DialogContent>
   );
 };
 
-export const columns: ColumnDef<XmlItem>[] = [
-  {
-    id: "select",
-    header: ({ table }) => null, 
-    cell: ({ row, table }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => {
-          if (value) {
-            table.toggleAllRowsSelected(false); 
-            row.toggleSelected(true); 
-          } else {
-            row.toggleSelected(false);
-          }
-        }}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "ID",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          ID
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-  },
-  {
-    accessorKey: "NUMERO",
-    header: "Número",
-  },
-  {
-    accessorKey: "CODCFO",
-    header: "Fornecedor",
-  },
-  {
-    accessorKey: "DATAEMISSAO",
-    header: "Emissão",
-    cell: ({ row }) => formatarData(row.getValue("DATAEMISSAO")),
-  },
-  {
-    accessorKey: "STATUS",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("STATUS") as string;
-      return (
-        <Badge variant="outline">{status === "V" ? "Validado" : status}</Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "IDMOV",
-    header: "ID Movimento",
-    cell: ({ row }) => {
-      const idmov = row.getValue("IDMOV");
-      return idmov ? (
-        <Badge className="bg-green-600 hover:bg-green-700">NF Recebida: {String(idmov)}</Badge>
-      ) : (
-        <span className="text-muted-foreground italic text-xs">NF não Recebida</span>
-      );
-    },
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => {
-      return (
-        <div className="flex items-center gap-2">
-          <ReceiveXmlWizardDialogWrapper row={row.original} />
-          
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar Ordens de Compra">
-                <ShoppingCart className="h-4 w-4" />
-                <span className="sr-only">Ordens de Compra</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-full max-h-[90vh] flex flex-col sm:max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Ordens de Compra - Fornecedor {row.original.CODCFO}</DialogTitle>
-                <DialogDescription>
-                  Ordens de compra pendentes para este fornecedor.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto">
-                  <PurchaseOrderDialog codcfo={row.original.CODCFO} />
-              </div>
-            </DialogContent>
-          </Dialog>
 
-           <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar Itens">
-                <List className="h-4 w-4" />
-                <span className="sr-only">Itens</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-full max-h-[90vh] flex flex-col sm:max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Itens da Nota Fiscal</DialogTitle>
-                <DialogDescription>
-                  Produtos e serviços listados no XML.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto">
-                  <NfeItemsDialog xmlContent={row.original.XML} />
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar XML">
-                <FileCode className="h-4 w-4" />
-                <span className="sr-only">XML</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-full max-h-[90vh] flex flex-col sm:max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Conteúdo do XML</DialogTitle>
-                <DialogDescription>
-                  Visualização formatada do arquivo XML.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto">
-                  <XmlContentDialog xmlContent={row.original.XML} />
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar Detalhes">
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Detalhes</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-full max-h-[90vh] flex flex-col sm:max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Detalhes da Importação XML</DialogTitle>
-                <DialogDescription>
-                  Informações detalhadas do arquivo importado.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto">
-                  <XmlDetails data={row.original} />
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      );
-    },
-  },
-];
 
 export default function ImportacaoXmlPage() {
   const [items, setItems] = useState<XmlItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
 
       if (!token) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Você precisa estar logado para acessar esta página.",
-          variant: "destructive",
-        });
         return;
       }
 
+      // Assuming 008 is the correct query for XML list based on sequence
       const path = "/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.008/1/T";
       const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       const response = await fetch(fullUrl);
-      if (!response.ok) {
-        throw new Error("Falha ao buscar dados");
-      }
-
-      const data = await response.json();
-      
-      // Ensure data is an array
-      if (Array.isArray(data)) {
-        setItems(data);
-      } else if (data && typeof data === 'object') {
-        // Sometimes APIs return a single object or wrapped response
-        setItems([data]); 
+      if (response.ok) {
+        const data = await response.json();
+        setItems(Array.isArray(data) ? data : []);
       } else {
-        setItems([]);
+        toast({
+            title: "Erro",
+            description: "Falha ao carregar lista de XMLs.",
+            variant: "destructive"
+        });
       }
     } catch (error) {
-      console.error("Erro ao buscar dados:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os dados de importação XML.",
-        variant: "destructive",
-      });
+       console.error(error);
+       toast({
+           title: "Erro",
+           description: "Falha na comunicação com o servidor.",
+           variant: "destructive"
+       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  const columns = useMemo<ColumnDef<XmlItem>[]>(() => [
+    {
+      accessorKey: "ID",
+      header: "ID",
+    },
+    {
+      accessorKey: "IDMOV",
+      header: "IDMOV",
+    },
+    {
+      accessorKey: "NUMERO",
+      header: "Número",
+    },
+    {
+      accessorKey: "DATAEMISSAO",
+      header: "Emissão",
+      cell: ({ row }) => {
+          const date = new Date(row.getValue("DATAEMISSAO"));
+          return date.toLocaleDateString("pt-BR");
+      }
+    },
+    {
+      accessorKey: "CODCFO",
+      header: "Fornecedor",
+    },
+    {
+      accessorKey: "NOMEFANTASIA",
+      header: "Nome Fantasia",
+    },
+    {
+      accessorKey: "STATUS",
+      header: "Status",
+       cell: ({ row }) => {
+        const idMov = row.original.IDMOV;
+        const status = row.getValue("STATUS") as string;
+        
+        if (idMov && Number(idMov) > 0) {
+            return <Badge className="bg-blue-500 hover:bg-blue-600">LANÇADO</Badge>;
+        }
+  
+        if (status === 'V') {
+            return <Badge className="bg-green-500 hover:bg-green-600">VALIDADO</Badge>;
+        }
+  
+        return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">PENDENTE</Badge>;
+      },
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const [showXml, setShowXml] = useState(false);
+        const [showReceive, setShowReceive] = useState(false);
+        const item = row.original;
+  
+        return (
+          <div className="flex items-center gap-2">
+             <Dialog open={showXml} onOpenChange={setShowXml}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon" title="Ver Itens / XML" className="bg-primary/10 hover:bg-primary/20 border-primary/20">
+                      <List className="h-4 w-4 text-primary" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh]">
+                   <DialogHeader>
+                      <DialogTitle>Conteúdo da Nota - {item.NUMERO}</DialogTitle>
+                   </DialogHeader>
+                   <XmlContentDialog xmlContent={item.XML} />
+                </DialogContent>
+             </Dialog>
+  
+             <Button 
+               variant="ghost" 
+               size="icon" 
+               title={item.IDMOV && Number(item.IDMOV) > 0 ? "Item já lançado" : "Receber"} 
+               onClick={() => setShowReceive(true)}
+               disabled={!!item.IDMOV && Number(item.IDMOV) > 0}
+               className={!!item.IDMOV && Number(item.IDMOV) > 0 ? "opacity-50 cursor-not-allowed" : ""}
+             >
+                 <Play className="h-4 w-4" />
+             </Button>
+  
+             <Dialog open={showReceive} onOpenChange={setShowReceive}>
+                <ReceiveXmlDialog xmlItem={item} open={showReceive} onOpenChange={setShowReceive} onSuccess={fetchData} />
+             </Dialog>
+          </div>
+        )
+      }
+    }
+  ], [fetchData]);
 
   useEffect(() => {
     fetchData();
   }, []);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">XML NFe</h1>
-          <p className="text-muted-foreground">
-            Visualize e gerencie as importações de arquivos XML.
-          </p>
-        </div>
-        <Button onClick={fetchData} variant="outline" size="sm" className="h-8 gap-2">
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
-      </div>
-
-      <Card className="border-none bg-black/40 backdrop-blur-xl">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-white">Importação de Arquivo XML</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          {loading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="rounded-md border-none">
-              <DataTable 
-                columns={columns} 
-                data={items} 
-                searchKey="NUMERO"
-                searchPlaceholder="Filtrar por número..."
-                className="[&_th]:bg-secondary/50 [&_th]:text-gray-300 [&_th]:font-semibold [&_td]:text-gray-300 [&_tr]:border-white/5 [&_tr:hover]:bg-white/5"
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="p-8 space-y-8">
+        <Card className="border-none bg-black/40 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-white flex items-center gap-2">
+                <FileCode className="h-6 w-6" />
+                Importação de Arquivo XML
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            {loading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="rounded-md border-none">
+                <DataTable 
+                  columns={columns} 
+                  data={items} 
+                  searchKey="NUMERO"
+                  searchPlaceholder="Filtrar por número..."
+                  className="[&_th]:bg-secondary/50 [&_th]:text-gray-300 [&_th]:font-semibold [&_td]:text-gray-300 [&_tr]:border-white/5 [&_tr:hover]:bg-white/5"
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
     </div>
   );
 }
