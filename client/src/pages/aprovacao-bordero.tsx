@@ -3,6 +3,7 @@ import { Loader2, RefreshCw, Receipt } from "lucide-react";
 import { AuthService } from "@/lib/auth";
 import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -91,10 +92,16 @@ export default function AprovacaoBorderoPage() {
           console.error(`Erro ao aprovar item ${item.IDBORDERO}:`, error);
           // Armazena a mensagem do primeiro erro encontrado para exibir
           if (errorCount === 0) {
+             const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
              toast({
                title: "Erro na Aprovação",
-               description: error instanceof Error ? error.message : "Erro desconhecido",
-               variant: "destructive"
+               description: errorMessage,
+               variant: "destructive",
+               action: (
+                 <ToastAction altText="Copiar erro" onClick={() => navigator.clipboard.writeText(errorMessage)}>
+                   Copiar
+                 </ToastAction>
+               ),
              });
           }
           errorCount++;
@@ -117,7 +124,17 @@ export default function AprovacaoBorderoPage() {
 
     } catch (error) {
        console.error("Erro geral:", error);
-       toast({ title: "Erro", description: "Erro interno ao processar aprovação.", variant: "destructive" });
+       const errorMessage = error instanceof Error ? error.message : "Erro interno ao processar aprovação.";
+       toast({ 
+         title: "Erro", 
+         description: errorMessage, 
+         variant: "destructive",
+         action: (
+           <ToastAction altText="Copiar erro" onClick={() => navigator.clipboard.writeText(errorMessage)}>
+             Copiar
+           </ToastAction>
+         ),
+       });
     } finally {
       setIsApproving(false);
     }
@@ -164,10 +181,16 @@ export default function AprovacaoBorderoPage() {
 
     } catch (error) {
       console.error("Erro ao buscar borderôs:", error);
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível carregar os dados. Verifique sua conexão.";
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os dados. Verifique sua conexão.",
+        description: errorMessage,
         variant: "destructive",
+        action: (
+          <ToastAction altText="Copiar erro" onClick={() => navigator.clipboard.writeText(errorMessage)}>
+            Copiar
+          </ToastAction>
+        ),
       });
       setItems([]);
     } finally {
