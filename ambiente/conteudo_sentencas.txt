@@ -1,0 +1,67 @@
+SIT.PORTALRM.001
+    "select * from flan f 
+    left join fcfo fo
+    on fo.codcoligada = f.codcolcfo and fo.codcfo = f.codcfo
+    where f.datavencimento >= '07/01/2025'"
+
+SIT.PORTALRM.002
+    "SELECT 
+    -- Verifica acesso à Solicitação de Compras
+    CASE 
+        WHEN EXISTS (
+        SELECT 1
+        FROM TUSRTMV tu
+        JOIN TTMV tt
+            ON tu.CODCOLIGADA = tt.CODCOLIGADA
+        AND tu.CODTMV = tt.CODTMV
+        WHERE tu.CODUSUARIO = :CODUSUARIO
+            AND tt.CLASSIFICACAO = '04.06.01'
+        ) THEN 1
+        ELSE 0
+    END AS MNUSC,
+
+    -- Verifica acesso ao menu específico
+    CASE 
+        WHEN EXISTS (
+        SELECT 1
+        FROM GAUTZMENU a
+        LEFT JOIN GUSRPERFIL b
+            ON a.CODSISTEMA = b.CODSISTEMA AND a.CODPERFIL = b.CODPERFIL
+        LEFT JOIN GUSUARIO c
+            ON b.CODUSUARIO = c.CODUSUARIO
+        WHERE a.CODSISTEMA = 'F'
+            AND a.TAGMENU IN ('810000029','810000041','810001000')
+            AND a.PERMISSOES IN ('*','**')
+            AND c.CODUSUARIO = :CODUSUARIO
+        ) THEN 1
+        ELSE 0
+    END AS MNULF,
+
+    -- Verifica aceso nos menus do Labore
+    CASE 
+        WHEN EXISTS (
+        SELECT 1
+        FROM GAUTZMENU a
+        LEFT JOIN GUSRPERFIL b
+            ON a.CODSISTEMA = b.CODSISTEMA AND a.CODPERFIL = b.CODPERFIL
+        LEFT JOIN GUSUARIO c
+            ON b.CODUSUARIO = c.CODUSUARIO
+        WHERE a.CODSISTEMA = 'P'
+            /*AND a.TAGMENU IN ('810000029','810000041','810001000')
+            AND a.PERMISSOES IN ('*','**')*/
+            AND c.CODUSUARIO = :CODUSUARIO
+        ) THEN 1
+        ELSE 0
+    END AS MNULB"
+
+SIT.PORTALRM.003
+SIT.PORTALRM.004
+SIT.PORTALRM.005
+SIT.PORTALRM.006
+SIT.PORTALRM.007
+SIT.PORTALRM.008
+SIT.PORTALRM.009
+SIT.PORTALRM.010
+SIT.PORTALRM.011
+SIT.PORTALRM.012
+SIT.PORTALRM.013

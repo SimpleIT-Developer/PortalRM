@@ -54,8 +54,10 @@ const formatarData = (dataString: string) => {
   }
 };
 
-const getStatusLabel = (status: number) => {
-  if (status === 0) return "Pendente";
+const getStatusLabel = (status: number | string) => {
+  const s = Number(status);
+  if (s === 0) return "PENDENTE";
+  if (s === 1) return "APROVADO";
   return status;
 };
 
@@ -284,8 +286,13 @@ export const columns: ColumnDef<BorderoItem>[] = [
     header: "Status",
     cell: ({ row }) => {
         const status = row.getValue("STATUSREMESSA") as number;
+        let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
+        
+        if (status === 0) variant = "secondary";
+        if (status === 1) variant = "default";
+        
         return (
-          <Badge variant={status === 0 ? "secondary" : "outline"}>
+          <Badge variant={variant} className={status === 1 ? "bg-green-600 hover:bg-green-700" : ""}>
             {getStatusLabel(status)}
           </Badge>
         );

@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -37,6 +38,21 @@ interface DataTableProps<TData, TValue> {
   enableRowSelection?: boolean
   onSelectionChange?: (selectedRows: TData[]) => void
   className?: string
+  filterContainerClassName?: string
+  filterInputClassName?: string
+  tableContainerClassName?: string
+  tableHeaderClassName?: string
+  tableHeaderRowClassName?: string
+  tableHeadClassName?: string
+  tableRowClassName?: string
+  tableCellClassName?: string
+  emptyCellClassName?: string
+  paginationVariant?: "text" | "icons"
+  paginationContainerClassName?: string
+  paginationInfoClassName?: string
+  paginationButtonsClassName?: string
+  paginationButtonClassName?: string
+  paginationCurrentPageClassName?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -49,6 +65,21 @@ export function DataTable<TData, TValue>({
   enableRowSelection = false,
   onSelectionChange,
   className,
+  filterContainerClassName,
+  filterInputClassName,
+  tableContainerClassName,
+  tableHeaderClassName,
+  tableHeaderRowClassName,
+  tableHeadClassName,
+  tableRowClassName,
+  tableCellClassName,
+  emptyCellClassName,
+  paginationVariant = "text",
+  paginationContainerClassName,
+  paginationInfoClassName,
+  paginationButtonsClassName,
+  paginationButtonClassName,
+  paginationCurrentPageClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -83,28 +114,42 @@ export function DataTable<TData, TValue>({
     }
   }, [rowSelection, onSelectionChange, table]);
 
+  const pageIndex = table.getState().pagination.pageIndex
+  const pageCount = table.getPageCount()
+
   return (
     <div className={className}>
       {activeFilterColumn && (
-        <div className="flex items-center py-4 px-1">
+        <div className={cn("flex items-center py-4 px-1", filterContainerClassName)}>
           <Input
             placeholder={activePlaceholder}
             value={(table.getColumn(activeFilterColumn)?.getFilterValue() as string) ?? ""}
             onChange={(event) =>
               table.getColumn(activeFilterColumn)?.setFilterValue(event.target.value)
             }
-            className="max-w-sm"
+            className={cn("max-w-sm", filterInputClassName)}
           />
         </div>
       )}
-      <div className="rounded-xl border border-white/5 overflow-hidden bg-gradient-to-b from-secondary/40 to-background/40 shadow-lg">
+      <div
+        className={cn(
+          "rounded-xl border border-white/5 overflow-hidden bg-gradient-to-b from-secondary/40 to-background/40 shadow-lg",
+          tableContainerClassName
+        )}
+      >
         <Table>
-          <TableHeader className="bg-secondary/30 backdrop-blur-sm">
+          <TableHeader className={cn("bg-secondary/30 backdrop-blur-sm", tableHeaderClassName)}>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-b border-white/5 hover:bg-transparent">
+              <TableRow
+                key={headerGroup.id}
+                className={cn("border-b border-white/5 hover:bg-transparent", tableHeaderRowClassName)}
+              >
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="text-foreground/80 font-semibold h-12">
+                    <TableHead
+                      key={header.id}
+                      className={cn("text-foreground/80 font-semibold h-12", tableHeadClassName)}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -123,10 +168,13 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-b border-white/5 hover:bg-secondary/20 transition-colors data-[state=selected]:bg-primary/10"
+                  className={cn(
+                    "border-b border-white/5 hover:bg-secondary/20 transition-colors data-[state=selected]:bg-primary/10",
+                    tableRowClassName
+                  )}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-3 text-foreground/80">
+                    <TableCell key={cell.id} className={cn("py-3 text-foreground/80", tableCellClassName)}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -134,7 +182,10 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={columns.length}
+                  className={cn("h-24 text-center text-muted-foreground", emptyCellClassName)}
+                >
                   Nenhum resultado encontrado.
                 </TableCell>
               </TableRow>
@@ -142,30 +193,90 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          Página {table.getState().pagination.pageIndex + 1} de{" "}
-          {table.getPageCount()}
+      {paginationVariant === "icons" ? (
+        <div
+          className={cn(
+            "flex items-center justify-between mt-6 pt-4 border-t border-white/10",
+            paginationContainerClassName
+          )}
+        >
+          <div className={cn("text-gray-400 text-sm", paginationInfoClassName)}>
+            Página {pageIndex + 1} de {pageCount}
+          </div>
+          <div className={cn("flex items-center space-x-2", paginationButtonsClassName)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              className={cn("border-white/20 text-white hover:bg-white/10", paginationButtonClassName)}
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className={cn("border-white/20 text-white hover:bg-white/10", paginationButtonClassName)}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span
+              className={cn(
+                "text-white px-3 py-1 bg-primary/20 rounded border border-primary/30",
+                paginationCurrentPageClassName
+              )}
+            >
+              {pageIndex + 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className={cn("border-white/20 text-white hover:bg-white/10", paginationButtonClassName)}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(pageCount - 1)}
+              disabled={!table.getCanNextPage()}
+              className={cn("border-white/20 text-white hover:bg-white/10", paginationButtonClassName)}
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Anterior
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Próximo
-          </Button>
+      ) : (
+        <div className={cn("flex items-center justify-end space-x-2 py-4", paginationContainerClassName)}>
+          <div className={cn("flex-1 text-sm text-muted-foreground", paginationInfoClassName)}>
+            Página {pageIndex + 1} de {pageCount}
+          </div>
+          <div className={cn("space-x-2", paginationButtonsClassName)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className={paginationButtonClassName}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className={paginationButtonClassName}
+            >
+              Próximo
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

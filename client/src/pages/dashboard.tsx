@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ColigadaSelector } from "@/components/coligada-selector";
 
 // Import pages
 import TokenInfoPage from "./token-info";
@@ -48,11 +49,17 @@ import PlanoContasPage from "./plano-contas";
 import NaturezaOrcamentariaPage from "./natureza-orcamentaria";
 import CentroCustoPage from "./centro-custo";
 import ImportacaoXmlPage from "./importacao-xml";
-import XmlNfePage from "./xml-nfe";
-import XmlNfsePage from "./xml-nfse";
-import XmlCtePage from "./xml-cte";
 import ProdutosPage from "./produtos";
 import ServicosPage from "./servicos";
+
+// Import SimpleDFe pages
+import SimpleDfeDashboard from "./simpledfe/dashboard";
+import SimpleDfeCompanies from "./simpledfe/companies";
+import SimpleDfeNfeRecebidas from "./simpledfe/nfe-recebidas";
+import SimpleDfeCteRecebidas from "./simpledfe/cte-recebidas";
+import SimpleDfeNfseRecebidas from "./simpledfe/nfse-recebidas";
+import SimpleDfeFornecedores from "./simpledfe/fornecedores";
+import SimpleDfeRelatorios from "./simpledfe/relatorios";
 
 // Import icons for dashboard cards
 import { 
@@ -373,6 +380,10 @@ export default function DashboardPage() {
               </div>
               <h1 className="text-xl font-medium text-foreground mr-6 hidden md:block">TOTVS RM</h1>
               
+              <div className="mr-2 hidden md:block">
+                <ColigadaSelector />
+              </div>
+
               <div className="w-[200px] md:w-[280px]">
                 <Select value={selectedModuleId} onValueChange={setSelectedModuleId}>
                   <SelectTrigger className="h-9">
@@ -437,7 +448,7 @@ export default function DashboardPage() {
           />
 
           {/* Main Content */}
-          <main className="flex-1 p-4 md:p-6 lg:p-8 pb-8">
+          <main className="flex-1 p-4 md:p-6 lg:p-8 pb-6">
             <DashboardContent location={location} />
           </main>
         </div>
@@ -468,9 +479,6 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/solicitacao-compras': SolicitacaoCompras,
   '/dashboard/nova-solicitacao-compras': NovaSolicitacaoCompras,
   '/dashboard/importacao-xml': ImportacaoXmlPage,
-  '/dashboard/xml-nfe': XmlNfePage,
-  '/dashboard/xml-nfse': XmlNfsePage,
-  '/dashboard/xml-cte': XmlCtePage,
   '/dashboard/produtos': ProdutosPage,
   '/dashboard/servicos': ServicosPage,
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
@@ -485,6 +493,15 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/plano-contas': PlanoContasPage,
   '/dashboard/natureza-orcamentaria': NaturezaOrcamentariaPage,
   '/dashboard/centro-custo': CentroCustoPage,
+
+  // Rotas SimpleDFe
+  '/dashboard/simpledfe/dashboard': SimpleDfeDashboard,
+  '/dashboard/simpledfe/empresas': SimpleDfeCompanies,
+  '/dashboard/simpledfe/nfe-recebidas': SimpleDfeNfeRecebidas,
+  '/dashboard/simpledfe/cte-recebidas': SimpleDfeCteRecebidas,
+  '/dashboard/simpledfe/nfse-recebidas': SimpleDfeNfseRecebidas,
+  '/dashboard/simpledfe/fornecedores': SimpleDfeFornecedores,
+  '/dashboard/simpledfe/relatorios': SimpleDfeRelatorios,
 };
 
 // Router component that handles all dashboard routes
@@ -530,17 +547,6 @@ function DashboardContent({ location }: { location: string }) {
     return <DashboardHome />;
   }
 
-  if (location === '/dashboard/xml-nfe' && !hasGestaoComprasPermission) {
-    // Redirecionar para dashboard se não tiver permissão
-    setLocation('/dashboard');
-    return <DashboardHome />;
-  }
-
-  if (location === '/dashboard/xml-nfse' && !hasGestaoComprasPermission) {
-    // Redirecionar para dashboard se não tiver permissão
-    setLocation('/dashboard');
-    return <DashboardHome />;
-  }
 
   if ((location === '/dashboard/produtos' || location === '/dashboard/servicos') && !hasGestaoComprasPermission) {
     // Redirecionar para dashboard se não tiver permissão
@@ -548,11 +554,6 @@ function DashboardContent({ location }: { location: string }) {
     return <DashboardHome />;
   }
 
-  if (location === '/dashboard/xml-cte' && !hasGestaoComprasPermission) {
-    // Redirecionar para dashboard se não tiver permissão
-    setLocation('/dashboard');
-    return <DashboardHome />;
-  }
   
   if (location === '/dashboard/assistente-virtual-rh' && !hasAssistenteVirtualRHPermission) {
     // Redirecionar para dashboard se não tiver permissão

@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wrench, RefreshCw, Loader2 } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { RefreshCw, Loader2, Search } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { AuthService } from "@/lib/auth";
 import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 export interface ServicoItem {
   IDPRD: number;
@@ -20,16 +22,23 @@ export const columns: ColumnDef<ServicoItem>[] = [
   {
     accessorKey: "CODIGOPRD",
     header: "Código",
+    cell: ({ getValue }) => (
+      <span className="text-white font-mono text-sm">{String(getValue() ?? "-")}</span>
+    ),
   },
   {
     accessorKey: "NOMEFANTASIA",
     header: "Descrição",
+    cell: ({ getValue }) => (
+      <span className="text-white text-sm">{String(getValue() ?? "-")}</span>
+    ),
   },
 ];
 
 export default function ServicosPage() {
   const [items, setItems] = useState<ServicoItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -43,7 +52,7 @@ export default function ServicosPage() {
           title: "Erro de autenticação",
           description: "Você precisa estar logado para acessar esta página.",
           variant: "destructive",
-        });
+          });
         return;
       }
 
@@ -80,46 +89,91 @@ export default function ServicosPage() {
     fetchData();
   }, []);
 
+  const filteredItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return items;
+
+    return items.filter((item) => {
+      const haystack = `${item.IDPRD ?? ""} ${item.CODIGOPRD ?? ""} ${item.NOMEFANTASIA ?? ""} ${item.CODUNDCONTROLE ?? ""}`
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [items, search]);
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Serviços</h1>
-          <p className="text-muted-foreground">
-            Gerencie o cadastro de serviços
+    <div className="flex flex-col gap-4 overflow-x-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-gray-400 text-sm">
+            Gerencie os serviços cadastrados no sistema
           </p>
         </div>
-        <Button onClick={fetchData} variant="outline" size="sm" className="h-8 gap-2">
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+          <Badge variant="secondary" className="text-primary">
+            {filteredItems.length} {filteredItems.length === 1 ? "serviço" : "serviços"}
+          </Badge>
+          <Button
+            onClick={fetchData}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black w-full sm:w-auto"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Atualizar Serviços
+          </Button>
+        </div>
       </div>
 
-      <Card className="border-none bg-black/40 backdrop-blur-xl">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-white flex items-center gap-2">
-            <Wrench className="h-6 w-6" />
-            Lista de Serviços
-          </CardTitle>
-          <CardDescription>
-            Visualização dos serviços cadastrados no sistema
-          </CardDescription>
-        </CardHeader>
+      <Card className="glassmorphism border-white/20">
         <CardContent className="p-4">
-          {loading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="rounded-md border-none">
-              <DataTable 
-                columns={columns} 
-                data={items} 
-                searchKey="NOMEFANTASIA"
-                searchPlaceholder="Filtrar por nome..."
-                className="[&_th]:bg-secondary/50 [&_th]:text-gray-300 [&_th]:font-semibold [&_td]:text-gray-300 [&_tr]:border-white/5 [&_tr:hover]:bg-white/5"
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar em todos os campos..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-400"
               />
             </div>
+            {search && (
+              <Button
+                variant="outline"
+                onClick={() => setSearch("")}
+                className="border-white/20 text-white hover:bg-white/10 w-full sm:w-auto"
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="glassmorphism border-white/20">
+        <CardContent className="p-4">
+          {loading ? (
+            <div className="flex items-center justify-center min-h-[240px]">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-white/80">Carregando serviços...</p>
+              </div>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-400">
+                {search ? "Nenhum serviço encontrado para sua busca." : "Nenhum serviço encontrado."}
+              </p>
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredItems}
+              tableContainerClassName="bg-white/5 rounded-lg overflow-hidden border-none shadow-none"
+              tableHeaderClassName="bg-white/10"
+              tableHeaderRowClassName="border-b border-white/10 hover:bg-transparent"
+              tableHeadClassName="text-left py-3 px-2 text-gray-300 font-semibold text-xs h-auto"
+              tableRowClassName="border-b border-white/5 hover:bg-white/5 transition-colors"
+              tableCellClassName="py-2 px-2"
+              paginationVariant="icons"
+            />
           )}
         </CardContent>
       </Card>

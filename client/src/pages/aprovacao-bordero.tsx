@@ -1,20 +1,35 @@
-import { useState, useEffect } from "react";
-import { Loader2, RefreshCw, Receipt } from "lucide-react";
+import { useState } from "react";
+import { Loader2, RefreshCw, Receipt, Search, Filter } from "lucide-react";
 import { AuthService } from "@/lib/auth";
 import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
 import { columns, BorderoItem } from "./aprovacao-bordero-columns";
 import { getAprovacaoBorderoSoap } from "@/lib/soap-templates";
 
 export default function AprovacaoBorderoPage() {
   const [items, setItems] = useState<BorderoItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<BorderoItem[]>([]);
   const [isApproving, setIsApproving] = useState(false);
+  
+  // Estados para os filtros
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
+  const [statusFilter, setStatusFilter] = useState("0"); // Padrão Pendente (0)
+
   const { toast } = useToast();
 
   const handleApprove = async () => {
@@ -141,7 +156,19 @@ export default function AprovacaoBorderoPage() {
   };
 
   const fetchData = async () => {
+    // Validação básica dos filtros
+    if (!dateStart || !dateEnd) {
+      toast({
+        title: "Filtro incompleto",
+        description: "Por favor, selecione as datas de início e fim.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
+    setItems([]); // Limpa a lista atual antes de buscar
+    
     try {
       const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
@@ -153,7 +180,15 @@ export default function AprovacaoBorderoPage() {
       // O endpoint pode vir com http:// ou não, o backend proxy espera o host
       // Mas o padrão no cadastro-funcionarios é passar o endpoint obtido do serviço
       
-      const path = "/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.006/1/T";
+      // Montagem dos parâmetros para a query SQL (tentativa de filtrar no server)
+      // Formato esperado pelo RM geralmente depende da query, mas vamos enviar padrão
+      const parameters = [
+        `DATAINI=${dateStart} 00:00:00`,
+        `DATAFIM=${dateEnd} 23:59:59`,
+        `STATUS=${statusFilter === "todos" ? "-1" : statusFilter}`
+      ].join(";");
+
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.006/1/T?parameters=${parameters}`;
       
       // Construção da URL do proxy
       const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
@@ -176,8 +211,48 @@ export default function AprovacaoBorderoPage() {
 
       const data = await response.json();
       
-      // A API de consulta SQL geralmente retorna um array direto
-      setItems(Array.isArray(data) ? data : []);
+      let fetchedItems = Array.isArray(data) ? data : [];
+
+      // Filtragem no Cliente (Client-side filtering)
+      // Isso garante que o filtro funcione mesmo se a Query SQL não tratar os parâmetros
+      fetchedItems = fetchedItems.filter(item => {
+        // Filtro de Data
+        if (item.DATA) {
+          const itemDate = new Date(item.DATA);
+          const startDate = new Date(`${dateStart}T00:00:00`);
+          const endDate = new Date(`${dateEnd}T23:59:59`);
+          
+          // Ajuste básico de fuso horário para comparação de datas apenas (dia)
+          // Zeramos as horas para comparar apenas as datas
+          itemDate.setHours(0, 0, 0, 0);
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(0, 0, 0, 0);
+
+          if (itemDate < startDate || itemDate > endDate) {
+            return false;
+          }
+        }
+
+        // Filtro de Status
+        if (statusFilter !== "todos") {
+          const statusNum = Number(statusFilter);
+          const itemStatus = Number(item.STATUSREMESSA);
+          if (itemStatus !== statusNum) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+      
+      setItems(fetchedItems);
+      
+      if (fetchedItems.length === 0) {
+        toast({
+          title: "Nenhum registro",
+          description: "Nenhum borderô encontrado para os filtros selecionados.",
+        });
+      }
 
     } catch (error) {
       console.error("Erro ao buscar borderôs:", error);
@@ -198,9 +273,10 @@ export default function AprovacaoBorderoPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // useEffect removido para não carregar dados automaticamente
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -209,28 +285,83 @@ export default function AprovacaoBorderoPage() {
           <Receipt className="h-6 w-6" />
           <h1 className="text-3xl font-bold">Aprovação de Borderô</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={fetchData} variant="outline" size="sm" disabled={loading || isApproving}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Atualizar
-          </Button>
-          <Button 
-            onClick={handleApprove} 
-            size="sm" 
-            disabled={loading || isApproving || selectedItems.length === 0}
-          >
-            {isApproving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-            Aprovar Selecionados
-          </Button>
-        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Lançamentos Pendentes</CardTitle>
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Filtros de Busca</CardTitle>
+          </div>
           <CardDescription>
-            Selecione os lançamentos para aprovação.
+            Defina o período e o status para buscar os borderôs.
           </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="space-y-2">
+              <Label htmlFor="dateStart">Data Inicial</Label>
+              <Input 
+                id="dateStart" 
+                type="date" 
+                value={dateStart} 
+                onChange={(e) => setDateStart(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dateEnd">Data Final</Label>
+              <Input 
+                id="dateEnd" 
+                type="date" 
+                value={dateEnd} 
+                onChange={(e) => setDateEnd(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="statusFilter">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="statusFilter">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="0">Pendente</SelectItem>
+                  <SelectItem value="1">Aprovado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={fetchData} className="w-full" disabled={loading || isApproving}>
+                <Search className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Buscar
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Só exibe a lista se houver itens ou se estiver carregando (para mostrar loading) 
+          Ou se o usuário já tiver feito uma busca (items vazio mas loading false é "nenhum resultado", ok exibir tabela vazia)
+          Para melhorar UX, podemos mostrar tabela vazia ou nada. Vamos mostrar tabela vazia.
+      */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div>
+            <CardTitle>Resultados</CardTitle>
+            <CardDescription>
+              Selecione os lançamentos para aprovação.
+            </CardDescription>
+          </div>
+          {items.length > 0 && (
+             <Button 
+               onClick={handleApprove} 
+               size="sm" 
+               disabled={loading || isApproving || selectedItems.length === 0}
+             >
+               {isApproving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+               Aprovar Selecionados
+             </Button>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (

@@ -79,6 +79,55 @@ export const menuItems: MenuItem[] = [
     icon: ShoppingCart,
     children: [
       {
+        id: "simpledfe",
+        label: "SimpleDFe",
+        icon: FileText,
+        children: [
+          {
+            id: "simpledfe-dashboard",
+            label: "Dashboard",
+            icon: Home,
+            path: "/dashboard/simpledfe/dashboard",
+          },
+          {
+            id: "simpledfe-empresas",
+            label: "Empresas",
+            icon: Building,
+            path: "/dashboard/simpledfe/empresas",
+          },
+          {
+            id: "simpledfe-nfe",
+            label: "NFe Recebidas",
+            icon: FileText,
+            path: "/dashboard/simpledfe/nfe-recebidas",
+          },
+          {
+            id: "simpledfe-cte",
+            label: "CTe Recebidas",
+            icon: FileText,
+            path: "/dashboard/simpledfe/cte-recebidas",
+          },
+          {
+            id: "simpledfe-nfse",
+            label: "NFSe Recebidas",
+            icon: FileText,
+            path: "/dashboard/simpledfe/nfse-recebidas",
+          },
+          {
+            id: "simpledfe-fornecedores",
+            label: "Fornecedores",
+            icon: Users,
+            path: "/dashboard/simpledfe/fornecedores",
+          },
+          {
+            id: "simpledfe-relatorios",
+            label: "Relatórios",
+            icon: PieChart,
+            path: "/dashboard/simpledfe/relatorios",
+          },
+        ],
+      },
+      {
         id: "itens",
         label: "Itens",
         icon: Package,
@@ -104,30 +153,12 @@ export const menuItems: MenuItem[] = [
         path: "/dashboard/solicitacao-compras",
       },
       {
-        id: "importacao-xml",
-        label: "Importação de Arquivo XML",
-        icon: FileCode,
-        path: "/dashboard/importacao-xml",
-      },
-      {
-        id: "xml-nfe",
-        label: "XML NFe",
-        icon: FileCode,
-        path: "/dashboard/xml-nfe",
-      },
-      {
-        id: "xml-nfse",
-        label: "XML NFSe",
-        icon: FileCode,
-        path: "/dashboard/xml-nfse",
-      },
-      {
-        id: "xml-cte",
-        label: "XML CTe",
-        icon: FileCode,
-        path: "/dashboard/xml-cte",
-      },
-    ],
+                  id: "importacao-xml",
+                  label: "Importação de Arquivo XML",
+                  icon: FileCode,
+                  path: "/dashboard/importacao-xml",
+                },
+              ],
   },
   {
     id: "gestao-financeira",

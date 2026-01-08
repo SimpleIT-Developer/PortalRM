@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Loader2, RefreshCw, FileText, ArrowUpDown, Eye, List, ShoppingCart, FileCode, Play, Link as LinkIcon, Check, X, ArrowRight, Search } from "lucide-react";
+import { Loader2, RefreshCw, FileText, ArrowUpDown, Eye, List, ShoppingCart, FileCode, Play, Link as LinkIcon, Check, X, ArrowRight, Search, Filter } from "lucide-react";
 import { AuthService } from "@/lib/auth";
 import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +31,6 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 
 export interface XmlItem {
   CODCOLIGADA: number;
@@ -860,12 +861,19 @@ const ReceiveXmlWithoutPoWizard = ({ xmlItem, open, onOpenChange, onBack }: { xm
 
       const response = await fetch(fullUrl);
       if (response.ok) {
-        const data = await response.json();
+        const rawData = await response.json();
+        // Handle "data" wrapper if present
+        const data = Array.isArray(rawData) ? rawData : (rawData.data || []);
+        
         let items = Array.isArray(data) ? data.map((item: any) => ({
           ...item,
           TIPO: searchType === "produto" ? "Produto" : "Serviço"
         })) : [];
         
+        if (items.length > 0) {
+            console.log("Campos retornados na busca:", Object.keys(items[0]));
+        }
+
         // Filtragem no cliente
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
@@ -1219,10 +1227,21 @@ const ReceiveXmlDialog = ({ xmlItem, open, onOpenChange, onSuccess }: { xmlItem:
 
 export default function ImportacaoXmlPage() {
   const [items, setItems] = useState<XmlItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
+    if (!dateStart || !dateEnd) {
+      toast({ 
+        title: "Filtro Necessário", 
+        description: "Por favor, selecione as datas inicial e final para buscar.", 
+        variant: "warning" 
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const endpoint = await EndpointService.getDefaultEndpoint();
@@ -1232,14 +1251,36 @@ export default function ImportacaoXmlPage() {
         return;
       }
 
-      // Assuming 008 is the correct query for XML list based on sequence
-      const path = "/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.008/1/T";
+      const parameters = [
+        `DATAINI=${dateStart}T00:00:00`,
+        `DATAFIM=${dateEnd}T23:59:59`
+      ].join(";");
+
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.008/1/T?parameters=${parameters}`;
       const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       const response = await fetch(fullUrl);
       if (response.ok) {
         const data = await response.json();
-        setItems(Array.isArray(data) ? data : []);
+        const resultItems = Array.isArray(data) ? data : (data.data || []);
+        
+        // Filtragem client-side para garantir (caso o servidor ignore os parâmetros)
+        const filteredItems = resultItems.filter((item: XmlItem) => {
+            if (!item.DATAEMISSAO) return false;
+            // Cria datas considerando timezone local para comparação correta
+            const itemDate = new Date(item.DATAEMISSAO);
+            const startDate = new Date(`${dateStart}T00:00:00`);
+            const endDate = new Date(`${dateEnd}T23:59:59`);
+            
+            return itemDate >= startDate && itemDate <= endDate;
+        });
+
+        console.log(`Busca realizada: ${resultItems.length} itens retornados, ${filteredItems.length} exibidos após filtro.`);
+        setItems(filteredItems);
+        
+        if (filteredItems.length === 0) {
+           toast({ title: "Aviso", description: "Nenhum registro encontrado no período selecionado.", variant: "default" });
+        }
       } else {
         toast({
             title: "Erro",
@@ -1257,36 +1298,53 @@ export default function ImportacaoXmlPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, dateStart, dateEnd]);
 
   const columns = useMemo<ColumnDef<XmlItem>[]>(() => [
     {
       accessorKey: "ID",
       header: "ID",
+      cell: ({ getValue }) => (
+        <span className="text-white font-mono text-xs">{String(getValue() ?? "-")}</span>
+      ),
     },
     {
       accessorKey: "IDMOV",
       header: "IDMOV",
+      cell: ({ getValue }) => (
+        <span className="text-white font-mono text-xs">{String(getValue() ?? "-")}</span>
+      ),
     },
     {
       accessorKey: "NUMERO",
       header: "Número",
+      cell: ({ getValue }) => (
+        <span className="text-white font-mono text-xs">{String(getValue() ?? "-")}</span>
+      ),
     },
     {
       accessorKey: "DATAEMISSAO",
       header: "Emissão",
       cell: ({ row }) => {
-          const date = new Date(row.getValue("DATAEMISSAO"));
-          return date.toLocaleDateString("pt-BR");
+          const val = row.getValue("DATAEMISSAO");
+          if (!val) return <span className="text-white text-xs">-</span>;
+          const date = new Date(val as string);
+          return <span className="text-white text-xs">{date.toLocaleDateString("pt-BR")}</span>;
       }
     },
     {
       accessorKey: "CODCFO",
       header: "Fornecedor",
+      cell: ({ getValue }) => (
+        <span className="text-white font-mono text-xs">{String(getValue() ?? "-")}</span>
+      ),
     },
     {
       accessorKey: "NOMEFANTASIA",
       header: "Nome Fantasia",
+      cell: ({ getValue }) => (
+        <span className="text-white text-xs">{String(getValue() ?? "-")}</span>
+      ),
     },
     {
       accessorKey: "STATUS",
@@ -1349,37 +1407,90 @@ export default function ImportacaoXmlPage() {
     }
   ], [fetchData]);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
 
   return (
-    <div className="p-8 space-y-8">
-        <Card className="border-none bg-black/40 backdrop-blur-xl">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-white flex items-center gap-2">
-                <FileCode className="h-6 w-6" />
-                Importação de Arquivo XML
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            {loading ? (
-              <div className="flex justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="rounded-md border-none">
-                <DataTable 
-                  columns={columns} 
-                  data={items} 
-                  searchKey="NUMERO"
-                  searchPlaceholder="Filtrar por número..."
-                  className="[&_th]:bg-secondary/50 [&_th]:text-gray-300 [&_th]:font-semibold [&_td]:text-gray-300 [&_tr]:border-white/5 [&_tr:hover]:bg-white/5"
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+    <div className="flex flex-col gap-4 overflow-x-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-gray-400 text-sm">
+            Gerencie a importação de arquivos XML
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+          <Badge variant="secondary" className="text-primary">
+            {items.length} {items.length === 1 ? "registro" : "registros"}
+          </Badge>
+        </div>
+      </div>
+
+      <Card className="glassmorphism border-white/20">
+        <CardHeader>
+            <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-gray-400" />
+                <CardTitle className="text-white">Filtros de Busca</CardTitle>
+            </div>
+            <CardDescription className="text-gray-400">
+                Defina o período para buscar os XMLs.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="space-y-2">
+                    <Label htmlFor="dateStart" className="text-gray-300">Data Inicial</Label>
+                    <Input 
+                        id="dateStart" 
+                        type="date" 
+                        value={dateStart} 
+                        onChange={(e) => setDateStart(e.target.value)}
+                        className="bg-white/10 border-white/20 text-white"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="dateEnd" className="text-gray-300">Data Final</Label>
+                    <Input 
+                        id="dateEnd" 
+                        type="date" 
+                        value={dateEnd} 
+                        onChange={(e) => setDateEnd(e.target.value)}
+                        className="bg-white/10 border-white/20 text-white"
+                    />
+                </div>
+                <div className="flex gap-2">
+                    <Button onClick={fetchData} className="w-full bg-yellow-500 hover:bg-yellow-600 text-black" disabled={loading}>
+                        <Search className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                        Buscar
+                    </Button>
+                </div>
+            </div>
+        </CardContent>
+      </Card>
+
+      <Card className="glassmorphism border-white/20">
+        <CardContent className="p-4">
+          {loading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DataTable 
+              columns={columns} 
+              data={items} 
+              searchKey="NUMERO"
+              searchPlaceholder="Filtrar por número..."
+              tableContainerClassName="bg-white/5 rounded-lg overflow-hidden border-none shadow-none"
+              tableHeaderClassName="bg-white/10"
+              tableHeaderRowClassName="border-b border-white/10 hover:bg-transparent"
+              tableHeadClassName="text-left py-3 px-2 text-gray-300 font-semibold text-xs h-auto"
+              tableRowClassName="border-b border-white/5 hover:bg-white/5 transition-colors"
+              tableCellClassName="py-2 px-2"
+              paginationVariant="icons"
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
