@@ -15,10 +15,19 @@ export interface ServicoItem {
   CODIGOPRD: string;
   NOMEFANTASIA: string;
   CODUNDCONTROLE: string;
+  CODUNDCOMPRA: string;
+  CODUNDVENDA: string;
   [key: string]: any;
 }
 
 export const columns: ColumnDef<ServicoItem>[] = [
+  {
+    accessorKey: "IDPRD",
+    header: "ID",
+    cell: ({ getValue }) => (
+      <span className="text-white font-mono text-sm">{String(getValue() ?? "-")}</span>
+    ),
+  },
   {
     accessorKey: "CODIGOPRD",
     header: "Código",
@@ -29,6 +38,27 @@ export const columns: ColumnDef<ServicoItem>[] = [
   {
     accessorKey: "NOMEFANTASIA",
     header: "Descrição",
+    cell: ({ getValue }) => (
+      <span className="text-white text-sm">{String(getValue() ?? "-")}</span>
+    ),
+  },
+  {
+    accessorKey: "CODUNDCOMPRA",
+    header: "Unidade de Venda",
+    cell: ({ getValue }) => (
+      <span className="text-white text-sm">{String(getValue() ?? "-")}</span>
+    ),
+  },
+  {
+    accessorKey: "CODUNDVENDA",
+    header: "Unidade de Compra",
+    cell: ({ getValue }) => (
+      <span className="text-white text-sm">{String(getValue() ?? "-")}</span>
+    ),
+  },
+  {
+    accessorKey: "CODUNDCONTROLE",
+    header: "Unidade de Controle",
     cell: ({ getValue }) => (
       <span className="text-white text-sm">{String(getValue() ?? "-")}</span>
     ),

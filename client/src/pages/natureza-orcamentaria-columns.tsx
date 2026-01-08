@@ -44,11 +44,15 @@ const BudgetaryNatureDetails = ({ data }: { data: BudgetaryNature }) => {
         </div>
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground">Natureza</h4>
-          <p className="text-sm font-semibold">{data.nature}</p>
+          <p className="text-sm font-semibold">
+            {data.nature === 1 ? "A Receber" : data.nature === 2 ? "A Pagar" : data.nature}
+          </p>
         </div>
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground">Tipo de Natureza</h4>
-          <p className="text-sm font-semibold">{data.natureType}</p>
+          <p className="text-sm font-semibold">
+            {data.natureType === 1 ? "Analítico" : "Sintético"}
+          </p>
         </div>
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
@@ -129,12 +133,18 @@ export const columns: ColumnDef<BudgetaryNature>[] = [
   {
     accessorKey: "nature",
     header: "Natureza",
-    cell: ({ row }) => <div className="pl-4">{row.getValue("nature")}</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("nature") as number;
+      return <div className="pl-4">{val === 1 ? "A Receber" : val === 2 ? "A Pagar" : val}</div>;
+    },
   },
   {
     accessorKey: "natureType",
     header: "Tipo",
-    cell: ({ row }) => <div className="pl-4">{row.getValue("natureType")}</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("natureType") as number;
+      return <div className="pl-4">{val === 1 ? "Analítico" : "Sintético"}</div>;
+    },
   },
   {
     accessorKey: "inactive",

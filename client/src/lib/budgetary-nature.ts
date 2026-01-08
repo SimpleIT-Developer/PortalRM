@@ -14,6 +14,7 @@ export interface BudgetaryNature {
   recModifiedOn: string;
   // Optional children property for tree structure if needed in future
   children?: BudgetaryNature[];
+  [key: string]: any;
 }
 
 export interface BudgetaryNatureResponse {
@@ -34,7 +35,7 @@ export const BudgetaryNatureService = {
     }
 
     const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
-    const path = "/api/mov/v1/FinancialBudgetaryNatures";
+    const path = "/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.014/1/T";
     
     // Using the proxy as seen in other services
     const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
@@ -52,14 +53,35 @@ export const BudgetaryNatureService = {
 
     const data = await response.json();
     
-    // Handle different response structures if necessary, but based on user input it's { items: [...] }
+    // Handle different response structures
+    let items: any[] = [];
     if (data.items && Array.isArray(data.items)) {
-      return data.items;
+      items = data.items;
     } else if (Array.isArray(data)) {
-      return data;
+      items = data;
+    } else if (data && typeof data === 'object') {
+       items = [data];
     }
     
-    return [];
+    // Map SQL columns to BudgetaryNature interface
+    return items.map((item: any) => ({
+      internalId: item.CODTBORCAMENTO || item.ID || "",
+      companyId: item.CODCOLIGADA || 0,
+      code: item.CODTBORCAMENTO || "",
+      description: item.DESCRICAO || "",
+      // NAOPERMITETRANSF: 0 = Permite, 1 = Não Permite
+      dontAllowTransfer: item.NAOPERMITETRANSF !== 0, 
+      // NATUREZA: 1 = A Receber, 2 = A Pagar
+      nature: item.NATUREZA || 0, 
+      // SINTETICOANALITICO: 1 = Analítico, 0 = Sintético
+      natureType: item.SINTETICOANALITICO === 1 ? 1 : 0, 
+      // INATIVO: 0 = Ativo, 1 = Inativo
+      inactive: item.INATIVO === 1,
+      recCreatedOn: item.RECCREATEDON || "",
+      recModifiedOn: item.RECMODIFIEDON || "",
+      // Keep original data accessible
+      ...item
+    }));
   },
 
   /**
