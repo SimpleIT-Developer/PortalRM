@@ -5,16 +5,24 @@ import { Box } from "lucide-react";
 interface LoadingScreenProps {
   duration?: number; // duração em milissegundos
   onComplete?: () => void;
+  customMessage?: string;
+  progressValue?: number;
 }
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({
   duration = 5000,
-  onComplete
+  onComplete,
+  customMessage,
+  progressValue
 }) => {
-  const [progress, setProgress] = useState(0);
-  const [message, setMessage] = useState("Iniciando...");
+  const [internalProgress, setInternalProgress] = useState(0);
+  const [internalMessage, setInternalMessage] = useState("Iniciando...");
+
+  const isControlled = typeof progressValue === 'number';
 
   useEffect(() => {
+    if (isControlled) return;
+
     const messages = [
       "Iniciando...",
       "Configurando permissões...",
@@ -33,12 +41,12 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
     const timer = setInterval(() => {
       currentStep++;
       const newProgress = Math.min(100, Math.floor((currentStep / steps) * 100));
-      setProgress(newProgress);
+      setInternalProgress(newProgress);
       
       // Atualiza a mensagem com base no progresso atual
       for (let i = messageChangePoints.length - 1; i >= 0; i--) {
         if (newProgress >= messageChangePoints[i]) {
-          setMessage(messages[i]);
+          setInternalMessage(messages[i]);
           break;
         }
       }
@@ -52,7 +60,10 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
     }, interval);
     
     return () => clearInterval(timer);
-  }, [duration, onComplete]);
+  }, [duration, onComplete, isControlled]);
+
+  const displayProgress = isControlled ? progressValue : internalProgress;
+  const displayMessage = customMessage || internalMessage;
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#121212] z-50">
@@ -67,10 +78,10 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
         {/* Barra de progresso */}
         <div className="space-y-4 w-full">
           <Progress 
-            value={progress} 
+            value={displayProgress} 
             className="h-2 w-full bg-[#2D2D2D] [&>div]:bg-yellow-500" 
           />
-          <p className="text-sm text-gray-400 font-medium">{message}</p>
+          <p className="text-sm text-gray-400 font-medium">{displayMessage}</p>
         </div>
       </div>
     </div>

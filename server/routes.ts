@@ -38,6 +38,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sentences configuration
+  app.get("/api/config/sentences", (req, res) => {
+    try {
+      const sentencesPath = join(process.cwd(), "ambiente", "sentencas.txt");
+      // Fallback for direct path if needed, or just rely on relative
+      
+      const content = readFileSync(sentencesPath, "utf-8");
+      const lines = content.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && !line.startsWith('#'));
+      
+      res.json({ sentences: lines });
+    } catch (error) {
+      console.error("Erro ao ler arquivo de sentenças:", error);
+      // Try alternate path just in case (e.g. if cwd is server subdir)
+      try {
+          const altPath = join(process.cwd(), "..", "ambiente", "sentencas.txt");
+          const content = readFileSync(altPath, "utf-8");
+          const lines = content.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0 && !line.startsWith('#'));
+          res.json({ sentences: lines });
+      } catch (err2) {
+          res.status(500).json({ 
+            error: "Erro ao ler arquivo de configurações",
+            details: error instanceof Error ? error.message : "Erro desconhecido"
+          });
+      }
+    }
+  });
+
   // TOTVS Authentication Proxy - handles CORS issues
   app.post("/api/auth/login", async (req, res) => {
     try {

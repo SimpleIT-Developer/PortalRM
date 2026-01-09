@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { totvsLoginSchema, type TotvsLoginRequest } from "@shared/schema";
 import { AuthService, AuthenticationError } from "@/lib/auth";
+import { StartupCheckService } from "@/lib/startup-check";
 import { EndpointService, type EndpointOption } from "@/lib/endpoint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,8 @@ export default function LoginPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [verificationProgress, setVerificationProgress] = useState<number | undefined>(undefined);
+  const [verificationMessage, setVerificationMessage] = useState<string | undefined>(undefined);
   
   // Estados para gerenciamento de endpoints
   const [endpoints, setEndpoints] = useState<EndpointOption[]>([]);
@@ -131,14 +134,51 @@ export default function LoginPage() {
       const tokenData = await AuthService.authenticate({ ...credentials, endpoint: selectedEndpoint });
       AuthService.storeToken(tokenData, data.username, selectedEndpoint);
       
+      // Verificação de Configuração (Sentenças SQL)
+      // Mostrar tela de loading para verificação
+      setShowLoadingScreen(true);
+      setVerificationProgress(0);
+      setVerificationMessage("Iniciando verificação de sentenças...");
+
+      const checkResult = await StartupCheckService.checkConfiguration((sentence, index, total) => {
+          const percent = Math.floor((index / total) * 100);
+          setVerificationProgress(percent);
+          setVerificationMessage(`Verificando ${sentence} (${index}/${total})...`);
+      });
+      
+      if (!checkResult.success) {
+        setShowLoadingScreen(false);
+        setVerificationProgress(undefined);
+        setVerificationMessage(undefined);
+
+        toast({
+          title: "Erro de Configuração",
+          description: `Faltando configurações: ${checkResult.missing.join(", ")}. Acesso negado.`,
+          variant: "destructive",
+          duration: 6000,
+        });
+        return;
+      }
+
+      // Verificação concluída com sucesso
+      // Transição para o modo de carregamento automático
+      setVerificationProgress(undefined);
+      setVerificationMessage(undefined);
+
+      toast({
+        title: "Ambiente Verificado",
+        description: "Todas as configurações foram encontradas.",
+        className: "bg-green-600 text-white border-green-700",
+      });
+
       setShowSuccess(true);
       toast({
         title: "Login realizado com sucesso!",
         description: "Carregando sistema...",
       });
 
-      // Mostrar tela de loading por 5 segundos antes de redirecionar
-      setShowLoadingScreen(true);
+      // A tela de loading continua exibida (showLoadingScreen=true), 
+      // mas agora entra no modo automático (progressValue=undefined)
 
     } catch (error) {
       if (error instanceof AuthenticationError) {
@@ -237,7 +277,12 @@ export default function LoginPage() {
 
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 relative">
         {showLoadingScreen && (
-          <LoadingScreen duration={5000} onComplete={handleLoadingComplete} />
+          <LoadingScreen
+            duration={5000}
+            onComplete={handleLoadingComplete}
+            customMessage={verificationMessage}
+            progressValue={verificationProgress}
+          />
         )}
         
         <div className="max-w-md w-full space-y-8 relative z-10">

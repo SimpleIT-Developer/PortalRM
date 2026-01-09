@@ -260,6 +260,12 @@ export const menuItems: MenuItem[] = [
         icon: Key,
         path: "/dashboard/token-info",
       },
+      {
+        id: "login-log",
+        label: "Log de Login",
+        icon: FileText,
+        path: "/dashboard/login-log",
+      },
     ],
   },
 ];

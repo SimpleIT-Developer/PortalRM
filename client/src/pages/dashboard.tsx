@@ -51,6 +51,7 @@ import CentroCustoPage from "./centro-custo";
 import ImportacaoXmlPage from "./importacao-xml";
 import ProdutosPage from "./produtos";
 import ServicosPage from "./servicos";
+import LoginLogPage from "./admin/login-log";
 
 // Import SimpleDFe pages
 import SimpleDfeDashboard from "./simpledfe/dashboard";
@@ -493,6 +494,7 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/plano-contas': PlanoContasPage,
   '/dashboard/natureza-orcamentaria': NaturezaOrcamentariaPage,
   '/dashboard/centro-custo': CentroCustoPage,
+  '/dashboard/login-log': LoginLogPage,
 
   // Rotas SimpleDFe
   '/dashboard/simpledfe/dashboard': SimpleDfeDashboard,
