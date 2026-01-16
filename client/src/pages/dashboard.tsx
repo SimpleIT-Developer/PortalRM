@@ -35,6 +35,11 @@ import { ColigadaSelector } from "@/components/coligada-selector";
 // Import pages
 import TokenInfoPage from "./token-info";
 import SolicitacaoCompras from "./solicitacao-compras";
+import OrdemCompras from "./ordem-compras";
+import Cotacao from "./cotacao";
+import NotasFiscaisProdutos from "./notas-fiscais-produtos";
+import NotasFiscaisServicos from "./notas-fiscais-servicos";
+import OutrasMovimentacoes from "./outras-movimentacoes";
 import NovaSolicitacaoCompras from "./nova-solicitacao-compras";
 import LancamentosContasPagar from "./lancamentos-contas-pagar";
 import AprovacaoBordero from "./aprovacao-bordero";
@@ -48,10 +53,18 @@ import FiliaisPage from "./filiais";
 import PlanoContasPage from "./plano-contas";
 import NaturezaOrcamentariaPage from "./natureza-orcamentaria";
 import CentroCustoPage from "./centro-custo";
+import LotesContabeis from "./lotes-contabeis";
+import LancamentosContabeis from "./lancamentos-contabeis";
+import BalancetePage from "./balancete";
+import RazaoPage from "./razao";
+import FluxoCaixaPage from "./fluxo-caixa";
 import ImportacaoXmlPage from "./importacao-xml";
 import ProdutosPage from "./produtos";
 import ServicosPage from "./servicos";
 import LoginLogPage from "./admin/login-log";
+import LancamentosContasReceber from "./lancamentos-contas-receber";
+import MovimentacaoBancaria from "./movimentacao-bancaria";
+import ContasCaixas from "./contas-caixas";
 
 // Import SimpleDFe pages
 import SimpleDfeDashboard from "./simpledfe/dashboard";
@@ -96,8 +109,14 @@ export default function DashboardPage() {
 
   const [selectedModuleId, setSelectedModuleId] = useState<string>("dashboard-principal");
 
-  // Filtrar módulos disponíveis com base nas permissões
+  // Filtrar módulos disponíveis com base nas permissões e configuração do ambiente
   const availableModules = menuItems.filter(item => {
+    // Verificar se o módulo está habilitado no ambiente
+    const enabledModules = EndpointService.getEnabledModules();
+    if (enabledModules && enabledModules[item.id] === false) {
+      return false;
+    }
+
     if (item.id === "gestao-compras") return hasGestaoComprasPermission;
     if (item.id === "gestao-financeira") return hasGestaoFinanceiraPermission;
     if (item.id === "gestao-rh") return hasGestaoRHPermission;
@@ -146,8 +165,8 @@ export default function DashboardPage() {
       console.log("🔗 Endpoint formatado:", endpointWithProtocol);
       
       // Caminho da API para consulta SQL que retorna a versão do RM
-      // Adicionando os parâmetros '/1/F' conforme solicitado
-      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIMPLEIT.IA.0003/1/F`;
+      // Adicionando os parâmetros '/1/T' conforme solicitado (T = Traz colunas tipadas/formatadas)
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.015/1/T`;
       console.log("🔗 Path da consulta:", path);
       
       // Consulta via proxy backend para evitar problemas de CORS
@@ -478,11 +497,19 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard': DashboardHome,
   '/dashboard/token-info': TokenInfoPage,
   '/dashboard/solicitacao-compras': SolicitacaoCompras,
+  '/dashboard/ordem-compras': OrdemCompras,
+  '/dashboard/cotacao': Cotacao,
+  '/dashboard/notas-fiscais-produtos': NotasFiscaisProdutos,
+  '/dashboard/notas-fiscais-servicos': NotasFiscaisServicos,
+  '/dashboard/outras-movimentacoes': OutrasMovimentacoes,
   '/dashboard/nova-solicitacao-compras': NovaSolicitacaoCompras,
   '/dashboard/importacao-xml': ImportacaoXmlPage,
   '/dashboard/produtos': ProdutosPage,
   '/dashboard/servicos': ServicosPage,
+  '/dashboard/contas-caixas': ContasCaixas,
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
+  '/dashboard/lancamentos-contas-receber': LancamentosContasReceber,
+  '/dashboard/movimentacao-bancaria': MovimentacaoBancaria,
   '/dashboard/aprovacao-bordero': AprovacaoBordero,
   '/dashboard/assistente-virtual': AssistenteVirtual,
   '/dashboard/assistente-virtual-rh': AssistenteVirtualRH,
@@ -494,6 +521,11 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/plano-contas': PlanoContasPage,
   '/dashboard/natureza-orcamentaria': NaturezaOrcamentariaPage,
   '/dashboard/centro-custo': CentroCustoPage,
+  '/dashboard/lotes-contabeis': LotesContabeis,
+  '/dashboard/lancamentos-contabeis': LancamentosContabeis,
+  '/dashboard/balancete': BalancetePage,
+  '/dashboard/razao': RazaoPage,
+  '/dashboard/fluxo-caixa': FluxoCaixaPage,
   '/dashboard/login-log': LoginLogPage,
 
   // Rotas SimpleDFe
@@ -520,6 +552,30 @@ function DashboardContent({ location }: { location: string }) {
 
   // Verificar permissões para rotas protegidas
   if (location === '/dashboard/solicitacao-compras' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/ordem-compras' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/cotacao' && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if ((location === '/dashboard/notas-fiscais-produtos' || location === '/dashboard/notas-fiscais-servicos') && !hasGestaoComprasPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/outras-movimentacoes' && !hasGestaoComprasPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;

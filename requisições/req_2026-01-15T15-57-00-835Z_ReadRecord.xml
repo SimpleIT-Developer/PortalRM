@@ -1,0 +1,14 @@
+
+ <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/"> 
+    <soapenv:Header/> 
+    <soapenv:Body> 
+       <tot:ReadRecord> 
+          <!--Optional:--> 
+          <tot:DataServerName>GlbConsSqlData</tot:DataServerName> 
+          <!--Optional:--> 
+          <tot:PrimaryKey>1;T;SIT.PORTALRM.016</tot:PrimaryKey> 
+          <!--Optional:--> 
+          <tot:Contexto>CODCOLIGADA=1;CODUSUARIO='mestre';CODSISTEMA=T</tot:Contexto> 
+       </tot:ReadRecord> 
+    </soapenv:Body> 
+ </soapenv:Envelope>

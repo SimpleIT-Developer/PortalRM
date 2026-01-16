@@ -134,12 +134,12 @@ export default function ServicosPage() {
     <div className="flex flex-col gap-4 overflow-x-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-gray-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Gerencie os serviços cadastrados no sistema
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-          <Badge variant="secondary" className="text-primary">
+          <Badge variant="secondary" className="text-primary bg-primary/10 hover:bg-primary/20 border-primary/20">
             {filteredItems.length} {filteredItems.length === 1 ? "serviço" : "serviços"}
           </Badge>
           <Button
@@ -152,23 +152,23 @@ export default function ServicosPage() {
         </div>
       </div>
 
-      <Card className="glassmorphism border-white/20">
+      <Card className="border-muted/20 shadow-sm">
         <CardContent className="p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Buscar em todos os campos..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                className="pl-10"
               />
             </div>
             {search && (
               <Button
                 variant="outline"
                 onClick={() => setSearch("")}
-                className="border-white/20 text-white hover:bg-white/10 w-full sm:w-auto"
+                className="w-full sm:w-auto"
               >
                 Limpar
               </Button>
@@ -177,18 +177,18 @@ export default function ServicosPage() {
         </CardContent>
       </Card>
 
-      <Card className="glassmorphism border-white/20">
+      <Card className="border-muted/20 shadow-sm">
         <CardContent className="p-4">
           {loading ? (
             <div className="flex items-center justify-center min-h-[240px]">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                <p className="text-white/80">Carregando serviços...</p>
+                <p className="text-muted-foreground">Carregando serviços...</p>
               </div>
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-400">
+              <p className="text-muted-foreground">
                 {search ? "Nenhum serviço encontrado para sua busca." : "Nenhum serviço encontrado."}
               </p>
             </div>
@@ -196,11 +196,11 @@ export default function ServicosPage() {
             <DataTable
               columns={columns}
               data={filteredItems}
-              tableContainerClassName="bg-white/5 rounded-lg overflow-hidden border-none shadow-none"
-              tableHeaderClassName="bg-white/10"
-              tableHeaderRowClassName="border-b border-white/10 hover:bg-transparent"
-              tableHeadClassName="text-left py-3 px-2 text-gray-300 font-semibold text-xs h-auto"
-              tableRowClassName="border-b border-white/5 hover:bg-white/5 transition-colors"
+              tableContainerClassName="rounded-lg overflow-hidden border border-muted/20 bg-background"
+              tableHeaderClassName="bg-muted"
+              tableHeaderRowClassName="border-b border-muted/20 hover:bg-muted"
+              tableHeadClassName="text-left py-3 px-2 text-muted-foreground font-semibold text-xs h-auto"
+              tableRowClassName="border-b border-muted/20 hover:bg-muted/50 transition-colors"
               tableCellClassName="py-2 px-2"
               paginationVariant="icons"
             />

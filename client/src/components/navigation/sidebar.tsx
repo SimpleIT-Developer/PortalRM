@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -29,9 +30,14 @@ import {
   FileCode,
   Package,
   Box,
-  Wrench
+  Wrench,
+  Landmark,
+  Wallet,
+  ArrowDownRight,
+  ArrowUpRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EndpointService } from "@/lib/endpoint";
 
 export interface MenuItem {
   id: string;
@@ -39,6 +45,7 @@ export interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
   path?: string;
   children?: MenuItem[];
+  inDevelopment?: boolean;
 }
 
 export const menuItems: MenuItem[] = [
@@ -74,59 +81,59 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
+    id: "simpledfe",
+    label: "SimpleDFe",
+    icon: FileText,
+    children: [
+      {
+        id: "simpledfe-dashboard",
+        label: "Dashboard",
+        icon: Home,
+        path: "/dashboard/simpledfe/dashboard",
+      },
+      {
+        id: "simpledfe-empresas",
+        label: "Empresas",
+        icon: Building,
+        path: "/dashboard/simpledfe/empresas",
+      },
+      {
+        id: "simpledfe-nfe",
+        label: "NFe Recebidas",
+        icon: FileText,
+        path: "/dashboard/simpledfe/nfe-recebidas",
+      },
+      {
+        id: "simpledfe-cte",
+        label: "CTe Recebidas",
+        icon: FileText,
+        path: "/dashboard/simpledfe/cte-recebidas",
+      },
+      {
+        id: "simpledfe-nfse",
+        label: "NFSe Recebidas",
+        icon: FileText,
+        path: "/dashboard/simpledfe/nfse-recebidas",
+      },
+      {
+        id: "simpledfe-fornecedores",
+        label: "Fornecedores",
+        icon: Users,
+        path: "/dashboard/simpledfe/fornecedores",
+      },
+      {
+        id: "simpledfe-relatorios",
+        label: "Relatórios",
+        icon: PieChart,
+        path: "/dashboard/simpledfe/relatorios",
+      },
+    ],
+  },
+  {
     id: "gestao-compras",
     label: "Gestão de Compras",
     icon: ShoppingCart,
     children: [
-      {
-        id: "simpledfe",
-        label: "SimpleDFe",
-        icon: FileText,
-        children: [
-          {
-            id: "simpledfe-dashboard",
-            label: "Dashboard",
-            icon: Home,
-            path: "/dashboard/simpledfe/dashboard",
-          },
-          {
-            id: "simpledfe-empresas",
-            label: "Empresas",
-            icon: Building,
-            path: "/dashboard/simpledfe/empresas",
-          },
-          {
-            id: "simpledfe-nfe",
-            label: "NFe Recebidas",
-            icon: FileText,
-            path: "/dashboard/simpledfe/nfe-recebidas",
-          },
-          {
-            id: "simpledfe-cte",
-            label: "CTe Recebidas",
-            icon: FileText,
-            path: "/dashboard/simpledfe/cte-recebidas",
-          },
-          {
-            id: "simpledfe-nfse",
-            label: "NFSe Recebidas",
-            icon: FileText,
-            path: "/dashboard/simpledfe/nfse-recebidas",
-          },
-          {
-            id: "simpledfe-fornecedores",
-            label: "Fornecedores",
-            icon: Users,
-            path: "/dashboard/simpledfe/fornecedores",
-          },
-          {
-            id: "simpledfe-relatorios",
-            label: "Relatórios",
-            icon: PieChart,
-            path: "/dashboard/simpledfe/relatorios",
-          },
-        ],
-      },
       {
         id: "itens",
         label: "Itens",
@@ -153,7 +160,44 @@ export const menuItems: MenuItem[] = [
         path: "/dashboard/solicitacao-compras",
       },
       {
-                  id: "importacao-xml",
+        id: "ordem-compras",
+        label: "Ordem de Compras",
+        icon: FileText,
+        path: "/dashboard/ordem-compras",
+      },
+      {
+        id: "cotacao",
+        label: "Cotação",
+        icon: FileText,
+        path: "/dashboard/cotacao",
+      },
+      {
+        id: "notas-fiscais",
+        label: "Notas Fiscais",
+        icon: FileText,
+        children: [
+          {
+            id: "notas-fiscais-produtos",
+            label: "Notas Fiscais de Produtos",
+            icon: FileText,
+            path: "/dashboard/notas-fiscais-produtos",
+          },
+          {
+            id: "notas-fiscais-servicos",
+            label: "Notas Fiscais de Serviços",
+            icon: FileText,
+            path: "/dashboard/notas-fiscais-servicos",
+          },
+        ],
+      },
+      {
+        id: "outras-movimentacoes",
+        label: "Outras Movimentações",
+        icon: FileText,
+        path: "/dashboard/outras-movimentacoes",
+      },
+      {
+        id: "importacao-xml",
                   label: "Importação de Arquivo XML",
                   icon: FileCode,
                   path: "/dashboard/importacao-xml",
@@ -166,10 +210,34 @@ export const menuItems: MenuItem[] = [
     icon: DollarSign,
     children: [
       {
+        id: "contas-caixas",
+        label: "Contas/Caixas",
+        icon: Wallet,
+        path: "/dashboard/contas-caixas",
+      },
+      {
         id: "lancamentos-contas-pagar",
         label: "Contas a Pagar",
-        icon: Receipt,
+        icon: ArrowDownRight,
         path: "/dashboard/lancamentos-contas-pagar",
+      },
+      {
+        id: "lancamentos-contas-receber",
+        label: "Contas a Receber",
+        icon: ArrowUpRight,
+        path: "/dashboard/lancamentos-contas-receber",
+      },
+      {
+        id: "movimentacao-bancaria",
+        label: "Movimentação Bancária",
+        icon: Landmark,
+        path: "/dashboard/movimentacao-bancaria",
+      },
+      {
+        id: "fluxo-caixa",
+        label: "Fluxo de Caixa",
+        icon: DollarSign,
+        path: "/dashboard/fluxo-caixa",
       },
       {
         id: "aprovacao-bordero",
@@ -182,19 +250,6 @@ export const menuItems: MenuItem[] = [
         label: "Natureza Orçamentária",
         icon: PieChart,
         path: "/dashboard/natureza-orcamentaria",
-      },
-    ],
-  },
-  {
-    id: "gestao-fiscal",
-    label: "Gestão Fiscal",
-    icon: Building,
-    children: [
-      {
-        id: "filiais",
-        label: "Filiais",
-        icon: Building,
-        path: "/dashboard/filiais",
       },
     ],
   },
@@ -214,6 +269,50 @@ export const menuItems: MenuItem[] = [
         label: "Centro de Custo",
         icon: Building,
         path: "/dashboard/centro-custo",
+      },
+      {
+        id: "lotes-contabeis",
+        label: "Lotes Contábeis",
+        icon: FileText,
+        path: "/dashboard/lotes-contabeis",
+      },
+      {
+        id: "lancamentos-contabeis",
+        label: "Lançamentos Contábeis",
+        icon: FileText,
+        path: "/dashboard/lancamentos-contabeis",
+      },
+      {
+        id: "relatorios-contabeis",
+        label: "Relatórios",
+        icon: FileText,
+        children: [
+          {
+            id: "balancete",
+            label: "Balancete",
+            icon: FileText,
+            path: "/dashboard/balancete",
+          },
+          {
+            id: "razao",
+            label: "Razão",
+            icon: FileText,
+            path: "/dashboard/razao",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "gestao-fiscal",
+    label: "Gestão Fiscal",
+    icon: Building,
+    children: [
+      {
+        id: "filiais",
+        label: "Filiais",
+        icon: Building,
+        path: "/dashboard/filiais",
       },
     ],
   },
@@ -350,6 +449,27 @@ export function Sidebar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   
+  // Load enabled modules from localStorage
+  const [enabledModules, setEnabledModules] = useState<Record<string, boolean> | null>(() => {
+    return EndpointService.getEnabledModules();
+  });
+
+  // Listen for module updates
+  useEffect(() => {
+    const handleModuleUpdate = () => {
+      setEnabledModules(EndpointService.getEnabledModules());
+    };
+
+    window.addEventListener(EndpointService.MODULES_UPDATED_EVENT, handleModuleUpdate);
+    return () => {
+      window.removeEventListener(EndpointService.MODULES_UPDATED_EVENT, handleModuleUpdate);
+    };
+  }, []);
+
+  const displayedItems = (items || menuItems).filter(item => {
+    if (!enabledModules) return true;
+    return enabledModules[item.id] !== false;
+  });
 
   const toggleExpanded = (itemId: string, event?: React.MouseEvent) => {
     // Se estiver colapsado e o usuário clicar em um item pai, expandir a sidebar
@@ -380,7 +500,7 @@ export function Sidebar({
     setIsToggling(true);
     
     // Se for o menu de Gestão de Compras e não tiver permissão, não permitir expansão
-    if (itemId === 'gestao-compras' && !hasGestaoComprasPermission) {
+    if ((itemId === 'gestao-compras' || itemId === 'simpledfe') && !hasGestaoComprasPermission) {
       setIsToggling(false);
       return;
     }
@@ -427,7 +547,7 @@ export function Sidebar({
     
     // Verificar se o item está desabilitado por falta de permissão
     // Removida a verificação para o menu de Assistentes Virtuais
-    const isDisabled = (item.id === 'gestao-compras' && !hasGestaoComprasPermission) ||
+    const isDisabled = ((item.id === 'gestao-compras' || item.id === 'simpledfe') && !hasGestaoComprasPermission) ||
                       (item.id === 'gestao-financeira' && !hasGestaoFinanceiraPermission) ||
                       (item.id === 'gestao-rh' && !hasGestaoRHPermission);
     
@@ -623,6 +743,11 @@ export function Sidebar({
                     >
                       <ChildIcon className="mr-2.5 h-4 w-4 shrink-0" />
                       <span className="truncate text-sm">{child.label}</span>
+                      {child.inDevelopment && (
+                        <Badge variant="outline" className="ml-auto text-[10px] h-5 px-1.5 border-yellow-600 text-yellow-600">
+                          Em Desenv.
+                        </Badge>
+                      )}
                     </Button>
                   </Link>
                 );
@@ -644,7 +769,16 @@ export function Sidebar({
           onClick={() => isMobile && onClose?.()}
         >
           <Icon className={cn("h-4 w-4 shrink-0", !isCollapsed && "mr-2.5")} />
-          {!isCollapsed && <span className="truncate text-sm">{item.label}</span>}
+          {!isCollapsed && (
+            <>
+              <span className="truncate text-sm">{item.label}</span>
+              {item.inDevelopment && (
+                <Badge variant="outline" className="ml-auto text-[10px] h-5 px-1.5 border-yellow-600 text-yellow-600">
+                  Em Desenv.
+                </Badge>
+              )}
+            </>
+          )}
         </Button>
     );
 
@@ -707,7 +841,7 @@ export function Sidebar({
       <ScrollArea className="flex-1 p-3">
         <TooltipProvider delayDuration={0}>
           <div className="space-y-2">
-            {(items || menuItems).map((item) => renderMenuItem(item))}
+            {displayedItems.map((item) => renderMenuItem(item))}
           </div>
         </TooltipProvider>
       </ScrollArea>

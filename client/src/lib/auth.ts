@@ -1,8 +1,7 @@
 import { TotvsLoginRequest, TotvsRefreshRequest, TotvsTokenResponse } from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
 
-// Default fallback endpoint - should be overridden by configuration
-const DEFAULT_ENDPOINT = "http://erp-simpleit.sytes.net:8051";
+// Endpoint configurations
 const TOKEN_ENDPOINT = "/api/connect/token";
 
 export interface StoredToken extends TotvsTokenResponse {

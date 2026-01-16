@@ -23,6 +23,17 @@ export function ColigadaSelector() {
   const { toast } = useToast();
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("selected_coligada");
+      if (saved) {
+        setSelectedColigada(saved);
+      }
+    } catch (error) {
+      console.error("Erro ao recuperar coligada selecionada:", error);
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchColigadas = async () => {
       setLoading(true);
       try {
@@ -46,7 +57,6 @@ export function ColigadaSelector() {
           items = [data as Coligada];
         }
 
-        // Filtrar CODCOLIGADA = 0 e garantir dados válidos
         const filtered = items.filter((item: any) => 
           item.CODCOLIGADA !== undefined && 
           item.CODCOLIGADA !== null && 
@@ -55,7 +65,6 @@ export function ColigadaSelector() {
 
         setColigadas(filtered);
         
-        // Selecionar a primeira automaticamente se houver itens
         if (filtered.length > 0 && !selectedColigada) {
           setSelectedColigada(String(filtered[0].CODCOLIGADA));
         }
@@ -75,9 +84,18 @@ export function ColigadaSelector() {
     fetchColigadas();
   }, []); // Executa apenas na montagem
 
+  const handleChange = (value: string) => {
+    setSelectedColigada(value);
+    try {
+      localStorage.setItem("selected_coligada", value);
+    } catch (error) {
+      console.error("Erro ao salvar coligada selecionada:", error);
+    }
+  };
+
   return (
     <div className="w-[200px] md:w-[280px]">
-      <Select value={selectedColigada} onValueChange={setSelectedColigada} disabled={loading}>
+      <Select value={selectedColigada} onValueChange={handleChange} disabled={loading}>
         <SelectTrigger className="h-9 bg-background">
           <div className="flex items-center gap-2 truncate">
             {loading ? (

@@ -26,7 +26,11 @@ export class PermissionsService {
         return null;
       }
 
-      const endpoint = token.endpoint || 'http://erp-simpleit.sytes.net:8051';
+      const endpoint = token.endpoint;
+      if (!endpoint) {
+        console.error('Endpoint não configurado no token');
+        return null;
+      }
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.002/1/T?parameters=CODUSUARIO=${username}`;
       
       // Consulta via proxy backend para evitar problemas de CORS

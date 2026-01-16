@@ -53,12 +53,10 @@ export default function TokenInfoPage() {
       setToken(storedToken);
       
       // Carregar endpoint configurado
-      try {
-        const defaultEndpoint = await EndpointService.getDefaultEndpoint();
-        setApiEndpoint(`${defaultEndpoint}/api/`);
-      } catch (error) {
-        console.error('Erro ao carregar endpoint:', error);
-        setApiEndpoint("https://erp-simpleit.sytes.net:8051/api/");
+      if (storedToken.endpoint) {
+        setApiEndpoint(`${storedToken.endpoint}/api/`);
+      } else {
+        setApiEndpoint("Endpoint não configurado");
       }
     };
 

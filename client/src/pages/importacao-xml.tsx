@@ -1415,47 +1415,45 @@ export default function ImportacaoXmlPage() {
     <div className="flex flex-col gap-4 overflow-x-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-gray-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Gerencie a importação de arquivos XML
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-          <Badge variant="secondary" className="text-primary">
+          <Badge variant="secondary" className="text-primary bg-primary/10 hover:bg-primary/20 border-primary/20">
             {items.length} {items.length === 1 ? "registro" : "registros"}
           </Badge>
         </div>
       </div>
 
-      <Card className="glassmorphism border-white/20">
+      <Card className="border-muted/20 shadow-sm">
         <CardHeader>
             <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-gray-400" />
-                <CardTitle className="text-white">Filtros de Busca</CardTitle>
+                <Filter className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-base">Filtros de Busca</CardTitle>
             </div>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-muted-foreground">
                 Defina o período para buscar os XMLs.
             </CardDescription>
         </CardHeader>
         <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="space-y-2">
-                    <Label htmlFor="dateStart" className="text-gray-300">Data Inicial</Label>
+                    <Label htmlFor="dateStart">Data Inicial</Label>
                     <Input 
                         id="dateStart" 
                         type="date" 
                         value={dateStart} 
                         onChange={(e) => setDateStart(e.target.value)}
-                        className="bg-white/10 border-white/20 text-white"
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="dateEnd" className="text-gray-300">Data Final</Label>
+                    <Label htmlFor="dateEnd">Data Final</Label>
                     <Input 
                         id="dateEnd" 
                         type="date" 
                         value={dateEnd} 
                         onChange={(e) => setDateEnd(e.target.value)}
-                        className="bg-white/10 border-white/20 text-white"
                     />
                 </div>
                 <div className="flex gap-2">
@@ -1468,7 +1466,7 @@ export default function ImportacaoXmlPage() {
         </CardContent>
       </Card>
 
-      <Card className="glassmorphism border-white/20">
+      <Card className="border-muted/20 shadow-sm">
         <CardContent className="p-4">
           {loading ? (
             <div className="flex justify-center p-8">
@@ -1480,11 +1478,11 @@ export default function ImportacaoXmlPage() {
               data={items} 
               searchKey="NUMERO"
               searchPlaceholder="Filtrar por número..."
-              tableContainerClassName="bg-white/5 rounded-lg overflow-hidden border-none shadow-none"
-              tableHeaderClassName="bg-white/10"
-              tableHeaderRowClassName="border-b border-white/10 hover:bg-transparent"
-              tableHeadClassName="text-left py-3 px-2 text-gray-300 font-semibold text-xs h-auto"
-              tableRowClassName="border-b border-white/5 hover:bg-white/5 transition-colors"
+              tableContainerClassName="rounded-lg overflow-hidden border border-muted/20 bg-background"
+              tableHeaderClassName="bg-muted"
+              tableHeaderRowClassName="border-b border-muted/20 hover:bg-muted"
+              tableHeadClassName="text-left py-3 px-2 text-muted-foreground font-semibold text-xs h-auto"
+              tableRowClassName="border-b border-muted/20 hover:bg-muted/50 transition-colors"
               tableCellClassName="py-2 px-2"
               paginationVariant="icons"
             />

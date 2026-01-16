@@ -53,6 +53,7 @@ interface DataTableProps<TData, TValue> {
   paginationButtonsClassName?: string
   paginationButtonClassName?: string
   paginationCurrentPageClassName?: string
+  enableGlobalFilter?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -80,9 +81,11 @@ export function DataTable<TData, TValue>({
   paginationButtonsClassName,
   paginationButtonClassName,
   paginationCurrentPageClassName,
+  enableGlobalFilter = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [globalFilter, setGlobalFilter] = React.useState("")
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
 
   // Determine which column to use for filtering (support both prop names)
@@ -98,10 +101,12 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
+      globalFilter,
       rowSelection,
     },
     enableRowSelection: enableRowSelection,
@@ -119,8 +124,16 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className={className}>
-      {activeFilterColumn && (
-        <div className={cn("flex items-center py-4 px-1", filterContainerClassName)}>
+      <div className={cn("flex items-center py-4 px-1 gap-2", filterContainerClassName)}>
+        {enableGlobalFilter && (
+          <Input
+            placeholder="BUSCAR EM TODOS OS CAMPOS..."
+            value={globalFilter ?? ""}
+            onChange={(event) => setGlobalFilter(event.target.value)}
+            className={cn("max-w-sm", filterInputClassName)}
+          />
+        )}
+        {activeFilterColumn && (
           <Input
             placeholder={activePlaceholder}
             value={(table.getColumn(activeFilterColumn)?.getFilterValue() as string) ?? ""}
@@ -129,8 +142,8 @@ export function DataTable<TData, TValue>({
             }
             className={cn("max-w-sm", filterInputClassName)}
           />
-        </div>
-      )}
+        )}
+      </div>
       <div
         className={cn(
           "rounded-xl border border-white/5 overflow-hidden bg-gradient-to-b from-secondary/40 to-background/40 shadow-lg",

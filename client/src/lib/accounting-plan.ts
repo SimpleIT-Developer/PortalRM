@@ -90,7 +90,10 @@ export class AccountingPlanService {
         throw new Error('Usuário não autenticado');
       }
 
-      const endpoint = token.endpoint || 'http://erp-simpleit.sytes.net:8051';
+      const endpoint = token.endpoint;
+      if (!endpoint) {
+        throw new Error('Endpoint não configurado no token');
+      }
       const path = '/api/ctb/v1/AccountingPlan';
       
       console.log("🔗 Consultando plano de contas via proxy backend");

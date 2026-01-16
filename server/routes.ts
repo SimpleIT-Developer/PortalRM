@@ -5,8 +5,230 @@ import { join } from "path";
 // @ts-ignore
 import { storage } from "./storage.js";
 import { registerSimpleDFeRoutes } from "./simpledfe/routes";
+import { connectToMongo } from "./db-mongo";
+import { ConfigUser } from "./models/ConfigUser";
+import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Connect to MongoDB
+  connectToMongo();
+
+  // Config Auth Routes (Register/Update Environment)
+  app.post("/api/config-auth/register", async (req, res) => {
+    console.log("📝 Registering/Updating config user:", req.body.CODUSUARIO);
+    try {
+      const { 
+        CODUSUARIO, 
+        SENHA, 
+        URLWS, 
+        NOMEDOAMBIENTE, 
+        CODCLIENTE, 
+        NOMECLIENTE, 
+        _id,
+        MOVIMENTOS_SOLICITACAO_COMPRAS,
+        MOVIMENTOS_ORDEM_COMPRA,
+        MOVIMENTOS_NOTA_FISCAL_PRODUTO,
+        MOVIMENTOS_NOTA_FISCAL_SERVICO,
+        MOVIMENTOS_OUTRAS_MOVIMENTACOES,
+        MODULOS
+      } = req.body;
+      
+      // Check if user exists
+      let user = await ConfigUser.findOne({ CODUSUARIO });
+      
+      const { 
+        NOME_CONTATO, 
+        EMAIL, 
+        TELEFONE 
+      } = req.body;
+
+      const envData = {
+        URLWS: URLWS || "http://default", // Provide default if not provided (registration)
+        NOMEDOAMBIENTE: NOMEDOAMBIENTE || "Default", // Provide default if not provided
+        MOVIMENTOS_SOLICITACAO_COMPRAS: MOVIMENTOS_SOLICITACAO_COMPRAS || [],
+        MOVIMENTOS_ORDEM_COMPRA: MOVIMENTOS_ORDEM_COMPRA || [],
+        MOVIMENTOS_NOTA_FISCAL_PRODUTO: MOVIMENTOS_NOTA_FISCAL_PRODUTO || [],
+        MOVIMENTOS_NOTA_FISCAL_SERVICO: MOVIMENTOS_NOTA_FISCAL_SERVICO || [],
+        MOVIMENTOS_OUTRAS_MOVIMENTACOES: MOVIMENTOS_OUTRAS_MOVIMENTACOES || [],
+        MODULOS: MODULOS || {}
+      };
+
+      if (user) {
+        let envIndex = -1;
+
+        // If _id is provided, try to find by ID first (for editing/renaming)
+        if (_id) {
+            // @ts-ignore
+            envIndex = user.AMBIENTES.findIndex((env: any) => env._id.toString() === _id);
+        }
+
+        // If not found by ID (or no ID), try to find by Name (legacy/fallback)
+        if (envIndex === -1 && NOMEDOAMBIENTE) {
+            // @ts-ignore
+            envIndex = user.AMBIENTES.findIndex((env: any) => env.NOMEDOAMBIENTE === NOMEDOAMBIENTE);
+        }
+        
+        if (envIndex >= 0) {
+             console.log(`Updating existing environment at index ${envIndex}:`, NOMEDOAMBIENTE);
+             console.log("📦 Payload Movimentos:", {
+                SOLICITACAO: envData.MOVIMENTOS_SOLICITACAO_COMPRAS,
+                ORDEM: envData.MOVIMENTOS_ORDEM_COMPRA
+             });
+
+             // Update existing environment using Mongoose set() for explicit updates
+             // @ts-ignore
+             const existingEnv = user.AMBIENTES[envIndex];
+
+             // Ensure MODULOS is a plain object to avoid Mongoose Mixed type issues
+             const modulosPlain = JSON.parse(JSON.stringify(envData.MODULOS));
+             console.log("📦 Payload Modulos:", modulosPlain);
+
+             // Explicitly set the arrays using Mongoose methods if available, or direct assignment
+             if (existingEnv.set) {
+                 existingEnv.set('URLWS', URLWS);
+                 existingEnv.set('NOMEDOAMBIENTE', NOMEDOAMBIENTE);
+                 existingEnv.set('MOVIMENTOS_SOLICITACAO_COMPRAS', envData.MOVIMENTOS_SOLICITACAO_COMPRAS);
+                 existingEnv.set('MOVIMENTOS_ORDEM_COMPRA', envData.MOVIMENTOS_ORDEM_COMPRA);
+                 existingEnv.set('MOVIMENTOS_NOTA_FISCAL_PRODUTO', envData.MOVIMENTOS_NOTA_FISCAL_PRODUTO);
+                 existingEnv.set('MOVIMENTOS_NOTA_FISCAL_SERVICO', envData.MOVIMENTOS_NOTA_FISCAL_SERVICO);
+                 existingEnv.set('MOVIMENTOS_OUTRAS_MOVIMENTACOES', envData.MOVIMENTOS_OUTRAS_MOVIMENTACOES);
+                 // For Mixed types, set explicitly
+                 existingEnv.set('MODULOS', modulosPlain);
+             } else {
+                 existingEnv.URLWS = URLWS;
+                 existingEnv.NOMEDOAMBIENTE = NOMEDOAMBIENTE;
+                 existingEnv.MOVIMENTOS_SOLICITACAO_COMPRAS = envData.MOVIMENTOS_SOLICITACAO_COMPRAS;
+                 existingEnv.MOVIMENTOS_ORDEM_COMPRA = envData.MOVIMENTOS_ORDEM_COMPRA;
+                 existingEnv.MOVIMENTOS_NOTA_FISCAL_PRODUTO = envData.MOVIMENTOS_NOTA_FISCAL_PRODUTO;
+                 existingEnv.MOVIMENTOS_NOTA_FISCAL_SERVICO = envData.MOVIMENTOS_NOTA_FISCAL_SERVICO;
+                 existingEnv.MOVIMENTOS_OUTRAS_MOVIMENTACOES = envData.MOVIMENTOS_OUTRAS_MOVIMENTACOES;
+                 existingEnv.MODULOS = modulosPlain;
+             }
+        } else {
+             console.log("Adding new environment:", NOMEDOAMBIENTE);
+             // @ts-ignore
+             user.AMBIENTES.push(envData);
+        }
+        
+        // Update global fields
+        if (CODCLIENTE) user.CODCLIENTE = CODCLIENTE;
+        if (NOMECLIENTE) user.NOMECLIENTE = NOMECLIENTE;
+        if (NOME_CONTATO) user.NOME_CONTATO = NOME_CONTATO;
+        if (EMAIL) user.EMAIL = EMAIL;
+        if (TELEFONE) user.TELEFONE = TELEFONE;
+        
+        // Update password if provided
+        if (SENHA) {
+            const hashedPassword = await bcrypt.hash(SENHA, 10);
+            user.SENHA = hashedPassword;
+        }
+        
+        user.markModified('AMBIENTES'); // Ensure Mongoose detects the change
+        const savedUser = await user.save();
+        console.log("✅ User saved successfully. Environments count:", savedUser.AMBIENTES.length);
+        
+        // Log environment details for debugging
+        if (envIndex >= 0) {
+           // @ts-ignore
+           const savedEnv = savedUser.AMBIENTES[envIndex];
+           console.log("🔍 Saved Environment Details:", {
+               id: savedEnv._id,
+               MOVIMENTOS_SOLICITACAO_COMPRAS: savedEnv.MOVIMENTOS_SOLICITACAO_COMPRAS
+           });
+        }
+
+        // Return the updated user/environments so frontend can refresh
+        return res.status(200).json({ 
+            message: "Usuário/Ambiente atualizado com sucesso",
+            AMBIENTES: savedUser.AMBIENTES,
+            CODCLIENTE: savedUser.CODCLIENTE,
+            NOMECLIENTE: savedUser.NOMECLIENTE
+        });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(SENHA, 10);
+
+      const newUser = new ConfigUser({
+        CODUSUARIO,
+        SENHA: hashedPassword,
+        CODCLIENTE,
+        NOMECLIENTE,
+        NOME_CONTATO,
+        EMAIL,
+        TELEFONE,
+        AMBIENTES: URLWS && NOMEDOAMBIENTE ? [envData] : [] // Only add env if provided
+      });
+
+      await newUser.save();
+      res.status(201).json({ 
+          message: "Usuário de configuração criado com sucesso",
+          AMBIENTES: newUser.AMBIENTES,
+          CODCLIENTE: newUser.CODCLIENTE,
+          NOMECLIENTE: newUser.NOMECLIENTE
+      });
+    } catch (error: any) {
+      console.error("Config Auth Register Error:", error);
+      res.status(500).json({ error: error.message || "Erro ao criar usuário" });
+    }
+  });
+
+  // Delete Environment Route
+  app.delete("/api/config-auth/environment/:envId", async (req, res) => {
+      try {
+          const { envId } = req.params;
+          const { CODUSUARIO } = req.body; // Pass user in body for auth check
+
+          console.log(`🗑️ Deleting environment ${envId} for user ${CODUSUARIO}`);
+
+          const user = await ConfigUser.findOne({ CODUSUARIO });
+          if (!user) {
+              return res.status(404).json({ error: "Usuário não encontrado" });
+          }
+
+          // @ts-ignore
+          user.AMBIENTES = user.AMBIENTES.filter(env => env._id.toString() !== envId);
+          
+          user.markModified('AMBIENTES');
+          await user.save();
+
+          res.json({ 
+              message: "Ambiente removido com sucesso",
+              AMBIENTES: user.AMBIENTES 
+          });
+
+      } catch (error) {
+          console.error("Error deleting environment:", error);
+          res.status(500).json({ error: "Erro ao remover ambiente" });
+      }
+  });
+
+
+  app.post("/api/config-auth/login", async (req, res) => {
+    console.log("🔑 Login attempt for config user:", req.body.CODUSUARIO);
+    try {
+      const { CODUSUARIO, SENHA } = req.body;
+      const user = await ConfigUser.findOne({ CODUSUARIO });
+      
+      if (!user) {
+        console.log("❌ User not found:", CODUSUARIO);
+        return res.status(401).json({ error: "Credenciais inválidas" });
+      }
+
+      const isMatch = await bcrypt.compare(SENHA, user.SENHA);
+      if (!isMatch) {
+        console.log("❌ Password mismatch for:", CODUSUARIO);
+        return res.status(401).json({ error: "Credenciais inválidas" });
+      }
+
+      console.log("✅ Login successful for:", CODUSUARIO);
+      res.json(user);
+    } catch (error) {
+      console.error("Config Auth Login Error:", error);
+      res.status(500).json({ error: "Erro ao realizar login" });
+    }
+  });
+
   // Register SimpleDFe routes first
   await registerSimpleDFeRoutes(app);
 
@@ -32,8 +254,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao ler arquivo de endpoints:", error);
       res.json({ 
-        endpoints: ["erp-simpleit.sytes.net:8051"],
-        error: "Arquivo de configuração não encontrado, usando padrão"
+        endpoints: [],
+        error: "Arquivo de configuração não encontrado"
       });
     }
   });
@@ -153,9 +375,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Endpoint e path são obrigatórios" });
       }
 
-      // Garantir que o endpoint tenha o protocolo http://
-      const formattedEndpoint = endpoint.toString().replace(/^https?:\/\//i, '');
-      const fullUrl = `http://${formattedEndpoint}${path}`;
+      // Garantir que o endpoint tenha o protocolo correto
+      let baseUrl = endpoint.toString();
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = `http://${baseUrl}`;
+      }
+      // Remove trailing slash if present
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
+      
+      // Ensure path starts with slash
+      const cleanPath = path.toString().startsWith('/') ? path.toString() : `/${path.toString()}`;
+      const fullUrl = `${baseUrl}${cleanPath}`;
       console.log("🔗 Proxy GET - Consultando:", fullUrl);
 
       const headers: Record<string, string> = {
@@ -210,9 +442,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Endpoint, path e xml são obrigatórios" });
       }
 
-      // Garantir que o endpoint tenha o protocolo http://
-      const formattedEndpoint = endpoint.toString().replace(/^https?:\/\//i, '');
-      const fullUrl = `http://${formattedEndpoint}${path}`;
+      // Garantir que o endpoint tenha o protocolo correto
+      let baseUrl = endpoint.toString();
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = `http://${baseUrl}`;
+      }
+      // Remove trailing slash if present
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
+      
+      // Ensure path starts with slash
+      const cleanPath = path.toString().startsWith('/') ? path.toString() : `/${path.toString()}`;
+      const fullUrl = `${baseUrl}${cleanPath}`;
       console.log("🔗 Proxy SOAP - Enviando para:", fullUrl);
       console.log("⚡ Action:", action);
 
@@ -276,6 +518,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }

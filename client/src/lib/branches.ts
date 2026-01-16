@@ -40,7 +40,10 @@ export class BranchesService {
         throw new Error('Usuário não autenticado');
       }
 
-      const endpoint = token.endpoint || 'http://erp-simpleit.sytes.net:8051';
+      const endpoint = token.endpoint;
+      if (!endpoint) {
+        throw new Error('Endpoint não configurado no token');
+      }
       const path = '/api/framework/v1/Branches';
       
       console.log("🔗 Consultando filiais via proxy backend");
