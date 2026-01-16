@@ -11,7 +11,7 @@ import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
-  connectToMongo();
+  await connectToMongo();
 
   // Config Auth Routes (Register/Update Environment)
   app.post("/api/config-auth/register", async (req, res) => {

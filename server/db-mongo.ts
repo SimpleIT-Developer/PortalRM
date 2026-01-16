@@ -4,9 +4,13 @@ const MONGO_URI = 'mongodb+srv://simpleitsolucoes:%40n%40R%40quel110987@portalrm
 
 export const connectToMongo = async () => {
   try {
-    await mongoose.connect(MONGO_URI);
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000,
+    });
     console.log('✅ Connected to MongoDB');
   } catch (error) {
     console.error('❌ Error connecting to MongoDB:', error);
+    // Não lançar erro para não derrubar o servidor, mas as operações falharão
   }
 };
