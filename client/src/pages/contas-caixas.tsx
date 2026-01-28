@@ -23,7 +23,6 @@ import {
   AlertCircle
 } from "lucide-react";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -78,14 +77,24 @@ export default function ContasCaixas() {
     try {
       setLoading(true);
       const token = AuthService.getStoredToken();
-      if (!token) return;
-
-      const endpoint = await EndpointService.getDefaultEndpoint();
+      if (!token || !token.environmentId) {
+        toast({
+          title: "Ambiente não identificado",
+          description: "Faça login novamente ou selecione um ambiente.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Fetch Metadata
       const metadataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.016/1/T?parameters=TABELA=FCXA`;
       const metadataResponse = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(metadataPath)}&token=${encodeURIComponent(token.access_token)}`
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(metadataPath)}&token=${encodeURIComponent(token.access_token)}`,
+        {
+          headers: {
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        }
       );
       
       if (metadataResponse.ok) {
@@ -96,7 +105,12 @@ export default function ContasCaixas() {
       // Fetch Data
       const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.017/1/T`;
       const dataResponse = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+        {
+            headers: {
+                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+            }
+        }
       );
 
       if (dataResponse.ok) {

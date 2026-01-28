@@ -17,7 +17,7 @@ import {
   Calendar as CalendarIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { EndpointService } from "@/lib/endpoint";
+import { EnvironmentConfigService } from "@/lib/environment-config";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ColigadaSelector } from "@/components/coligada-selector";
+import { getTenant } from "@/lib/tenant";
 
 // Import pages
 import TokenInfoPage from "./token-info";
@@ -64,6 +65,7 @@ import ServicosPage from "./servicos";
 import LoginLogPage from "./admin/login-log";
 import LancamentosContasReceber from "./lancamentos-contas-receber";
 import MovimentacaoBancaria from "./movimentacao-bancaria";
+import ConciliacaoBancaria from "./conciliacao-bancaria";
 import ContasCaixas from "./contas-caixas";
 
 // Import SimpleDFe pages
@@ -112,7 +114,7 @@ export default function DashboardPage() {
   // Filtrar módulos disponíveis com base nas permissões e configuração do ambiente
   const availableModules = menuItems.filter(item => {
     // Verificar se o módulo está habilitado no ambiente
-    const enabledModules = EndpointService.getEnabledModules();
+    const enabledModules = EnvironmentConfigService.getEnabledModules();
     if (enabledModules && enabledModules[item.id] === false) {
       return false;
     }
@@ -144,9 +146,9 @@ export default function DashboardPage() {
 
 
   // Função para buscar a versão do RM
-  const fetchRmVersion = async (endpoint: string) => {
+  const fetchRmVersion = async (environmentId: string) => {
     console.log("🔄 Iniciando busca da versão do RM...");
-    console.log("🔄 Endpoint recebido:", endpoint);
+    console.log("🔄 Ambiente recebido:", environmentId);
     
     try {
       // Verificar se o usuário está autenticado
@@ -158,11 +160,6 @@ export default function DashboardPage() {
         setRmVersion("Erro: Não autenticado");
         return;
       }
-
-      // Garantir que o endpoint tenha o protocolo http:// 
-      const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
-      const endpointWithProtocol = `http://${formattedEndpoint}`;
-      console.log("🔗 Endpoint formatado:", endpointWithProtocol);
       
       // Caminho da API para consulta SQL que retorna a versão do RM
       // Adicionando os parâmetros '/1/T' conforme solicitado (T = Traz colunas tipadas/formatadas)
@@ -173,8 +170,7 @@ export default function DashboardPage() {
       console.log("🔗 Consultando versão do RM via proxy backend");
       
       // Importante: O token deve ser passado como parâmetro de consulta na URL
-      // Testando com formato diferente para o endpoint (sem protocolo)
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
       console.log("🔗 URL completa da requisição:", fullUrl);
       
       // Fazer a requisição
@@ -182,7 +178,8 @@ export default function DashboardPage() {
       const response = await fetch(fullUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 
@@ -327,10 +324,10 @@ export default function DashboardPage() {
     // Buscar a versão do RM
     const loadEndpointAndFetchVersion = async () => {
       try {
-        const endpoint = await EndpointService.getDefaultEndpoint();
-        if (endpoint) {
-          setCurrentEndpoint(endpoint);
-          fetchRmVersion(endpoint);
+        const token = AuthService.getStoredToken();
+        if (token && token.environmentId) {
+          setCurrentEndpoint(token.environmentId);
+          fetchRmVersion(token.environmentId);
         }
       } catch (error) {
         console.error('Erro ao carregar endpoint:', error);
@@ -510,6 +507,7 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/lancamentos-contas-pagar': LancamentosContasPagar,
   '/dashboard/lancamentos-contas-receber': LancamentosContasReceber,
   '/dashboard/movimentacao-bancaria': MovimentacaoBancaria,
+  '/dashboard/conciliacao-bancaria': ConciliacaoBancaria,
   '/dashboard/aprovacao-bordero': AprovacaoBordero,
   '/dashboard/assistente-virtual': AssistenteVirtual,
   '/dashboard/assistente-virtual-rh': AssistenteVirtualRH,
@@ -588,6 +586,12 @@ function DashboardContent({ location }: { location: string }) {
   }
 
   if (location === '/dashboard/aprovacao-bordero' && !hasGestaoFinanceiraPermission) {
+    // Redirecionar para dashboard se não tiver permissão
+    setLocation('/dashboard');
+    return <DashboardHome />;
+  }
+
+  if (location === '/dashboard/conciliacao-bancaria' && !hasGestaoFinanceiraPermission) {
     // Redirecionar para dashboard se não tiver permissão
     setLocation('/dashboard');
     return <DashboardHome />;

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Send, Bot, User, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getTenant } from "@/lib/tenant";
 
 const WEBHOOK_URL = 'https://webhook-n8n.simpleit.app.br/webhook/4dd76e51-688a-41f1-8e46-969a64aa7e55/chat';
 
@@ -58,6 +59,7 @@ export default function AssistenteVirtual() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         },
         body: JSON.stringify({
           action: 'loadPreviousSession',
@@ -128,6 +130,7 @@ export default function AssistenteVirtual() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         },
         body: JSON.stringify({
           action: 'sendMessage',

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { addDays, format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getTenant } from "@/lib/tenant";
 
 // Função para formatar data local sem conversão de timezone
 const formatDateLocal = (date: Date): string => {
@@ -152,7 +153,8 @@ export default function RelatoriosPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
         body: JSON.stringify({
           dataInicial: dataInicial,
@@ -198,7 +200,8 @@ export default function RelatoriosPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
           },
           body: JSON.stringify({
             dataInicial: dataInicial,
@@ -237,7 +240,8 @@ export default function RelatoriosPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
           },
           body: JSON.stringify({
             dataInicial: dataInicial,
@@ -276,7 +280,8 @@ export default function RelatoriosPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
           },
           body: JSON.stringify({
             dataInicial: dataInicial,
@@ -315,7 +320,8 @@ export default function RelatoriosPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
           },
           body: JSON.stringify({
             dataInicial: dataInicial,
@@ -405,7 +411,8 @@ export default function RelatoriosPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
           },
           body: JSON.stringify({
             dataInicial: dataInicial,

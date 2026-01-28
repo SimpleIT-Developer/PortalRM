@@ -9,6 +9,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Building, FileText, CheckCircle, XCircle, AlertTriangle, Users, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { getTenant } from "@/lib/tenant";
+import { AuthService } from "@/lib/auth";
 import type { DashboardStats, ChartData, UltimosDocumentos, CNPJAtivo } from "@shared/schema";
 
 const PERIOD_BUTTONS = [
@@ -52,7 +54,12 @@ export default function DashboardPage() {
   const { data: chartData } = useQuery<ChartData[]>({
     queryKey: ['/api/dashboard/chart', selectedPeriod],
     queryFn: async () => {
-      const response = await fetch(`/api/dashboard/chart?period=${selectedPeriod}`);
+      const response = await fetch(`/api/dashboard/chart?period=${selectedPeriod}`, {
+        headers: {
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {}),
+          "Authorization": `Bearer ${AuthService.getStoredToken()?.access_token || ""}`
+        }
+      });
       if (!response.ok) {
         throw new Error("Erro ao carregar dados do gráfico");
       }

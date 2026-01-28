@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { Search, RefreshCw, Filter, ShoppingCart } from "lucide-react";
+import { getTenant } from "@/lib/tenant";
 
 interface PurchaseOrder {
   IDMOV: number;
@@ -119,17 +119,16 @@ export default function OrdemCompras() {
         return;
       }
 
-      const endpoint = await EndpointService.getDefaultEndpoint();
-      if (!endpoint) {
+      if (!token.environmentId) {
         toast({
-          title: "Endpoint não configurado",
+          title: "Ambiente não selecionado",
           description: "Selecione um ambiente válido antes de buscar.",
           variant: "destructive",
         });
         return;
       }
 
-      const movements = EndpointService.getOrderMovements();
+      const movements = EnvironmentConfigService.getOrderMovements();
       if (!movements || movements.length === 0) {
         toast({
           title: "Movimentos não configurados",
@@ -163,9 +162,13 @@ export default function OrdemCompras() {
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.021/${codColigada}/T?parameters=${parameters}`;
 
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
           token.access_token
-        )}`
+        )}`, {
+          headers: {
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        }
       );
 
       if (!response.ok) {
@@ -219,10 +222,9 @@ export default function OrdemCompras() {
         return;
       }
 
-      const endpoint = await EndpointService.getDefaultEndpoint();
-      if (!endpoint) {
+      if (!token.environmentId) {
         toast({
-          title: "Endpoint não configurado",
+          title: "Ambiente não selecionado",
           description: "Selecione um ambiente válido antes de buscar.",
           variant: "destructive",
         });
@@ -243,9 +245,13 @@ export default function OrdemCompras() {
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.010/${codColigada}/T?parameters=${parameters}`;
 
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
           token.access_token
-        )}`
+        )}`, {
+          headers: {
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        }
       );
 
       if (!response.ok) {

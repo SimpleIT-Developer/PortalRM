@@ -86,7 +86,11 @@ export default function NFeRecebidasPage() {
         sortOrder
       });
       
-      const response = await fetch(`/api/nfe-recebidas?${params}`);
+      const response = await fetch(`/api/nfe-recebidas?${params}`, {
+        headers: {
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
+        }
+      });
       if (!response.ok) {
         throw new Error("Erro ao carregar NFe recebidas");
       }
@@ -181,6 +185,7 @@ export default function NFeRecebidasPage() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
         body: JSON.stringify({ docIds }),
       });
@@ -321,7 +326,8 @@ export default function NFeRecebidasPage() {
       const response = await fetch('/api/nfe-import', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${AuthService.getStoredToken()?.access_token || ""}`
+          'Authorization': `Bearer ${AuthService.getStoredToken()?.access_token || ""}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
         body: formData
       });
@@ -378,6 +384,7 @@ export default function NFeRecebidasPage() {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
       });
 
@@ -434,6 +441,7 @@ export default function NFeRecebidasPage() {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${AuthService.getStoredToken()?.access_token || ""}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
       });
 

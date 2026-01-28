@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Users, Loader2, RefreshCw } from "lucide-react";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
+import { getTenant } from "@/lib/tenant";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,59 +19,46 @@ export default function CadastroFuncionariosPage() {
     setError(null);
     
     try {
-      // Obter o endpoint configurado
-      const endpoint = await EndpointService.getDefaultEndpoint();
-      
       // Obter o token de autenticação
       const token = AuthService.getStoredToken();
-      if (!token) {
+      if (!token || !token.environmentId) {
         throw new Error("Usuário não autenticado. Faça login novamente.");
       }
 
+      const environmentId = token.environmentId;
+
       // Fazer a requisição para a API usando o novo endpoint
-      let response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(`/api/framework/v1/consultaSQLServer/RealizaConsulta/IA.RH.FUN.0002/1/P`)}&token=${encodeURIComponent(token.access_token)}`, {
+      let response = await fetch(`/api/proxy?environmentId=${encodeURIComponent(environmentId)}&path=${encodeURIComponent(`/api/framework/v1/consultaSQLServer/RealizaConsulta/IA.RH.FUN.0002/1/P`)}&token=${encodeURIComponent(token.access_token)}`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
       
-      // Se o token expirou, tentar fazer login novamente
+      // Se o token expirou, tentar fazer refresh
       if (response.status === 401) {
-        console.log("Token expirado, tentando fazer login novamente...");
+        console.log("Token expirado, tentando renovar...");
         
-        // Fazer login novamente usando as credenciais armazenadas
-        const loginResponse = await fetch(`/api/auth/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            endpoint: `http://${endpoint}`,
-            grant_type: "password",
-            username: "mestre",  // Usar credenciais padrão para demonstração
-            password: "totvs"    // Em produção, isso deveria vir de um armazenamento seguro
-          })
-        });
-        
-        if (!loginResponse.ok) {
-          throw new Error("Falha ao renovar a sessão. Por favor, faça login novamente.");
+        try {
+            if (token.refresh_token) {
+                const newToken = await AuthService.refreshToken(token.refresh_token);
+                AuthService.storeToken(newToken);
+                
+                // Tentar a requisição novamente com o novo token
+                response = await fetch(`/api/proxy?environmentId=${encodeURIComponent(environmentId)}&path=${encodeURIComponent(`/api/framework/v1/consultaSQLServer/RealizaConsulta/IA.RH.FUN.0002/1/P`)}&token=${encodeURIComponent(newToken.access_token)}`, {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                  }
+                });
+            } else {
+                throw new Error("Refresh token indisponível");
+            }
+        } catch (refreshError) {
+             throw new Error("Sessão expirada. Por favor, faça login novamente.");
         }
-        
-        const newToken = await loginResponse.json();
-        AuthService.storeToken({
-          ...newToken,
-          username: "mestre",
-          endpoint: endpoint
-        });
-        
-        // Tentar a requisição novamente com o novo token
-        response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(`/api/framework/v1/consultaSQLServer/RealizaConsulta/IA.RH.FUN.0002/1/P`)}&token=${encodeURIComponent(newToken.access_token)}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
       }
 
       if (!response.ok) {

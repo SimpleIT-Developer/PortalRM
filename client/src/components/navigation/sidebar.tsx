@@ -34,10 +34,11 @@ import {
   Landmark,
   Wallet,
   ArrowDownRight,
-  ArrowUpRight
+  ArrowUpRight,
+  CheckCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EndpointService } from "@/lib/endpoint";
+import { EnvironmentConfigService } from "@/lib/environment-config";
 
 export interface MenuItem {
   id: string;
@@ -234,6 +235,12 @@ export const menuItems: MenuItem[] = [
         path: "/dashboard/movimentacao-bancaria",
       },
       {
+        id: "conciliacao-bancaria",
+        label: "Conciliação Bancária",
+        icon: CheckCircle,
+        path: "/dashboard/conciliacao-bancaria",
+      },
+      {
         id: "fluxo-caixa",
         label: "Fluxo de Caixa",
         icon: DollarSign,
@@ -354,6 +361,12 @@ export const menuItems: MenuItem[] = [
     icon: Settings,
     children: [
       {
+        id: "tenant-settings",
+        label: "Configurações do Ambiente",
+        icon: Settings,
+        path: "/tenant-settings",
+      },
+      {
         id: "token-info",
         label: "Informações do Token",
         icon: Key,
@@ -451,18 +464,18 @@ export function Sidebar({
   
   // Load enabled modules from localStorage
   const [enabledModules, setEnabledModules] = useState<Record<string, boolean> | null>(() => {
-    return EndpointService.getEnabledModules();
+    return EnvironmentConfigService.getEnabledModules();
   });
 
   // Listen for module updates
   useEffect(() => {
     const handleModuleUpdate = () => {
-      setEnabledModules(EndpointService.getEnabledModules());
+      setEnabledModules(EnvironmentConfigService.getEnabledModules());
     };
 
-    window.addEventListener(EndpointService.MODULES_UPDATED_EVENT, handleModuleUpdate);
+    window.addEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleModuleUpdate);
     return () => {
-      window.removeEventListener(EndpointService.MODULES_UPDATED_EVENT, handleModuleUpdate);
+      window.removeEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleModuleUpdate);
     };
   }, []);
 

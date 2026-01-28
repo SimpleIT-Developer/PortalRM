@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Loader2, RefreshCw, FileText, ArrowUpDown, Eye, List, ShoppingCart, FileCode, Play, Link as LinkIcon, Check, X, ArrowRight, Search, Filter } from "lucide-react";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { getTenant } from "@/lib/tenant";
 
 export interface XmlItem {
   CODCOLIGADA: number;
@@ -158,29 +158,28 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
 
     setLoadingPo(true);
     try {
-      const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
       
-      console.log("Endpoint:", endpoint);
       console.log("Token exists:", !!token);
 
-      if (!token) {
-        console.error("Token não encontrado.");
-        toast({ title: "Erro de Autenticação", description: "Token não encontrado. Faça login novamente.", variant: "destructive" });
+      if (!token || !token.environmentId) {
+        console.error("Token não encontrado ou ambiente não selecionado.");
+        toast({ title: "Erro de Autenticação", description: "Token não encontrado ou ambiente não selecionado.", variant: "destructive" });
         return;
       }
-
-      // Ensure endpoint has protocol
-      const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
       
       // Use dynamic CODCOLIGADA if available, otherwise default to 1
       const coligada = xmlItem.CODCOLIGADA || 1;
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.009/${coligada}/T?parameters=CODCFO=${encodeURIComponent(xmlItem.CODCFO)}`;
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       console.log("URL de requisição:", fullUrl);
 
-      const response = await fetch(fullUrl);
+      const response = await fetch(fullUrl, {
+        headers: {
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+        }
+      });
       console.log("Response status:", response.status);
 
       if (response.ok) {
@@ -226,14 +225,17 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
     if (!selectedPo) return;
     setLoadingLines(true);
     try {
-      const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
-      if (!token) return;
+      if (!token || !token.environmentId) return;
 
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.010/1/T?parameters=IDMOV=${selectedPo.IDMOV}`;
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
-      const response = await fetch(fullUrl);
+      const response = await fetch(fullUrl, {
+        headers: {
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setPoLines(Array.isArray(data) ? data : []);
@@ -320,11 +322,15 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
     setIsProcessing(true); // Bloqueia a interface
 
     try {
-        const endpoint = await EndpointService.getDefaultEndpoint();
+        if (!token || !token.environmentId) {
+            toast({ title: "Erro", description: "Ambiente não identificado no token.", variant: "destructive" });
+            return;
+        }
+
         const soapXml = getFaturamentoMovimentoSoap(token.username, selectedPo.IDMOV, selectedPo.CODCOLIGADA, selectedPo.CODFILIAL);
         
         const soapPath = "/wsProcess/IwsProcess";
-        const proxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
 
         toast({
             title: "Processando...",
@@ -358,7 +364,7 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
                  console.log(`🚀 [2/4] ReadRecord (ID: ${xmlItem.ID})...`);
                  const readXml = getReadRecordMovDocNfeEntradaSoap(xmlItem.ID, xmlItem.CODCOLIGADA, token.username);
                  const readPath = "/wsDataServer/IwsDataServer";
-                 const readProxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(readPath)}&token=${encodeURIComponent(token.access_token)}`;
+                 const readProxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(readPath)}&token=${encodeURIComponent(token.access_token)}`;
 
                  const readResponse = await fetch(readProxyUrl, {
                      method: "POST",
@@ -444,11 +450,14 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
 
                  // 2. Buscar IDMOVDESTINO via REST
                  console.log(`🚀 [3/4] Buscando IDMOVDESTINO para IDMOV ${selectedPo.IDMOV}...`);
-                 const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
                  const restPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.013/1/T?parameters=IDMOVORIGEM=${selectedPo.IDMOV}`;
-                 const restUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(restPath)}&token=${encodeURIComponent(token.access_token)}`;
+                 const restUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(restPath)}&token=${encodeURIComponent(token.access_token)}`;
 
-                 const restResponse = await fetch(restUrl);
+                 const restResponse = await fetch(restUrl, {
+                     headers: {
+                         ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                     }
+                 });
                  if (!restResponse.ok) throw new Error("Erro ao consultar IDMOV destino.");
                  
                  const restData = await restResponse.json();
@@ -859,7 +868,11 @@ const ReceiveXmlWithoutPoWizard = ({ xmlItem, open, onOpenChange, onBack }: { xm
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/${dataServer}/1/T`;
       const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
-      const response = await fetch(fullUrl);
+      const response = await fetch(fullUrl, {
+          headers: {
+              ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+      });
       if (response.ok) {
         const rawData = await response.json();
         // Handle "data" wrapper if present
@@ -1244,10 +1257,9 @@ export default function ImportacaoXmlPage() {
 
     setLoading(true);
     try {
-      const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
 
-      if (!token) {
+      if (!token || !token.environmentId) {
         return;
       }
 
@@ -1257,7 +1269,7 @@ export default function ImportacaoXmlPage() {
       ].join(";");
 
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.008/1/T?parameters=${parameters}`;
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       const response = await fetch(fullUrl);
       if (response.ok) {

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Plus, Filter, RefreshCw, X, Settings, Paperclip } from "lucide-react";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { getTenant } from "@/lib/tenant";
 
 interface Metadata {
   COLUNA: string;
@@ -74,11 +74,16 @@ export function MovimentacaoBancaria() {
   const fetchContas = async () => {
     try {
         const token = AuthService.getStoredToken();
-        if (!token) return;
-        const endpoint = await EndpointService.getDefaultEndpoint();
+        if (!token || !token.environmentId) return;
+        
         const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.017/1/T`;
         const response = await fetch(
-            `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`
+            `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+            {
+                headers: {
+                    ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                }
+            }
         );
         if (response.ok) {
             const json = await response.json();
@@ -96,7 +101,12 @@ export function MovimentacaoBancaria() {
       const endpoint = await EndpointService.getDefaultEndpoint();
       const metadataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.016/1/T?parameters=TABELA=FXCX`;
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(metadataPath)}&token=${encodeURIComponent(token.access_token)}`
+        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(metadataPath)}&token=${encodeURIComponent(token.access_token)}`,
+        {
+            headers: {
+                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+            }
+        }
       );
       if (response.ok) {
         const json = await response.json();
@@ -125,9 +135,7 @@ export function MovimentacaoBancaria() {
     try {
       setLoading(true);
       const token = AuthService.getStoredToken();
-      if (!token) return;
-
-      const endpoint = await EndpointService.getDefaultEndpoint();
+      if (!token || !token.environmentId) return;
       
       // Using parameters similar to Contas a Pagar/Receber but for Movimentação
       // Assuming the backend query filters by DATAINI and DATAFIM based on the selected TIPODATA
@@ -146,7 +154,12 @@ export function MovimentacaoBancaria() {
       const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.020/1/T?parameters=${parameters}`;
       
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+        {
+            headers: {
+                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+            }
+        }
       );
 
       if (response.ok) {

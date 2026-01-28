@@ -1,81 +1,12 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, CheckCircle2, Building2, User, Mail, Phone, Lock, Zap, Layout, Globe, ShieldCheck, Server, Link } from "lucide-react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ArrowRight, Zap, Layout, Globe, ShieldCheck, Phone } from "lucide-react";
 import { AnimatedLogo } from "@/components/simpledfe/animated-logo";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-const registrationSchema = z.object({
-  NOME_CONTATO: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  EMAIL: z.string().email("Email inválido"),
-  TELEFONE: z.string().min(10, "Telefone inválido"),
-  NOMECLIENTE: z.string().min(3, "Nome da empresa deve ter pelo menos 3 caracteres"),
-  URLWS: z.string().url("URL inválida (ex: http://servidor:8051)"),
-  NOMEDOAMBIENTE: z.string().min(3, "Nome do ambiente deve ter pelo menos 3 caracteres"),
-  CODUSUARIO: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
-  SENHA: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-});
-
-type RegistrationForm = z.infer<typeof registrationSchema>;
-
 export default function LandingPage() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const form = useForm<RegistrationForm>({
-    resolver: zodResolver(registrationSchema),
-    defaultValues: {
-      NOME_CONTATO: "",
-      EMAIL: "",
-      TELEFONE: "",
-      NOMECLIENTE: "",
-      URLWS: "",
-      NOMEDOAMBIENTE: "",
-      CODUSUARIO: "",
-      SENHA: "",
-    },
-  });
-
-  const onSubmit = async (data: RegistrationForm) => {
-    setIsRegistering(true);
-    try {
-      const response = await fetch("/api/config-auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao realizar cadastro");
-      }
-
-      toast({
-        title: "Cadastro realizado com sucesso!",
-        description: "Você já pode acessar o sistema com seu usuário e senha.",
-        variant: "default",
-      });
-      setOpen(false);
-    } catch (error) {
-      toast({
-        title: "Erro no cadastro",
-        description: "Verifique os dados e tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRegistering(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white flex flex-col font-sans selection:bg-yellow-500/30">
@@ -98,208 +29,12 @@ export default function LandingPage() {
            <Button variant="ghost" className="text-gray-400 hover:text-yellow-400 hover:bg-yellow-500/5 transition-all" onClick={() => setLocation("/login")}>
              Acessar Sistema
            </Button>
-           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-yellow-500 hover:bg-yellow-400 text-black font-semibold shadow-lg shadow-yellow-500/20 border-0">
-                Criar Conta
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-[#121214] border-gray-800 text-white sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-center mb-2 text-yellow-500">Crie sua conta</DialogTitle>
-                <DialogDescription className="text-center text-gray-400">
-                  Preencha os dados abaixo para transformar sua experiência com o TOTVS RM.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="NOME_CONTATO"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome Completo</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                              <Input placeholder="Seu nome" {...field} className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="TELEFONE"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefone</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                              <Input 
-                                placeholder="(11) 99999-9999" 
-                                {...field} 
-                                className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" 
-                                maxLength={15}
-                                onChange={(e) => {
-                                  let value = e.target.value.replace(/\D/g, "");
-                                  if (value.length > 11) value = value.slice(0, 11);
-                                  
-                                  let formatted = value;
-                                  if (value.length > 0) {
-                                    formatted = `(${value.slice(0, 2)}`;
-                                    if (value.length > 2) {
-                                      formatted += `) ${value.slice(2, 7)}`;
-                                    }
-                                    if (value.length > 7) {
-                                      formatted = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
-                                    }
-                                    if (value.length === 10) { // Ajuste para telefones fixos (XX) XXXX-XXXX se necessário, mas o padrão hoje é celular 9 dígitos
-                                       // Lógica para 10 digitos: (11) 4444-4444
-                                       // Mas a lógica acima força (11) 44444-444
-                                       // Melhor abordagem híbrida:
-                                    }
-                                  }
-                                  
-                                  // Simplificando a lógica de máscara híbrida (10 ou 11 dígitos)
-                                  if (value.length <= 10) {
-                                     // (XX) XXXX-XXXX
-                                     formatted = value
-                                        .replace(/(\d{2})(\d)/, '($1) $2')
-                                        .replace(/(\d{4})(\d)/, '$1-$2');
-                                  } else {
-                                     // (XX) XXXXX-XXXX
-                                     formatted = value
-                                        .replace(/(\d{2})(\d)/, '($1) $2')
-                                        .replace(/(\d{5})(\d)/, '$1-$2');
-                                  }
-                                  
-                                  field.onChange(formatted);
-                                }}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="EMAIL"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email Corporativo</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                            <Input placeholder="voce@empresa.com" {...field} className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                      control={form.control}
-                      name="NOMECLIENTE"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome da Empresa</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                              <Input placeholder="Sua Empresa Ltda" {...field} className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="URLWS"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>URL WebService</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Link className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                                <Input placeholder="http://servidor:8051" {...field} className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="NOMEDOAMBIENTE"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome do Ambiente</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Server className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                                <Input placeholder="CorporeRM" {...field} className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="CODUSUARIO"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Usuário de Acesso</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                              <Input placeholder="usuario.rm" {...field} className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="SENHA"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                              <Input type="password" placeholder="******" {...field} className="pl-9 bg-[#1c1c1f] border-gray-800 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all" />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold mt-4 h-11" disabled={isRegistering}>
-                    {isRegistering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Finalizar Cadastro"}
-                  </Button>
-                </form>
-              </Form>
-            </DialogContent>
-           </Dialog>
+           <Button 
+             className="bg-yellow-500 hover:bg-yellow-400 text-black font-semibold shadow-lg shadow-yellow-500/20 border-0"
+             onClick={() => setLocation("/admin")}
+           >
+             Criar / Gerenciar Conta
+           </Button>
         </div>
       </header>
 
@@ -333,7 +68,7 @@ export default function LandingPage() {
             size="lg" 
             variant="outline" 
             className="border-gray-700 text-gray-300 hover:bg-white/5 hover:text-white hover:border-gray-500 text-lg px-8 h-14" 
-            onClick={() => setOpen(true)}
+            onClick={() => setLocation("/register")}
           >
             Solicitar Acesso
           </Button>

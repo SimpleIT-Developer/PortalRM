@@ -4,11 +4,11 @@ import { RefreshCw, Loader2, Search } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { getTenant } from "@/lib/tenant";
 
 export interface ProdutoItem {
   IDPRD: number;
@@ -74,22 +74,25 @@ export default function ProdutosPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
 
-      if (!token) {
+      if (!token || !token.environmentId) {
         toast({
           title: "Erro de autenticação",
-          description: "Você precisa estar logado para acessar esta página.",
+          description: "Sessão inválida ou ambiente não selecionado.",
           variant: "destructive",
         });
         return;
       }
 
       const path = "/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.011/1/T";
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
-      const response = await fetch(fullUrl);
+      const response = await fetch(fullUrl, {
+        headers: {
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+        }
+      });
       if (!response.ok) {
         throw new Error("Falha ao buscar dados");
       }

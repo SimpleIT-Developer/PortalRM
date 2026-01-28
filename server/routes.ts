@@ -7,227 +7,202 @@ import { storage } from "./storage.js";
 import { registerSimpleDFeRoutes } from "./simpledfe/routes";
 import { connectToMongo } from "./db-mongo";
 import { ConfigUser } from "./models/ConfigUser";
+import { TenantService } from "./services/tenant-service";
+import { Tenant } from "./models/Tenant";
+import { PlatformAdmin } from "./models/PlatformAdmin";
 import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
   await connectToMongo();
 
-  // Config Auth Routes (Register/Update Environment)
-  app.post("/api/config-auth/register", async (req, res) => {
-    console.log("📝 Registering/Updating config user:", req.body.CODUSUARIO);
+  // Public Tenant Config (For Login Page)
+  app.get("/api/public/tenant-config/:tenantKey", async (req, res) => {
     try {
-      const { 
-        CODUSUARIO, 
-        SENHA, 
-        URLWS, 
-        NOMEDOAMBIENTE, 
-        CODCLIENTE, 
-        NOMECLIENTE, 
-        _id,
-        MOVIMENTOS_SOLICITACAO_COMPRAS,
-        MOVIMENTOS_ORDEM_COMPRA,
-        MOVIMENTOS_NOTA_FISCAL_PRODUTO,
-        MOVIMENTOS_NOTA_FISCAL_SERVICO,
-        MOVIMENTOS_OUTRAS_MOVIMENTACOES,
-        MODULOS
-      } = req.body;
+      const { tenantKey } = req.params;
+      console.log("🔍 Buscando configuração pública do tenant:", tenantKey);
       
-      // Check if user exists
-      let user = await ConfigUser.findOne({ CODUSUARIO });
+      const tenant = await Tenant.findOne({ tenantKey });
       
-      const { 
-        NOME_CONTATO, 
-        EMAIL, 
-        TELEFONE 
-      } = req.body;
+      if (!tenant) {
+        console.log("❌ Tenant não encontrado:", tenantKey);
+        return res.status(404).json({ error: "Tenant não encontrado" });
+      }
 
-      const envData = {
-        URLWS: URLWS || "http://default", // Provide default if not provided (registration)
-        NOMEDOAMBIENTE: NOMEDOAMBIENTE || "Default", // Provide default if not provided
-        MOVIMENTOS_SOLICITACAO_COMPRAS: MOVIMENTOS_SOLICITACAO_COMPRAS || [],
-        MOVIMENTOS_ORDEM_COMPRA: MOVIMENTOS_ORDEM_COMPRA || [],
-        MOVIMENTOS_NOTA_FISCAL_PRODUTO: MOVIMENTOS_NOTA_FISCAL_PRODUTO || [],
-        MOVIMENTOS_NOTA_FISCAL_SERVICO: MOVIMENTOS_NOTA_FISCAL_SERVICO || [],
-        MOVIMENTOS_OUTRAS_MOVIMENTACOES: MOVIMENTOS_OUTRAS_MOVIMENTACOES || [],
-        MODULOS: MODULOS || {}
+      if (tenant.status !== 'active' && tenant.status !== 'trial') {
+         console.log("⚠️ Tenant inativo ou bloqueado:", tenantKey, tenant.status);
+         return res.status(403).json({ error: "Acesso ao tenant indisponível" });
+      }
+
+      // Retornar apenas dados seguros/necessários para o login
+      const publicConfig = {
+        tenantKey: tenant.tenantKey,
+        name: tenant.company.tradeName,
+        logo: null, // Futuro: tenant.branding.logoUrl
+        environments: tenant.environments.filter(env => env.enabled).map(env => ({
+          id: env._id,
+          name: env.name,
+          webserviceBaseUrl: env.webserviceBaseUrl,
+          modules: env.modules,
+          // Parametrização de Movimentos
+          MOVIMENTOS_SOLICITACAO_COMPRAS: env.MOVIMENTOS_SOLICITACAO_COMPRAS,
+          MOVIMENTOS_ORDEM_COMPRA: env.MOVIMENTOS_ORDEM_COMPRA,
+          MOVIMENTOS_NOTA_FISCAL_PRODUTO: env.MOVIMENTOS_NOTA_FISCAL_PRODUTO,
+          MOVIMENTOS_NOTA_FISCAL_SERVICO: env.MOVIMENTOS_NOTA_FISCAL_SERVICO,
+          MOVIMENTOS_OUTRAS_MOVIMENTACOES: env.MOVIMENTOS_OUTRAS_MOVIMENTACOES
+        }))
       };
 
-      if (user) {
-        let envIndex = -1;
+      res.json(publicConfig);
+    } catch (error: any) {
+      console.error("Erro ao buscar configuração pública:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
-        // If _id is provided, try to find by ID first (for editing/renaming)
-        if (_id) {
-            // @ts-ignore
-            envIndex = user.AMBIENTES.findIndex((env: any) => env._id.toString() === _id);
-        }
-
-        // If not found by ID (or no ID), try to find by Name (legacy/fallback)
-        if (envIndex === -1 && NOMEDOAMBIENTE) {
-            // @ts-ignore
-            envIndex = user.AMBIENTES.findIndex((env: any) => env.NOMEDOAMBIENTE === NOMEDOAMBIENTE);
-        }
-        
-        if (envIndex >= 0) {
-             console.log(`Updating existing environment at index ${envIndex}:`, NOMEDOAMBIENTE);
-             console.log("📦 Payload Movimentos:", {
-                SOLICITACAO: envData.MOVIMENTOS_SOLICITACAO_COMPRAS,
-                ORDEM: envData.MOVIMENTOS_ORDEM_COMPRA
-             });
-
-             // Update existing environment using Mongoose set() for explicit updates
-             // @ts-ignore
-             const existingEnv = user.AMBIENTES[envIndex];
-
-             // Ensure MODULOS is a plain object to avoid Mongoose Mixed type issues
-             const modulosPlain = JSON.parse(JSON.stringify(envData.MODULOS));
-             console.log("📦 Payload Modulos:", modulosPlain);
-
-             // Explicitly set the arrays using Mongoose methods if available, or direct assignment
-             if (existingEnv.set) {
-                 existingEnv.set('URLWS', URLWS);
-                 existingEnv.set('NOMEDOAMBIENTE', NOMEDOAMBIENTE);
-                 existingEnv.set('MOVIMENTOS_SOLICITACAO_COMPRAS', envData.MOVIMENTOS_SOLICITACAO_COMPRAS);
-                 existingEnv.set('MOVIMENTOS_ORDEM_COMPRA', envData.MOVIMENTOS_ORDEM_COMPRA);
-                 existingEnv.set('MOVIMENTOS_NOTA_FISCAL_PRODUTO', envData.MOVIMENTOS_NOTA_FISCAL_PRODUTO);
-                 existingEnv.set('MOVIMENTOS_NOTA_FISCAL_SERVICO', envData.MOVIMENTOS_NOTA_FISCAL_SERVICO);
-                 existingEnv.set('MOVIMENTOS_OUTRAS_MOVIMENTACOES', envData.MOVIMENTOS_OUTRAS_MOVIMENTACOES);
-                 // For Mixed types, set explicitly
-                 existingEnv.set('MODULOS', modulosPlain);
-             } else {
-                 existingEnv.URLWS = URLWS;
-                 existingEnv.NOMEDOAMBIENTE = NOMEDOAMBIENTE;
-                 existingEnv.MOVIMENTOS_SOLICITACAO_COMPRAS = envData.MOVIMENTOS_SOLICITACAO_COMPRAS;
-                 existingEnv.MOVIMENTOS_ORDEM_COMPRA = envData.MOVIMENTOS_ORDEM_COMPRA;
-                 existingEnv.MOVIMENTOS_NOTA_FISCAL_PRODUTO = envData.MOVIMENTOS_NOTA_FISCAL_PRODUTO;
-                 existingEnv.MOVIMENTOS_NOTA_FISCAL_SERVICO = envData.MOVIMENTOS_NOTA_FISCAL_SERVICO;
-                 existingEnv.MOVIMENTOS_OUTRAS_MOVIMENTACOES = envData.MOVIMENTOS_OUTRAS_MOVIMENTACOES;
-                 existingEnv.MODULOS = modulosPlain;
-             }
-        } else {
-             console.log("Adding new environment:", NOMEDOAMBIENTE);
-             // @ts-ignore
-             user.AMBIENTES.push(envData);
-        }
-        
-        // Update global fields
-        if (CODCLIENTE) user.CODCLIENTE = CODCLIENTE;
-        if (NOMECLIENTE) user.NOMECLIENTE = NOMECLIENTE;
-        if (NOME_CONTATO) user.NOME_CONTATO = NOME_CONTATO;
-        if (EMAIL) user.EMAIL = EMAIL;
-        if (TELEFONE) user.TELEFONE = TELEFONE;
-        
-        // Update password if provided
-        if (SENHA) {
-            const hashedPassword = await bcrypt.hash(SENHA, 10);
-            user.SENHA = hashedPassword;
-        }
-        
-        user.markModified('AMBIENTES'); // Ensure Mongoose detects the change
-        const savedUser = await user.save();
-        console.log("✅ User saved successfully. Environments count:", savedUser.AMBIENTES.length);
-        
-        // Log environment details for debugging
-        if (envIndex >= 0) {
-           // @ts-ignore
-           const savedEnv = savedUser.AMBIENTES[envIndex];
-           console.log("🔍 Saved Environment Details:", {
-               id: savedEnv._id,
-               MOVIMENTOS_SOLICITACAO_COMPRAS: savedEnv.MOVIMENTOS_SOLICITACAO_COMPRAS
-           });
-        }
-
-        // Return the updated user/environments so frontend can refresh
-        return res.status(200).json({ 
-            message: "Usuário/Ambiente atualizado com sucesso",
-            AMBIENTES: savedUser.AMBIENTES,
-            CODCLIENTE: savedUser.CODCLIENTE,
-            NOMECLIENTE: savedUser.NOMECLIENTE
-        });
+  // Tenant Admin Login
+  app.post("/api/tenant/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      console.log("🔑 Tenant Admin Login attempt:", email);
+      
+      const admin = await PlatformAdmin.findOne({ email });
+      if (!admin) {
+          console.log("❌ Admin not found:", email);
+          return res.status(401).json({ error: "Credenciais inválidas" });
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(SENHA, 10);
+      const isMatch = await bcrypt.compare(password, admin.passwordHash);
+      if (!isMatch) {
+          console.log("❌ Password mismatch for:", email);
+          return res.status(401).json({ error: "Credenciais inválidas" });
+      }
 
-      const newUser = new ConfigUser({
-        CODUSUARIO,
-        SENHA: hashedPassword,
-        CODCLIENTE,
-        NOMECLIENTE,
-        NOME_CONTATO,
-        EMAIL,
-        TELEFONE,
-        AMBIENTES: URLWS && NOMEDOAMBIENTE ? [envData] : [] // Only add env if provided
-      });
+      const tenant = await Tenant.findById(admin.tenantId);
+      if (!tenant) {
+          return res.status(404).json({ error: "Tenant não encontrado" });
+      }
 
-      await newUser.save();
-      res.status(201).json({ 
-          message: "Usuário de configuração criado com sucesso",
-          AMBIENTES: newUser.AMBIENTES,
-          CODCLIENTE: newUser.CODCLIENTE,
-          NOMECLIENTE: newUser.NOMECLIENTE
+      console.log("✅ Login successful for:", email);
+      res.json({
+        admin: {
+            id: admin._id,
+            name: admin.name,
+            email: admin.email,
+            role: admin.role,
+            tenantId: admin.tenantId
+        },
+        tenant
       });
     } catch (error: any) {
-      console.error("Config Auth Register Error:", error);
-      res.status(500).json({ error: error.message || "Erro ao criar usuário" });
+      console.error("Login Error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
-  // Delete Environment Route
-  app.delete("/api/config-auth/environment/:envId", async (req, res) => {
-      try {
-          const { envId } = req.params;
-          const { CODUSUARIO } = req.body; // Pass user in body for auth check
-
-          console.log(`🗑️ Deleting environment ${envId} for user ${CODUSUARIO}`);
-
-          const user = await ConfigUser.findOne({ CODUSUARIO });
-          if (!user) {
-              return res.status(404).json({ error: "Usuário não encontrado" });
-          }
-
-          // @ts-ignore
-          user.AMBIENTES = user.AMBIENTES.filter(env => env._id.toString() !== envId);
-          
-          user.markModified('AMBIENTES');
-          await user.save();
-
-          res.json({ 
-              message: "Ambiente removido com sucesso",
-              AMBIENTES: user.AMBIENTES 
-          });
-
-      } catch (error) {
-          console.error("Error deleting environment:", error);
-          res.status(500).json({ error: "Erro ao remover ambiente" });
-      }
-  });
-
-
-  app.post("/api/config-auth/login", async (req, res) => {
-    console.log("🔑 Login attempt for config user:", req.body.CODUSUARIO);
+  // Check Subdomain Availability
+  app.get("/api/tenant/check-subdomain/:subdomain", async (req, res) => {
     try {
-      const { CODUSUARIO, SENHA } = req.body;
-      const user = await ConfigUser.findOne({ CODUSUARIO });
-      
-      if (!user) {
-        console.log("❌ User not found:", CODUSUARIO);
-        return res.status(401).json({ error: "Credenciais inválidas" });
-      }
-
-      const isMatch = await bcrypt.compare(SENHA, user.SENHA);
-      if (!isMatch) {
-        console.log("❌ Password mismatch for:", CODUSUARIO);
-        return res.status(401).json({ error: "Credenciais inválidas" });
-      }
-
-      console.log("✅ Login successful for:", CODUSUARIO);
-      res.json(user);
-    } catch (error) {
-      console.error("Config Auth Login Error:", error);
-      res.status(500).json({ error: "Erro ao realizar login" });
+      const { subdomain } = req.params;
+      const isAvailable = await TenantService.checkSubdomainAvailability(subdomain);
+      res.json({ available: isAvailable });
+    } catch (error: any) {
+      console.error("Erro ao verificar subdomínio:", error);
+      res.status(500).json({ error: error.message });
     }
   });
+
+  // Tenant Registration
+  app.post("/api/tenant/register", async (req, res) => {
+    try {
+      console.log("📝 Recebido pedido de cadastro de tenant:", req.body.subdomain);
+      const result = await TenantService.createTenant(req.body);
+      console.log("✅ Tenant criado com sucesso:", result.tenant.tenantKey);
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("❌ Erro ao criar tenant:", error);
+      res.status(400).json({ error: error.message || "Erro desconhecido ao criar conta." });
+    }
+  });
+
+  // Get Tenant Info
+  app.get("/api/tenant/:id", async (req, res) => {
+    try {
+        const tenant = await Tenant.findById(req.params.id);
+        if (!tenant) return res.status(404).json({ error: "Tenant not found" });
+        
+        const admin = await PlatformAdmin.findOne({ tenantId: tenant._id });
+        
+        res.json({
+            tenant,
+            admin: admin ? {
+                email: admin.email,
+                name: admin.name,
+                phone: admin.phone,
+                role: admin.role
+            } : null
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update Tenant
+  app.put("/api/tenant/:id", async (req, res) => {
+    try {
+      const result = await TenantService.updateTenant(req.params.id, req.body);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Erro ao atualizar tenant:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Add Environment
+  app.post("/api/tenant/:id/environments", async (req, res) => {
+    try {
+      const result = await TenantService.addEnvironment(req.params.id, req.body);
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("Erro ao adicionar ambiente:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update Environment
+  app.put("/api/tenant/:id/environments/:envId", async (req, res) => {
+    try {
+      const result = await TenantService.updateEnvironment(req.params.id, req.params.envId, req.body);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Erro ao atualizar ambiente:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Remove Environment
+  app.delete("/api/tenant/:id/environments/:envId", async (req, res) => {
+    try {
+      const result = await TenantService.removeEnvironment(req.params.id, req.params.envId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Erro ao remover ambiente:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Sync Legacy Config
+  app.post("/api/tenant/:id/sync-legacy", async (req, res) => {
+    try {
+      const result = await TenantService.syncLegacyConfig(req.params.id);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Erro ao sincronizar legado:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Config Auth Routes removed (Legacy Login Config)
 
   // Register SimpleDFe routes first
   await registerSimpleDFeRoutes(app);
@@ -291,19 +266,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper to resolve Environment URL
+  async function getEnvironmentUrl(tenantKey: string, environmentId: string): Promise<string> {
+    const safeEnvId = environmentId?.trim();
+    console.log(`🔍 [getEnvironmentUrl] Buscando tenantKey: '${tenantKey}', environmentId: '${environmentId}' (safe: '${safeEnvId}')`);
+
+    const tenant = await Tenant.findOne({ tenantKey });
+    if (!tenant) {
+        console.error(`❌ [getEnvironmentUrl] Tenant não encontrado: '${tenantKey}'`);
+        throw new Error(`Tenant '${tenantKey}' não encontrado`);
+    }
+
+    // Debug: Listar ambientes disponíveis
+    if (tenant.environments) {
+        console.log(`📋 [getEnvironmentUrl] Ambientes disponíveis no tenant (${tenant.environments.length}):`);
+        tenant.environments.forEach(e => {
+            const idStr = e._id?.toString();
+            const idVirtual = e.id;
+            console.log(`   - ID (_id): ${idStr} | ID (virtual): ${idVirtual} | Name: ${e.name} | URL: ${e.webserviceBaseUrl}`);
+        });
+    } else {
+        console.warn(`⚠️ [getEnvironmentUrl] Tenant não possui array de environments inicializado.`);
+    }
+
+    const env = tenant.environments.find(e => {
+        const idStr = e._id?.toString();
+        const idVirtual = e.id;
+        return idStr === safeEnvId || idVirtual === safeEnvId;
+    });
+
+    if (!env) {
+        console.error(`❌ [getEnvironmentUrl] Ambiente não encontrado. ID procurado: '${safeEnvId}'`);
+        console.error(`   - Disponíveis: ${tenant.environments.map(e => e._id?.toString()).join(', ')}`);
+        throw new Error(`Ambiente '${safeEnvId}' não encontrado no tenant '${tenantKey}'`);
+    }
+    
+    if (!env.webserviceBaseUrl) {
+        console.error(`❌ [getEnvironmentUrl] URL Base não configurada para o ambiente '${env.name}'`);
+        throw new Error(`URL do ambiente '${env.name}' não configurada`);
+    }
+    
+    let url = env.webserviceBaseUrl.trim();
+    
+    // Remove trailing slash
+    if (url.endsWith('/')) {
+        url = url.slice(0, -1);
+    }
+
+    // Heuristic to extract base URL from SOAP/Service endpoints
+    // Common RM patterns: 
+    // - http://host:port/ws/Corpore.Net/Main.asmx
+    // - http://host:port/wsDataServer/IwsDataServer
+    // - http://host:port/Corpore.Net/Main.asmx
+    // We need http://host:port for the /api/connect/token call
+    
+    const soapMarkers = ['/ws/', '/wsDataServer/', '/Corpore.Net/'];
+    for (const marker of soapMarkers) {
+        const index = url.indexOf(marker);
+        if (index !== -1) {
+            url = url.substring(0, index);
+            break;
+        }
+    }
+
+    return url;
+  }
+
   // TOTVS Authentication Proxy - handles CORS issues
   app.post("/api/auth/login", async (req, res) => {
+    // Permitir certificados auto-assinados (comum em ambientes internos TOTVS)
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
     try {
-      const { endpoint, ...credentials } = req.body;
+      const { environmentId, ...credentials } = req.body;
+      const tenantKey = req.headers['x-tenant'] as string;
       
-      if (!endpoint) {
-        return res.status(400).json({ error: "Endpoint é obrigatório" });
+      if (!tenantKey) {
+        return res.status(400).json({ error: "Header X-Tenant é obrigatório" });
       }
 
-      console.log("🔗 Proxy - Autenticando em:", `${endpoint}/api/connect/token`);
-      console.log("📤 Proxy - Dados:", credentials);
+      if (!environmentId) {
+        return res.status(400).json({ error: "EnvironmentId é obrigatório" });
+      }
 
-      const response = await fetch(`${endpoint}/api/connect/token`, {
+      const baseUrl = await getEnvironmentUrl(tenantKey, environmentId);
+      console.log("🔍 Proxy - Autenticando no ambiente:", environmentId);
+      console.log("🔗 URL Base calculada:", baseUrl);
+
+      const targetUrl = `${baseUrl}/api/connect/token`;
+      console.log("🚀 Enviando requisição para:", targetUrl);
+
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -315,13 +368,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!response.ok) {
         console.log("⚠️ Proxy - Erro:", response.status, data);
+        if (response.status === 404) {
+             console.log("❌ Endpoint não encontrado. Verifique se a URL Base está correta e se a API está habilitada.");
+        }
         return res.status(response.status).json(data);
       }
 
       console.log("✅ Proxy - Sucesso");
       res.json(data);
     } catch (error) {
-      console.error("❌ Proxy - Erro:", error);
+      console.error("❌ Proxy - Erro Crítico:", error);
       res.status(500).json({ 
         error: "Erro interno do servidor",
         message: error instanceof Error ? error.message : "Erro desconhecido"
@@ -332,15 +388,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TOTVS Token Refresh Proxy
   app.post("/api/auth/refresh", async (req, res) => {
     try {
-      const { endpoint, ...refreshData } = req.body;
+      const { environmentId, ...refreshData } = req.body;
+      const tenantKey = req.headers['x-tenant'] as string;
       
-      if (!endpoint) {
-        return res.status(400).json({ error: "Endpoint é obrigatório" });
+      if (!tenantKey) {
+        return res.status(400).json({ error: "Header X-Tenant é obrigatório" });
+      }
+      
+      if (!environmentId) {
+        return res.status(400).json({ error: "EnvironmentId é obrigatório" });
       }
 
-      console.log("🔄 Proxy - Renovando token em:", `${endpoint}/api/connect/token`);
+      const baseUrl = await getEnvironmentUrl(tenantKey, environmentId);
+      console.log("🔄 Proxy - Renovando token no ambiente:", environmentId);
 
-      const response = await fetch(`${endpoint}/api/connect/token`, {
+      const response = await fetch(`${baseUrl}/api/connect/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -369,21 +431,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TOTVS API Proxy - handles CORS for all API calls
   app.get("/api/proxy", async (req, res) => {
     try {
-      const { endpoint, path, token } = req.query;
+      const { environmentId, path, token } = req.query;
+      const tenantKey = req.headers['x-tenant'] as string;
       
-      if (!endpoint || !path) {
-        return res.status(400).json({ error: "Endpoint e path são obrigatórios" });
+      if (!tenantKey) {
+        return res.status(400).json({ error: "Header X-Tenant é obrigatório" });
       }
 
-      // Garantir que o endpoint tenha o protocolo correto
-      let baseUrl = endpoint.toString();
-      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-        baseUrl = `http://${baseUrl}`;
+      if (!environmentId || !path) {
+        return res.status(400).json({ error: "EnvironmentId e path são obrigatórios" });
       }
-      // Remove trailing slash if present
-      if (baseUrl.endsWith('/')) {
-        baseUrl = baseUrl.slice(0, -1);
-      }
+
+      const baseUrl = await getEnvironmentUrl(tenantKey, environmentId.toString());
       
       // Ensure path starts with slash
       const cleanPath = path.toString().startsWith('/') ? path.toString() : `/${path.toString()}`;
@@ -435,22 +494,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TOTVS SOAP Proxy
   app.post("/api/proxy-soap", async (req, res) => {
     try {
-      const { endpoint, path, token } = req.query;
+      const { environmentId, path, token } = req.query;
       const { xml, action, basicAuth, username, password } = req.body;
+      const tenantKey = req.headers['x-tenant'] as string;
+
+      if (!tenantKey) {
+        return res.status(400).json({ error: "Header X-Tenant é obrigatório" });
+      }
       
-      if (!endpoint || !path || !xml) {
-        return res.status(400).json({ error: "Endpoint, path e xml são obrigatórios" });
+      if (!environmentId || !path || !xml) {
+        return res.status(400).json({ error: "EnvironmentId, path e xml são obrigatórios" });
       }
 
-      // Garantir que o endpoint tenha o protocolo correto
-      let baseUrl = endpoint.toString();
-      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-        baseUrl = `http://${baseUrl}`;
-      }
-      // Remove trailing slash if present
-      if (baseUrl.endsWith('/')) {
-        baseUrl = baseUrl.slice(0, -1);
-      }
+      const baseUrl = await getEnvironmentUrl(tenantKey, environmentId.toString());
       
       // Ensure path starts with slash
       const cleanPath = path.toString().startsWith('/') ? path.toString() : `/${path.toString()}`;

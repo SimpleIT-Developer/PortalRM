@@ -35,6 +35,7 @@ import {
   Clock
 } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
+import { getTenant } from "@/lib/tenant";
 import type { CTeRecebida, CTeResponse, EventoCTe } from "@shared/schema";
 
 // Função para formatar CNPJ
@@ -136,7 +137,11 @@ export default function CTeRecebidasPage() {
         sortOrder
       });
       
-      const response = await fetch(`/api/cte-recebidas?${params}`);
+      const response = await fetch(`/api/cte-recebidas?${params}`, {
+        headers: {
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
+        }
+      });
       if (!response.ok) {
         throw new Error("Erro ao carregar CTe recebidas");
       }
@@ -188,6 +193,7 @@ export default function CTeRecebidasPage() {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
       });
 
@@ -237,6 +243,7 @@ export default function CTeRecebidasPage() {
       const response = await fetch(`/api/cte-eventos/${cte.cte_id}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
       });
 
@@ -267,6 +274,7 @@ export default function CTeRecebidasPage() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
       });
 
@@ -401,6 +409,7 @@ export default function CTeRecebidasPage() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
         body: JSON.stringify({ cteIds }),
       });

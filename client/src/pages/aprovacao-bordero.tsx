@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Loader2, RefreshCw, Receipt, Search, Filter } from "lucide-react";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,6 +17,7 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { columns, BorderoItem } from "./aprovacao-bordero-columns";
 import { getAprovacaoBorderoSoap } from "@/lib/soap-templates";
+import { getTenant } from "@/lib/tenant";
 
 export default function AprovacaoBorderoPage() {
   const [items, setItems] = useState<BorderoItem[]>([]);
@@ -40,11 +40,11 @@ export default function AprovacaoBorderoPage() {
     let errorCount = 0;
 
     try {
-      const endpoint = await EndpointService.getDefaultEndpoint();
+      // Use environmentId from token instead of EndpointService
       const token = AuthService.getStoredToken();
       
-      if (!token) {
-        toast({ title: "Erro", description: "Usuário não autenticado.", variant: "destructive" });
+      if (!token || !token.environmentId) {
+        toast({ title: "Erro", description: "Usuário não autenticado ou ambiente não selecionado.", variant: "destructive" });
         return;
       }
 
@@ -52,17 +52,20 @@ export default function AprovacaoBorderoPage() {
         try {
           const soapXml = getAprovacaoBorderoSoap(item, token.username);
           
-          // O path do SOAP para wsProcess (conforme testes: sem .svc)
+          // O path do SOAP para wsProcess
           const soapPath = "/wsProcess/IwsProcess";
           
           console.log("🚀 Enviando SOAP para:", soapPath);
           console.log("📝 XML Gerado:", soapXml);
 
-          const proxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+          const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
           
           const response = await fetch(proxyUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+            },
             body: JSON.stringify({
               xml: soapXml,
               action: "http://www.totvs.com/IwsProcess/ExecuteWithXmlParams"
@@ -170,16 +173,12 @@ export default function AprovacaoBorderoPage() {
     setItems([]); // Limpa a lista atual antes de buscar
     
     try {
-      const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
       
-      if (!token) {
-        throw new Error("Usuário não autenticado. Faça login novamente.");
+      if (!token || !token.environmentId) {
+        throw new Error("Usuário não autenticado ou ambiente não selecionado. Faça login novamente.");
       }
 
-      // O endpoint pode vir com http:// ou não, o backend proxy espera o host
-      // Mas o padrão no cadastro-funcionarios é passar o endpoint obtido do serviço
-      
       // Montagem dos parâmetros para a query SQL (tentativa de filtrar no server)
       // Formato esperado pelo RM geralmente depende da query, mas vamos enviar padrão
       const parameters = [
@@ -190,13 +189,14 @@ export default function AprovacaoBorderoPage() {
 
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.006/1/T?parameters=${parameters}`;
       
-      // Construção da URL do proxy
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      // Construção da URL do proxy usando environmentId
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       const response = await fetch(fullUrl, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 

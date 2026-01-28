@@ -1,5 +1,5 @@
-import { EndpointService } from "./endpoint";
 import { AuthService } from "./auth";
+import { getTenant } from "@/lib/tenant";
 
 export interface BudgetaryNature {
   internalId: string;
@@ -24,26 +24,21 @@ export interface BudgetaryNatureResponse {
 
 export const BudgetaryNatureService = {
   async getBudgetaryNatures(): Promise<BudgetaryNature[]> {
-    const endpoint = await EndpointService.getDefaultEndpoint();
-    if (!endpoint) {
-      throw new Error("Endpoint padrão não configurado");
-    }
-
     const token = AuthService.getStoredToken();
-    if (!token || !token.access_token) {
+    if (!token || !token.access_token || !token.environmentId) {
       throw new Error("Usuário não autenticado");
     }
 
-    const formattedEndpoint = endpoint.replace(/^https?:\/\//i, '');
     const path = "/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.014/1/T";
     
     // Using the proxy as seen in other services
-    const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(formattedEndpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+    const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
     const response = await fetch(fullUrl, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
       }
     });
 

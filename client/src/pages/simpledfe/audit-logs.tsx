@@ -10,6 +10,8 @@ import { Calendar, Search, User, Clock, Activity, RefreshCw } from "lucide-react
 import { DateInput } from "@/components/ui/date-input";
 import type { AuditLogResponse, AuditLog } from "@shared/schema";
 
+import { getTenant } from "@/lib/tenant";
+
 export default function AuditLogsPage() {
   // Buscar dados do usuário para verificar permissões
   const { data: currentUser } = useQuery({
@@ -44,6 +46,27 @@ export default function AuditLogsPage() {
 
   const { data: logsData, isLoading, refetch } = useQuery<AuditLogResponse>({
     queryKey: ['/api/audit-logs', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        search: filters.search,
+        dateStart: filters.dateStart,
+        dateEnd: filters.dateEnd,
+        page: filters.page.toString(),
+        limit: filters.limit.toString()
+      });
+      
+      const response = await fetch(`/api/audit-logs?${params}`, {
+        headers: {
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar logs');
+      }
+
+      return response.json();
+    },
     enabled: true,
     refetchOnWindowFocus: true,
     refetchInterval: 30000 // Atualiza a cada 30 segundos

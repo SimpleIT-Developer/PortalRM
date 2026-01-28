@@ -1,4 +1,5 @@
 import { AuthService } from './auth';
+import { getTenant } from "@/lib/tenant";
 
 export interface Branch {
   BranchInternalId?: string;
@@ -35,23 +36,20 @@ export class BranchesService {
   static async getBranches(): Promise<Branch[]> {
     try {
       const token = AuthService.getStoredToken();
-      if (!token || !token.access_token) {
+      if (!token || !token.access_token || !token.environmentId) {
         console.error('Token não encontrado para consulta de filiais');
         throw new Error('Usuário não autenticado');
       }
 
-      const endpoint = token.endpoint;
-      if (!endpoint) {
-        throw new Error('Endpoint não configurado no token');
-      }
       const path = '/api/framework/v1/Branches';
       
       console.log("🔗 Consultando filiais via proxy backend");
       
-      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`, {
+      const response = await fetch(`/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 

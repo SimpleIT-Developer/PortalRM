@@ -1,4 +1,5 @@
 import { AuthService } from './auth';
+import { getTenant } from "@/lib/tenant";
 
 export interface AccountingAccount {
   id: string;
@@ -85,23 +86,20 @@ export class AccountingPlanService {
   static async getAccountingPlan(): Promise<AccountingAccount[]> {
     try {
       const token = AuthService.getStoredToken();
-      if (!token || !token.access_token) {
+      if (!token || !token.access_token || !token.environmentId) {
         console.error('Token não encontrado para consulta de plano de contas');
         throw new Error('Usuário não autenticado');
       }
 
-      const endpoint = token.endpoint;
-      if (!endpoint) {
-        throw new Error('Endpoint não configurado no token');
-      }
       const path = '/api/ctb/v1/AccountingPlan';
       
       console.log("🔗 Consultando plano de contas via proxy backend");
       
-      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`, {
+      const response = await fetch(`/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 

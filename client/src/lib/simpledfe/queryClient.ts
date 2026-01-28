@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { AuthService } from "@/lib/auth";
+import { getTenant } from "@/lib/tenant";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -20,6 +21,12 @@ export async function apiRequest(
 
   if (token?.access_token) {
     headers["Authorization"] = `Bearer ${token.access_token}`;
+  }
+
+  // Inject Tenant Header
+  const tenant = getTenant();
+  if (tenant) {
+    headers['X-Tenant'] = tenant;
   }
 
   const res = await fetch(url, {
@@ -43,6 +50,12 @@ export const getQueryFn: <T>(options: {
     const headers: Record<string, string> = {};
     if (token?.access_token) {
       headers["Authorization"] = `Bearer ${token.access_token}`;
+    }
+
+    // Inject Tenant Header
+    const tenant = getTenant();
+    if (tenant) {
+      headers['X-Tenant'] = tenant;
     }
 
     const res = await fetch(queryKey[0] as string, {

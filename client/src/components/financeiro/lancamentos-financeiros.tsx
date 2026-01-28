@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Search, Plus, Filter, RefreshCw, X, Save, FileText, Settings, Paperclip, Calendar, MoreVertical, DollarSign, Wallet } from "lucide-react";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { getTenant } from "@/lib/tenant";
 
 interface Metadata {
   COLUNA: string;
@@ -72,11 +72,15 @@ export function LancamentosFinanceiros({ title, description, endpoint: dataEndpo
   const fetchMetadata = async () => {
     try {
       const token = AuthService.getStoredToken();
-      if (!token) return;
-      const endpoint = await EndpointService.getDefaultEndpoint();
+      if (!token || !token.environmentId) return;
       const metadataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.016/1/T?parameters=TABELA=FLAN`;
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(metadataPath)}&token=${encodeURIComponent(token.access_token)}`
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(metadataPath)}&token=${encodeURIComponent(token.access_token)}`,
+        {
+            headers: {
+                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+            }
+        }
       );
       if (response.ok) {
         const json = await response.json();
@@ -104,9 +108,7 @@ export function LancamentosFinanceiros({ title, description, endpoint: dataEndpo
     try {
       setLoading(true);
       const token = AuthService.getStoredToken();
-      if (!token) return;
-
-      const endpoint = await EndpointService.getDefaultEndpoint();
+      if (!token || !token.environmentId) return;
 
       // Assuming parameters are DATAINI and DATAFIM like in importacao-xml
       const parameters = [
@@ -118,7 +120,12 @@ export function LancamentosFinanceiros({ title, description, endpoint: dataEndpo
       const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/${dataEndpoint}/1/T?parameters=${parameters}`;
       
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+        {
+            headers: {
+                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+            }
+        }
       );
 
       if (response.ok) {

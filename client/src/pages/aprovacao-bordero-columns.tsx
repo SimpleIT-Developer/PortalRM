@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
+import { getTenant } from "@/lib/tenant";
 
 export interface BorderoItem {
   CODCOLIGADA: number;
@@ -77,15 +77,18 @@ const BorderoDetails = ({ data }: { data: BorderoItem }) => {
     const fetchLancamentos = async () => {
       setLoading(true);
       try {
-        const endpoint = await EndpointService.getDefaultEndpoint();
         const token = AuthService.getStoredToken();
 
-        if (!token) return;
+        if (!token || !token.environmentId) return;
 
         const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.007/1/T?parameters=IDBORDERO=${data.IDBORDERO}`;
-        const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+        const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
-        const response = await fetch(fullUrl);
+        const response = await fetch(fullUrl, {
+          headers: {
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        });
         if (response.ok) {
            const result = await response.json();
            setLancamentos(Array.isArray(result) ? result : []);

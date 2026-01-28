@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { AuthService } from "@/lib/auth";
+import { getTenant } from "@/lib/tenant";
 import { 
   ArrowLeft, 
   Plus, 
@@ -182,7 +183,8 @@ export default function NovaSolicitacaoCompras() {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token.access_token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 
@@ -249,7 +251,8 @@ export default function NovaSolicitacaoCompras() {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token.access_token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 
@@ -317,7 +320,8 @@ export default function NovaSolicitacaoCompras() {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token.access_token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 

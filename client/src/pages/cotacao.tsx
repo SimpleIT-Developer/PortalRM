@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { Search, RefreshCw, Filter, FileText } from "lucide-react";
+import { getTenant } from "@/lib/tenant";
 
 interface CotacaoItem {
   CODCOLIGADA: number;
@@ -102,20 +102,10 @@ export default function Cotacao() {
     try {
       setLoading(true);
       const token = AuthService.getStoredToken();
-      if (!token) {
+      if (!token || !token.environmentId) {
         toast({
           title: "Autenticação necessária",
-          description: "Faça login novamente para buscar as cotações.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const endpoint = await EndpointService.getDefaultEndpoint();
-      if (!endpoint) {
-        toast({
-          title: "Endpoint não configurado",
-          description: "Selecione um ambiente válido antes de buscar.",
+          description: "Faça login novamente e selecione um ambiente para buscar as cotações.",
           variant: "destructive",
         });
         return;
@@ -136,9 +126,12 @@ export default function Cotacao() {
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.022/${codColigada}/T?parameters=${parameters}`;
 
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
-          token.access_token
-        )}`
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}`, {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        }
       );
 
       if (!response.ok) {

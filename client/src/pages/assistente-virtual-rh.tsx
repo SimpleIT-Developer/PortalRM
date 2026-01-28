@@ -58,6 +58,7 @@ export default function AssistenteVirtualRH() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         },
         body: JSON.stringify({
           action: 'loadPreviousSession',
@@ -128,6 +129,7 @@ export default function AssistenteVirtualRH() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         },
         body: JSON.stringify({
           action: 'sendMessage',

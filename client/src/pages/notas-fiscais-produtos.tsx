@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
+import { EnvironmentConfigService } from "@/lib/environment-config";
 import { useToast } from "@/hooks/use-toast";
 import { Search, RefreshCw, Filter, FileText } from "lucide-react";
+import { getTenant } from "@/lib/tenant";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -111,26 +112,16 @@ export default function NotasFiscaisProdutos() {
     try {
       setLoading(true);
       const token = AuthService.getStoredToken();
-      if (!token) {
+      if (!token || !token.environmentId) {
         toast({
           title: "Autenticação necessária",
-          description: "Faça login novamente para buscar as notas fiscais.",
+          description: "Faça login novamente ou selecione um ambiente para buscar as notas fiscais.",
           variant: "destructive",
         });
         return;
       }
 
-      const endpoint = await EndpointService.getDefaultEndpoint();
-      if (!endpoint) {
-        toast({
-          title: "Endpoint não configurado",
-          description: "Selecione um ambiente válido antes de buscar.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const movements = EndpointService.getNfProductMovements();
+      const movements = EnvironmentConfigService.getNfProductMovements();
       if (!movements || movements.length === 0) {
         toast({
           title: "Movimentos não configurados",
@@ -164,9 +155,13 @@ export default function NotasFiscaisProdutos() {
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.021/${codColigada}/T?parameters=${parameters}`;
 
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
           token.access_token
-        )}`
+        )}`, {
+          headers: {
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        }
       );
 
       if (!response.ok) {
@@ -211,10 +206,7 @@ export default function NotasFiscaisProdutos() {
 
     try {
       const token = AuthService.getStoredToken();
-      if (!token) return;
-
-      const endpoint = await EndpointService.getDefaultEndpoint();
-      if (!endpoint) return;
+      if (!token || !token.environmentId) return;
 
       let codColigada = "1";
       try {
@@ -230,9 +222,13 @@ export default function NotasFiscaisProdutos() {
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.010/${codColigada}/T?parameters=${parameters}`;
 
       const response = await fetch(
-        `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
+        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(
           token.access_token
-        )}`
+        )}`, {
+          headers: {
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        }
       );
 
       if (response.ok) {

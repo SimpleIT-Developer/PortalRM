@@ -1,4 +1,5 @@
 import { AuthService } from './auth';
+import { getTenant } from './tenant';
 
 export interface UserPermissions {
   MNUSC: number;
@@ -21,25 +22,21 @@ export class PermissionsService {
   static async getUserPermissions(username: string): Promise<UserPermissions | null> {
     try {
       const token = AuthService.getStoredToken();
-      if (!token || !token.access_token) {
+      if (!token || !token.access_token || !token.environmentId) {
         console.error('Token não encontrado para consulta de permissões');
         return null;
       }
 
-      const endpoint = token.endpoint;
-      if (!endpoint) {
-        console.error('Endpoint não configurado no token');
-        return null;
-      }
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.002/1/T?parameters=CODUSUARIO=${username}`;
       
       // Consulta via proxy backend para evitar problemas de CORS
       console.log("🔗 Consultando permissões via proxy backend");
       
-      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`, {
+      const response = await fetch(`/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
 

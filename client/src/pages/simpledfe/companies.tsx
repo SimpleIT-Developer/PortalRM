@@ -87,6 +87,7 @@ export default function CompaniesPage() {
       const response = await fetch(`/api/companies?${params}`, {
         headers: {
           Authorization: `Bearer ${AuthService.getStoredToken()?.access_token || ""}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {}),
         },
       });
       if (!response.ok) {

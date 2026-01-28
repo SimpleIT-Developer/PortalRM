@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, RefreshCw, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getTenant } from "@/lib/tenant";
 import type { NFSeRecebida, NFSeResponse } from "@shared/schema";
 
 // Função para formatar CNPJ/CPF
@@ -88,7 +89,11 @@ export default function NFSeRecebidasPage() {
         sortOrder
       });
       
-      const response = await fetch(`/api/nfse-recebidas?${params}`);
+      const response = await fetch(`/api/nfse-recebidas?${params}`, {
+        headers: {
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
+        }
+      });
       if (!response.ok) {
         throw new Error("Erro ao carregar NFSe recebidas");
       }

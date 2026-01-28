@@ -7,45 +7,57 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AuthService } from "@/lib/auth";
-import { EndpointService } from "@/lib/endpoint";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Loader2 } from "lucide-react";
+import { getTenant } from "@/lib/tenant";
 
 interface Coligada {
   CODCOLIGADA: number;
   NOMEFANTASIA: string;
 }
 
-export function ColigadaSelector() {
+interface ColigadaSelectorProps {
+  value?: string;
+  onChange?: (value: string) => void;
+}
+
+export function ColigadaSelector({ value, onChange }: ColigadaSelectorProps = {}) {
   const [coligadas, setColigadas] = useState<Coligada[]>([]);
-  const [selectedColigada, setSelectedColigada] = useState<string>("");
+  const [internalValue, setInternalValue] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const isControlled = value !== undefined;
+  const selectedColigada = isControlled ? value : internalValue;
+
   useEffect(() => {
+    if (isControlled) return;
     try {
       const saved = localStorage.getItem("selected_coligada");
       if (saved) {
-        setSelectedColigada(saved);
+        setInternalValue(saved);
       }
     } catch (error) {
       console.error("Erro ao recuperar coligada selecionada:", error);
     }
-  }, []);
+  }, [isControlled]);
 
   useEffect(() => {
     const fetchColigadas = async () => {
       setLoading(true);
       try {
-        const endpoint = await EndpointService.getDefaultEndpoint();
         const token = AuthService.getStoredToken();
 
-        if (!token) return;
+        if (!token || !token.environmentId) return;
 
         const path = "/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.003/1/T";
-        const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+        const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
-        const response = await fetch(fullUrl);
+        const response = await fetch(fullUrl, {
+          headers: {
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+          }
+        });
         if (!response.ok) throw new Error("Falha ao buscar coligadas");
 
         const data = await response.json();
@@ -53,8 +65,13 @@ export function ColigadaSelector() {
 
         if (Array.isArray(data)) {
           items = data;
+        } else if (data && Array.isArray(data.data)) {
+          items = data.data;
         } else if (data && typeof data === 'object') {
-          items = [data as Coligada];
+          // Fallback para quando retorna um único objeto que pode ser a coligada
+          if (data.CODCOLIGADA) {
+             items = [data as Coligada];
+          }
         }
 
         const filtered = items.filter((item: any) => 
@@ -66,7 +83,14 @@ export function ColigadaSelector() {
         setColigadas(filtered);
         
         if (filtered.length > 0 && !selectedColigada) {
-          setSelectedColigada(String(filtered[0].CODCOLIGADA));
+            const firstValue = String(filtered[0].CODCOLIGADA);
+            if (!isControlled) {
+                setInternalValue(firstValue);
+                try {
+                    localStorage.setItem("selected_coligada", firstValue);
+                } catch {}
+            }
+            onChange?.(firstValue);
         }
 
       } catch (error) {
@@ -84,13 +108,16 @@ export function ColigadaSelector() {
     fetchColigadas();
   }, []); // Executa apenas na montagem
 
-  const handleChange = (value: string) => {
-    setSelectedColigada(value);
-    try {
-      localStorage.setItem("selected_coligada", value);
-    } catch (error) {
-      console.error("Erro ao salvar coligada selecionada:", error);
+  const handleChange = (newValue: string) => {
+    if (!isControlled) {
+      setInternalValue(newValue);
+      try {
+        localStorage.setItem("selected_coligada", newValue);
+      } catch (error) {
+        console.error("Erro ao salvar coligada selecionada:", error);
+      }
     }
+    onChange?.(newValue);
   };
 
   return (

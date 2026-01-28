@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Download, RefreshCw, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, ArrowUpDown, ArrowUp, ArrowDown, Printer, Upload, Square } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getTenant } from "@/lib/tenant";
 import type { NFSeRecebida, NFSeResponse } from "@shared/schema";
 
 // Função para formatar CNPJ/CPF
@@ -96,7 +97,11 @@ export default function NFSeRecebidasPage() {
         sortOrder
       });
       
-      const response = await fetch(`/api/nfse-recebidas?${params}`);
+      const response = await fetch(`/api/nfse-recebidas?${params}`, {
+        headers: {
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
+        }
+      });
       if (!response.ok) {
         throw new Error("Erro ao carregar NFSe recebidas");
       }
@@ -116,6 +121,7 @@ export default function NFSeRecebidasPage() {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
       });
 
@@ -175,7 +181,8 @@ export default function NFSeRecebidasPage() {
       
       const response = await fetch(`/api/nfse-danfse/${nfse.nfse_id}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         }
       });
 
@@ -375,6 +382,7 @@ export default function NFSeRecebidasPage() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
         body: JSON.stringify({ nfseIds }),
       });
@@ -428,6 +436,7 @@ export default function NFSeRecebidasPage() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
         body: JSON.stringify({ nfseIds }),
       });

@@ -1,5 +1,5 @@
 import { AuthService } from "./auth";
-import { EndpointService } from "./endpoint";
+import { getTenant } from "@/lib/tenant";
 
 const getReadRecordSoap = (sentenceId: string) => {
   return `
@@ -21,7 +21,11 @@ const getReadRecordSoap = (sentenceId: string) => {
 export const StartupCheckService = {
   async fetchSentences(): Promise<string[]> {
     try {
-      const response = await fetch('/api/config/sentences');
+      const response = await fetch('/api/config/sentences', {
+        headers: {
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+        }
+      });
       if (!response.ok) {
         console.warn("Falha ao carregar lista de sentenças, usando lista padrão vazia.");
         return [];
@@ -35,11 +39,14 @@ export const StartupCheckService = {
   },
 
   async checkConfiguration(onProgress?: (sentence: string, current: number, total: number) => void): Promise<{ success: boolean; missing: string[] }> {
-    const endpoint = await EndpointService.getDefaultEndpoint();
     const token = AuthService.getStoredToken();
 
     if (!token || !token.access_token) {
       throw new Error("Usuário não autenticado");
+    }
+
+    if (!token.environmentId) {
+       throw new Error("Ambiente não identificado no token");
     }
 
     const requiredSentences = await StartupCheckService.fetchSentences();
@@ -65,12 +72,13 @@ export const StartupCheckService = {
       try {
         const soapXml = getReadRecordSoap(sentenceId);
         const soapPath = "/wsDataServer/IwsDataServer";
-        const proxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
 
         const response = await fetch(proxyUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
           },
           body: JSON.stringify({
             xml: soapXml,

@@ -1,5 +1,6 @@
 import { TotvsLoginRequest, TotvsRefreshRequest, TotvsTokenResponse } from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
+import { getTenant } from "@/lib/tenant";
 
 // Endpoint configurations
 const TOKEN_ENDPOINT = "/api/connect/token";
@@ -7,7 +8,8 @@ const TOKEN_ENDPOINT = "/api/connect/token";
 export interface StoredToken extends TotvsTokenResponse {
   timestamp: number;
   username: string;
-  endpoint: string;
+  environmentId: string;
+  tenantKey?: string;
   expires_at?: string;
 }
 
@@ -24,21 +26,24 @@ export class AuthenticationError extends Error {
 export class AuthService {
   private static readonly TOKEN_KEY = "totvs_token";
 
-  static async authenticate(credentials: TotvsLoginRequest & { endpoint: string }): Promise<TotvsTokenResponse> {
+  static async authenticate(credentials: TotvsLoginRequest & { environmentId: string, tenantKey?: string }): Promise<TotvsTokenResponse> {
     console.log("🔗 Autenticando via proxy backend");
-    console.log("📤 Dados da requisição:", credentials);
+    console.log("📤 Dados da requisição:", { ...credentials, password: "***" });
     
+    const tenantKey = credentials.tenantKey || getTenant();
+
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(tenantKey ? { 'X-Tenant': tenantKey } : {})
         },
         body: JSON.stringify(credentials),
       });
       
       console.log("📥 Resposta do proxy - Status:", response.status);
-      return await this.handleAuthResponse(response, credentials.endpoint);
+      return await this.handleAuthResponse(response, credentials.environmentId);
       
     } catch (error) {
       console.error("❌ Erro na requisição:", error);
@@ -120,32 +125,34 @@ export class AuthService {
     console.log("Tamanho do refresh token:", refreshTokenValue.length);
 
     try {
-      // Verificar se o endpoint está correto
-      if (!currentToken.endpoint) {
-        throw new Error("Endpoint não definido no token atual");
+      // Verificar se o ambiente está correto
+      if (!currentToken.environmentId) {
+        throw new Error("Ambiente não definido no token atual");
       }
       
-      const tokenUrl = `${currentToken.endpoint}${TOKEN_ENDPOINT}`;
-      console.log(`Enviando requisição para ${tokenUrl}`);
+      console.log(`Renovando token para ambiente ${currentToken.environmentId}`);
       
       // Log dos dados enviados para debug
       const requestBody = JSON.stringify(refreshRequest);
       console.log("Dados da requisição:", {
-        url: tokenUrl,
+        environmentId: currentToken.environmentId,
         headers: { "Content-Type": "application/json" },
-        body: refreshRequest,
-        bodyString: requestBody
+        body: refreshRequest
       });
       
       // Usar proxy backend para evitar problemas de CORS
       console.log("🔄 Usando proxy backend para renovar token");
+      
+      const tenantKey = currentToken.tenantKey || getTenant();
+      
       const response = await fetch("/api/auth/refresh", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(tenantKey ? { 'X-Tenant': tenantKey } : {})
         },
         body: JSON.stringify({
-          endpoint: currentToken.endpoint,
+          environmentId: currentToken.environmentId,
           ...refreshRequest
         }),
       });
@@ -202,13 +209,14 @@ export class AuthService {
         ...newTokenData,
         timestamp,
         username: currentToken.username,
-        endpoint: currentToken.endpoint,
+        environmentId: currentToken.environmentId,
+        tenantKey: currentToken.tenantKey,
         expires_at,
       };
       
       // Verificar se o novo token tem todos os campos necessários
-      if (!newStoredToken.username || !newStoredToken.endpoint) {
-        console.error("Novo token sem username ou endpoint");
+      if (!newStoredToken.username || !newStoredToken.environmentId) {
+        console.error("Novo token sem username ou environmentId");
         throw new Error("Erro ao criar novo token: dados incompletos");
       }
       
@@ -220,44 +228,23 @@ export class AuthService {
     }
   }
 
-  static async refreshTokenLegacy(refreshTokenRequest: TotvsRefreshRequest, endpoint: string): Promise<TotvsTokenResponse> {
-    const response = await fetch(`${endpoint}${TOKEN_ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(refreshTokenRequest),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error((errorData as any).error_description || `Erro ao renovar token: ${response.status}`);
-    }
-
-    return await response.json();
-  }
-
   /**
    * Armazena o token no localStorage
    * @param tokenData O token a ser armazenado
    * @param username O nome de usuário (opcional se tokenData for StoredToken)
-   * @param endpoint O endpoint da API (opcional se tokenData for StoredToken)
+   * @param environmentId O ID do ambiente (opcional se tokenData for StoredToken)
+   * @param tenantKey O ID do tenant (opcional se tokenData for StoredToken)
    */
-  /**
-   * Armazena o token no localStorage
-   * @param tokenData O token a ser armazenado
-   * @param username O nome de usuário (opcional se tokenData for StoredToken)
-   * @param endpoint O endpoint da API (opcional se tokenData for StoredToken)
-   */
-  static storeToken(tokenData: TotvsTokenResponse | StoredToken, username?: string, endpoint?: string): void {
+  static storeToken(tokenData: TotvsTokenResponse | StoredToken, username?: string, environmentId?: string, tenantKey?: string): void {
     try {
       if (!tokenData) {
         console.error("Tentativa de armazenar token nulo");
         return;
       }
       
-      // Se tokenData já for um StoredToken, preservamos seus valores de username e endpoint
-      const isStoredToken = 'username' in tokenData && 'endpoint' in tokenData;
+      // Se tokenData já for um StoredToken, preservamos seus valores de username e environmentId
+      const isStoredToken = 'username' in tokenData && 'environmentId' in tokenData;
+      const existingTenantKey = isStoredToken ? (tokenData as StoredToken).tenantKey : undefined;
       
       // Verificar se temos expires_in para calcular expires_at
       if (!tokenData.expires_in) {
@@ -272,7 +259,8 @@ export class AuthService {
         ...tokenData,
         timestamp,
         username: isStoredToken ? (tokenData as StoredToken).username : (username as string),
-        endpoint: isStoredToken ? (tokenData as StoredToken).endpoint : (endpoint as string),
+        environmentId: isStoredToken ? (tokenData as StoredToken).environmentId : (environmentId as string),
+        tenantKey: tenantKey || existingTenantKey || getTenant(),
         expires_at,
       };
       
@@ -282,8 +270,8 @@ export class AuthService {
         return;
       }
       
-      if (!storedToken.username || !storedToken.endpoint) {
-        console.error("Tentativa de armazenar token sem username ou endpoint");
+      if (!storedToken.username || !storedToken.environmentId) {
+        console.error("Tentativa de armazenar token sem username ou environmentId");
         return;
       }
       
@@ -310,7 +298,7 @@ export class AuthService {
       const parsedToken = JSON.parse(stored) as StoredToken;
       
       // Verificar se o token tem todos os campos necessários
-      if (!parsedToken.access_token || !parsedToken.username || !parsedToken.endpoint) {
+      if (!parsedToken.access_token || !parsedToken.username || !parsedToken.environmentId) {
         console.warn("Token armazenado está incompleto");
         return null;
       }
@@ -408,7 +396,7 @@ export class AuthService {
           access_token: token.access_token ? "[presente]" : "[ausente]",
           refresh_token: token.refresh_token ? "[presente]" : "[ausente]",
           username: token.username,
-          endpoint: token.endpoint
+          environmentId: token.environmentId
         });
         toast({
           title: "Erro",
@@ -424,9 +412,9 @@ export class AuthService {
         ultimos10: "..." + token.refresh_token.substring(token.refresh_token.length - 10)
       });
       
-      // Verificar se o token tem endpoint
-      if (!token.endpoint || token.endpoint.trim() === "") {
-        console.error("Não foi possível renovar o token: endpoint não encontrado ou vazio");
+      // Verificar se o token tem environmentId
+      if (!token.environmentId || token.environmentId.trim() === "") {
+        console.error("Não foi possível renovar o token: environmentId não encontrado ou vazio");
         toast({
           title: "Erro",
           description: "Não foi possível renovar o token, faça o login novamente.",

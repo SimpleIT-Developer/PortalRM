@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { AuthService } from "@/lib/auth";
+import { getTenant } from "@/lib/tenant";
 // import { Layout } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,7 @@ function FornecedoresPage() {
       const response = await fetch(`/api/fornecedores?${params}`, {
         headers: {
           Authorization: `Bearer ${AuthService.getStoredToken()?.access_token || ""}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
       });
       if (!response.ok) {
@@ -151,6 +153,7 @@ function FornecedoresPage() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         },
         body: JSON.stringify({ 
           fornecedorId: fornecedor.id
@@ -220,7 +223,8 @@ function FornecedoresPage() {
     try {
       const response = await fetch(`/api/fornecedores/soap-logs/${fornecedor.cnpj.replace(/[^\d]/g, '')}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         }
       });
       const data = await response.json();
@@ -256,7 +260,8 @@ function FornecedoresPage() {
       const response = await fetch(`/api/fornecedores/soap-logs/${fornecedorSelecionadoLogs.cnpj.replace(/[^\d]/g, '')}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(getTenant() ? { "X-Tenant": getTenant()! } : {})
         }
       });
       const data = await response.json();
