@@ -1,0 +1,20 @@
+{
+  "title": "Funcionalidades do Sistema",
+  "features": [
+    {
+      "title": "Conciliação Bancária",
+      "description": "Importe arquivos OFX do banco e faça sua conciliação direto pela Web com uma interface amigável.",
+      "category": "Gestão Financeira"
+    },
+    {
+      "title": "Recebimento de NF pelo XML",
+      "description": "Uma forma mais simples e descomplicada de receber a sua NOTA FISCAL pelo XML sem complicações.",
+      "category": "Gestão Fiscal"
+    },
+    {
+      "title": "Aprovação de Borderô de Pagamento",
+      "description": "Aprove os borderôs de pagamento diretamente pela Web ou pelo aplicativo móvel, com um processo simples e eficiente.",
+      "category": "Gestão Financeira"
+    }
+  ]
+}

@@ -25,6 +25,24 @@ interface CreateTenantDTO {
 
 import { ConfigUser } from '../models/ConfigUser';
 
+function normalizeConfigMap(input: any): Record<string, boolean> {
+  const source = input && typeof input === 'object' ? input : {};
+  const out: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(source)) {
+    const normalizedKey = key.replace(/_/g, '-');
+    const isHyphenKey = key === normalizedKey;
+    const boolValue = Boolean(value);
+    if (!(normalizedKey in out)) {
+      out[normalizedKey] = boolValue;
+      continue;
+    }
+    if (isHyphenKey) {
+      out[normalizedKey] = boolValue;
+    }
+  }
+  return out;
+}
+
 export class TenantService {
   /**
    * Sincroniza ambientes do ConfigUser (legado) para o Tenant.
@@ -58,7 +76,7 @@ export class TenantService {
           webserviceBaseUrl: env.URLWS || "",
           restBaseUrl: "", // Não tem no legado
           authMode: 'bearer',
-          modules: env.MODULOS || {},
+          modules: normalizeConfigMap(env.MODULOS),
           MOVIMENTOS_SOLICITACAO_COMPRAS: env.MOVIMENTOS_SOLICITACAO_COMPRAS || [],
           MOVIMENTOS_ORDEM_COMPRA: env.MOVIMENTOS_ORDEM_COMPRA || [],
           MOVIMENTOS_NOTA_FISCAL_PRODUTO: env.MOVIMENTOS_NOTA_FISCAL_PRODUTO || [],
@@ -137,15 +155,15 @@ export class TenantService {
         webserviceBaseUrl: data.initialEnvironment?.webserviceBaseUrl || "",
         authMode: data.initialEnvironment?.authMode || 'bearer',
         modules: {
-            dashboard_principal: true,
-            simpledfe: true,
-            gestao_compras: true,
-            gestao_financeira: true,
-            gestao_contabil: true,
-            gestao_fiscal: true,
-            gestao_rh: true,
-            assistentes_virtuais: true,
-            parametros: true
+            "dashboard-principal": true,
+            "simpledfe": true,
+            "gestao-compras": true,
+            "gestao-financeira": true,
+            "gestao-contabil": true,
+            "gestao-fiscal": true,
+            "gestao-rh": true,
+            "assistentes-virtuais": true,
+            "parametros": true
         }
       };
 
@@ -307,7 +325,16 @@ export class TenantService {
       if (envData.soapDataServerUrl !== undefined) env.soapDataServerUrl = envData.soapDataServerUrl;
       if (envData.authMode) env.authMode = envData.authMode;
       if (envData.tokenEndpoint !== undefined) env.tokenEndpoint = envData.tokenEndpoint;
-      if (envData.modules) env.modules = envData.modules;
+      
+      if (envData.modules) {
+          env.modules = new Map(Object.entries(normalizeConfigMap(envData.modules))) as any;
+          tenant.markModified('environments');
+      }
+      
+      if (envData.menus) {
+          env.menus = new Map(Object.entries(normalizeConfigMap(envData.menus))) as any;
+          tenant.markModified('environments');
+      }
       
       // Arrays
       if (envData.MOVIMENTOS_SOLICITACAO_COMPRAS) env.MOVIMENTOS_SOLICITACAO_COMPRAS = envData.MOVIMENTOS_SOLICITACAO_COMPRAS;

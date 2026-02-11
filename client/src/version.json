@@ -1,0 +1,11 @@
+{
+  "version": "2025-10-29 v.3",
+  "title": "Portal RM - Última Atualização",
+  "updates": [
+    {
+      "date": "18/10/2025",
+      "type": "Melhoria",
+      "description": "Foi realizada a migração dos servidores para uma nova infraestrutura, visando otimizar o desempenho das integrações e corrigir instabilidades que vinham ocorrendo em alguns processos do sistema."
+    }
+  ]
+}

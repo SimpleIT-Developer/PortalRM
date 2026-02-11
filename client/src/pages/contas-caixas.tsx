@@ -32,6 +32,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { getTenant } from "@/lib/tenant";
+import { ColigadaSelector } from "@/components/coligada-selector";
 
 interface Metadata {
   COLUNA: string;
@@ -65,6 +67,7 @@ export default function ContasCaixas() {
   const [selectedItem, setSelectedItem] = useState<ContaCaixa | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const [coligada, setColigada] = useState<number>(1);
 
   // State for pattern replication
   const [search, setSearch] = useState("");
@@ -87,7 +90,7 @@ export default function ContasCaixas() {
       }
 
       // Fetch Metadata
-      const metadataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.016/1/T?parameters=TABELA=FCXA`;
+      const metadataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.016/${coligada}/T?parameters=TABELA=FCXA`;
       const metadataResponse = await fetch(
         `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(metadataPath)}&token=${encodeURIComponent(token.access_token)}`,
         {
@@ -103,7 +106,7 @@ export default function ContasCaixas() {
       }
 
       // Fetch Data
-      const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.017/1/T`;
+      const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.017/${coligada}/T`;
       const dataResponse = await fetch(
         `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
         {
@@ -115,16 +118,25 @@ export default function ContasCaixas() {
 
       if (dataResponse.ok) {
         const dataJson = await dataResponse.json();
-        setData(dataJson);
+        
+        let items: ContaCaixa[] = [];
+        if (Array.isArray(dataJson)) {
+            items = dataJson;
+        } else if (dataJson && Array.isArray(dataJson.data)) {
+            items = dataJson.data;
+        }
+        
+        setData(items);
       } else {
         throw new Error("Falha ao carregar dados");
       }
 
     } catch (error) {
       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os dados das contas/caixas.",
+        description: `Não foi possível carregar os dados das contas/caixas: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -134,7 +146,7 @@ export default function ContasCaixas() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [coligada]);
 
   // Filter, Sort, Paginate
   const filteredData = useMemo(() => {
@@ -259,6 +271,7 @@ export default function ContasCaixas() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <ColigadaSelector value={coligada} onChange={setColigada} />
           <Badge variant="secondary" className="text-primary bg-primary/10 hover:bg-primary/20 border-primary/20">
             {filteredData.length} registros
           </Badge>

@@ -54,6 +54,7 @@ export default function LoginPage() {
         
         // Propagar configurações para o EnvironmentConfigService
         if (selectedEnvironment.modules) EnvironmentConfigService.saveEnabledModules(selectedEnvironment.modules);
+        EnvironmentConfigService.saveEnabledMenus(selectedEnvironment.menus || null);
         
         // Movimentos
         const saveMovements = (movements: string[] | undefined, saver: (m: string[] | null) => void) => {

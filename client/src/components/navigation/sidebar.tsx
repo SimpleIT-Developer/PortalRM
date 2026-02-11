@@ -39,366 +39,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EnvironmentConfigService } from "@/lib/environment-config";
+import { MenuVisibilityService } from "@/lib/menu-visibility";
 
-export interface MenuItem {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  path?: string;
-  children?: MenuItem[];
-  inDevelopment?: boolean;
-}
-
-export const menuItems: MenuItem[] = [
-  {
-    id: "dashboard-principal",
-    label: "Dashboards",
-    icon: Home,
-    children: [
-      {
-        id: "dashboard",
-        label: "Dashboard Geral",
-        icon: Home,
-        path: "/dashboard",
-      },
-      {
-        id: "dashboard-financeiro",
-        label: "Dashboard Financeiro",
-        icon: DollarSign,
-        path: "/dashboard/financeiro",
-      },
-      {
-        id: "dashboard-compras",
-        label: "Dashboard Compras",
-        icon: ShoppingCart,
-        path: "/dashboard/compras",
-      },
-      {
-        id: "dashboard-rh",
-        label: "Dashboard RH",
-        icon: Users,
-        path: "/dashboard/rh",
-      },
-    ],
-  },
-  {
-    id: "simpledfe",
-    label: "SimpleDFe",
-    icon: FileText,
-    children: [
-      {
-        id: "simpledfe-dashboard",
-        label: "Dashboard",
-        icon: Home,
-        path: "/dashboard/simpledfe/dashboard",
-      },
-      {
-        id: "simpledfe-empresas",
-        label: "Empresas",
-        icon: Building,
-        path: "/dashboard/simpledfe/empresas",
-      },
-      {
-        id: "simpledfe-nfe",
-        label: "NFe Recebidas",
-        icon: FileText,
-        path: "/dashboard/simpledfe/nfe-recebidas",
-      },
-      {
-        id: "simpledfe-cte",
-        label: "CTe Recebidas",
-        icon: FileText,
-        path: "/dashboard/simpledfe/cte-recebidas",
-      },
-      {
-        id: "simpledfe-nfse",
-        label: "NFSe Recebidas",
-        icon: FileText,
-        path: "/dashboard/simpledfe/nfse-recebidas",
-      },
-      {
-        id: "simpledfe-fornecedores",
-        label: "Fornecedores",
-        icon: Users,
-        path: "/dashboard/simpledfe/fornecedores",
-      },
-      {
-        id: "simpledfe-relatorios",
-        label: "Relatórios",
-        icon: PieChart,
-        path: "/dashboard/simpledfe/relatorios",
-      },
-    ],
-  },
-  {
-    id: "gestao-compras",
-    label: "Gestão de Compras",
-    icon: ShoppingCart,
-    children: [
-      {
-        id: "itens",
-        label: "Itens",
-        icon: Package,
-        children: [
-          {
-            id: "produtos",
-            label: "Produtos",
-            icon: Box,
-            path: "/dashboard/produtos",
-          },
-          {
-            id: "servicos",
-            label: "Serviços",
-            icon: Wrench,
-            path: "/dashboard/servicos",
-          },
-        ],
-      },
-      {
-        id: "solicitacao-compras",
-        label: "Solicitação de Compras",
-        icon: FileText,
-        path: "/dashboard/solicitacao-compras",
-      },
-      {
-        id: "ordem-compras",
-        label: "Ordem de Compras",
-        icon: FileText,
-        path: "/dashboard/ordem-compras",
-      },
-      {
-        id: "cotacao",
-        label: "Cotação",
-        icon: FileText,
-        path: "/dashboard/cotacao",
-      },
-      {
-        id: "notas-fiscais",
-        label: "Notas Fiscais",
-        icon: FileText,
-        children: [
-          {
-            id: "notas-fiscais-produtos",
-            label: "Notas Fiscais de Produtos",
-            icon: FileText,
-            path: "/dashboard/notas-fiscais-produtos",
-          },
-          {
-            id: "notas-fiscais-servicos",
-            label: "Notas Fiscais de Serviços",
-            icon: FileText,
-            path: "/dashboard/notas-fiscais-servicos",
-          },
-        ],
-      },
-      {
-        id: "outras-movimentacoes",
-        label: "Outras Movimentações",
-        icon: FileText,
-        path: "/dashboard/outras-movimentacoes",
-      },
-      {
-        id: "importacao-xml",
-                  label: "Importação de Arquivo XML",
-                  icon: FileCode,
-                  path: "/dashboard/importacao-xml",
-                },
-              ],
-  },
-  {
-    id: "gestao-financeira",
-    label: "Gestão Financeira",
-    icon: DollarSign,
-    children: [
-      {
-        id: "contas-caixas",
-        label: "Contas/Caixas",
-        icon: Wallet,
-        path: "/dashboard/contas-caixas",
-      },
-      {
-        id: "lancamentos-contas-pagar",
-        label: "Contas a Pagar",
-        icon: ArrowDownRight,
-        path: "/dashboard/lancamentos-contas-pagar",
-      },
-      {
-        id: "lancamentos-contas-receber",
-        label: "Contas a Receber",
-        icon: ArrowUpRight,
-        path: "/dashboard/lancamentos-contas-receber",
-      },
-      {
-        id: "movimentacao-bancaria",
-        label: "Movimentação Bancária",
-        icon: Landmark,
-        path: "/dashboard/movimentacao-bancaria",
-      },
-      {
-        id: "conciliacao-bancaria",
-        label: "Conciliação Bancária",
-        icon: CheckCircle,
-        path: "/dashboard/conciliacao-bancaria",
-      },
-      {
-        id: "fluxo-caixa",
-        label: "Fluxo de Caixa",
-        icon: DollarSign,
-        path: "/dashboard/fluxo-caixa",
-      },
-      {
-        id: "aprovacao-bordero",
-        label: "Aprovação de Borderô",
-        icon: Receipt,
-        path: "/dashboard/aprovacao-bordero",
-      },
-      {
-        id: "natureza-orcamentaria",
-        label: "Natureza Orçamentária",
-        icon: PieChart,
-        path: "/dashboard/natureza-orcamentaria",
-      },
-    ],
-  },
-  {
-    id: "gestao-contabil",
-    label: "Gestão Contábil",
-    icon: Calculator,
-    children: [
-      {
-        id: "plano-contas",
-        label: "Plano de Contas",
-        icon: FileText,
-        path: "/dashboard/plano-contas",
-      },
-      {
-        id: "centro-custo",
-        label: "Centro de Custo",
-        icon: Building,
-        path: "/dashboard/centro-custo",
-      },
-      {
-        id: "lotes-contabeis",
-        label: "Lotes Contábeis",
-        icon: FileText,
-        path: "/dashboard/lotes-contabeis",
-      },
-      {
-        id: "lancamentos-contabeis",
-        label: "Lançamentos Contábeis",
-        icon: FileText,
-        path: "/dashboard/lancamentos-contabeis",
-      },
-      {
-        id: "relatorios-contabeis",
-        label: "Relatórios",
-        icon: FileText,
-        children: [
-          {
-            id: "balancete",
-            label: "Balancete",
-            icon: FileText,
-            path: "/dashboard/balancete",
-          },
-          {
-            id: "razao",
-            label: "Razão",
-            icon: FileText,
-            path: "/dashboard/razao",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "gestao-fiscal",
-    label: "Gestão Fiscal",
-    icon: Building,
-    children: [
-      {
-        id: "filiais",
-        label: "Filiais",
-        icon: Building,
-        path: "/dashboard/filiais",
-      },
-    ],
-  },
-  {
-    id: "gestao-rh",
-    label: "Gestão de RH",
-    icon: Users,
-    children: [
-      {
-        id: "cadastro-funcionarios",
-        label: "Cadastro de Funcionários",
-        icon: Users,
-        path: "/dashboard/cadastro-funcionarios",
-      },
-    ],
-  },
-  {
-    id: "assistentes-virtuais",
-    label: "Assistentes Virtuais",
-    icon: MessageCircle,
-    children: [
-      {
-        id: "assistente-virtual-financeiro",
-        label: "Assistente Virtual - Financeiro",
-        icon: MessageCircle,
-        path: "/dashboard/assistente-virtual",
-      },
-      {
-        id: "assistente-virtual-rh",
-        label: "Assistente Virtual - RH",
-        icon: MessageCircle,
-        path: "/dashboard/assistente-virtual-rh",
-      },
-    ],
-  },
-  {
-    id: "parametros",
-    label: "Parâmetros",
-    icon: Settings,
-    children: [
-      {
-        id: "tenant-settings",
-        label: "Configurações do Ambiente",
-        icon: Settings,
-        path: "/tenant-settings",
-      },
-      {
-        id: "token-info",
-        label: "Informações do Token",
-        icon: Key,
-        path: "/dashboard/token-info",
-      },
-      {
-        id: "login-log",
-        label: "Log de Login",
-        icon: FileText,
-        path: "/dashboard/login-log",
-      },
-    ],
-  },
-];
-
-interface SidebarProps {
-  className?: string;
-  isMobile?: boolean;
-  isOpen?: boolean;
-  onClose?: () => void;
-  hasGestaoComprasPermission?: boolean;
-  hasGestaoFinanceiraPermission?: boolean;
-  hasGestaoRHPermission?: boolean;
-  hasAssistenteVirtualRHPermission?: boolean;
-  hasAssistenteVirtualFinanceiroPermission?: boolean;
-  items?: MenuItem[];
-  debugInfo?: {
-    username?: string;
-    permissions?: any;
-    loading?: boolean;
-  };
-}
+import { menuItems, MenuItem } from "@/config/menu-items";
 
 export function Sidebar({ 
   className, 
@@ -435,6 +78,8 @@ export function Sidebar({
     }
   });
 
+  const [visibleItems, setVisibleItems] = useState<MenuItem[]>([]);
+
   // Salvar estado expandido no sessionStorage sempre que mudar
   useEffect(() => {
     try {
@@ -461,28 +106,43 @@ export function Sidebar({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-  
-  // Load enabled modules from localStorage
-  const [enabledModules, setEnabledModules] = useState<Record<string, boolean> | null>(() => {
-    return EnvironmentConfigService.getEnabledModules();
-  });
 
-  // Listen for module updates
+  // Update visible items based on config and permissions
   useEffect(() => {
-    const handleModuleUpdate = () => {
-      setEnabledModules(EnvironmentConfigService.getEnabledModules());
+    const updateVisibility = () => {
+      const sourceItems = items || menuItems;
+      const permissions = {
+        hasGestaoComprasPermission,
+        hasGestaoFinanceiraPermission,
+        hasGestaoRHPermission,
+        hasAssistenteVirtualRHPermission,
+        hasAssistenteVirtualFinanceiroPermission
+      };
+      
+      const filtered = MenuVisibilityService.getVisibleItems(sourceItems, permissions);
+      setVisibleItems(filtered);
     };
 
-    window.addEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleModuleUpdate);
+    updateVisibility();
+
+    const handleUpdate = () => updateVisibility();
+    window.addEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleUpdate);
+    window.addEventListener(EnvironmentConfigService.MENUS_UPDATED_EVENT, handleUpdate);
+    
     return () => {
-      window.removeEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleModuleUpdate);
+      window.removeEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleUpdate);
+      window.removeEventListener(EnvironmentConfigService.MENUS_UPDATED_EVENT, handleUpdate);
     };
-  }, []);
+  }, [
+    items, 
+    hasGestaoComprasPermission, 
+    hasGestaoFinanceiraPermission, 
+    hasGestaoRHPermission,
+    hasAssistenteVirtualRHPermission,
+    hasAssistenteVirtualFinanceiroPermission
+  ]);
 
-  const displayedItems = (items || menuItems).filter(item => {
-    if (!enabledModules) return true;
-    return enabledModules[item.id] !== false;
-  });
+  const displayedItems = visibleItems;
 
   const toggleExpanded = (itemId: string, event?: React.MouseEvent) => {
     // Se estiver colapsado e o usuário clicar em um item pai, expandir a sidebar
@@ -512,23 +172,23 @@ export function Sidebar({
     
     setIsToggling(true);
     
-    // Se for o menu de Gestão de Compras e não tiver permissão, não permitir expansão
-    if ((itemId === 'gestao-compras' || itemId === 'simpledfe') && !hasGestaoComprasPermission) {
-      setIsToggling(false);
-      return;
-    }
+    // Se for o menu de Gestão de Compras e não tiver permissão, permitir expansão mas manter indicador visual
+    // if ((itemId === 'gestao-compras' || itemId === 'simpledfe') && !hasGestaoComprasPermission) {
+    //   setIsToggling(false);
+    //   return;
+    // }
     
-    // Se for o menu de Gestão Financeira e não tiver permissão, não permitir expansão
-    if (itemId === 'gestao-financeira' && !hasGestaoFinanceiraPermission) {
-      setIsToggling(false);
-      return;
-    }
+    // Se for o menu de Gestão Financeira e não tiver permissão, permitir expansão mas manter indicador visual
+    // if (itemId === 'gestao-financeira' && !hasGestaoFinanceiraPermission) {
+    //   setIsToggling(false);
+    //   return;
+    // }
     
-    // Se for o menu de Gestão de RH e não tiver permissão, não permitir expansão
-    if (itemId === 'gestao-rh' && !hasGestaoRHPermission) {
-      setIsToggling(false);
-      return;
-    }
+    // Se for o menu de Gestão de RH e não tiver permissão, permitir expansão mas manter indicador visual
+    // if (itemId === 'gestao-rh' && !hasGestaoRHPermission) {
+    //   setIsToggling(false);
+    //   return;
+    // }
     
     // Removida a condição que impedia a expansão do menu de Assistentes Virtuais sem permissão
     // Agora o menu pode ser expandido mesmo sem permissão, mostrando os sub-menus com cadeados
@@ -544,14 +204,6 @@ export function Sidebar({
   };
 
   const renderMenuItem = (item: MenuItem) => {
-    // Debug para verificar se sessionStorage está funcionando
-    if (item.id === 'assistentes-virtuais') {
-      console.log('🔄 SessionStorage test:', {
-        expandedItems,
-        isExpanded: expandedItems.includes(item.id),
-        sessionStorage: sessionStorage.getItem('sidebar-expanded-items')
-      });
-    }
     const isActive = item.path === location;
     const Icon = item.icon;
     const hasChildren = item.children && item.children.length > 0;
@@ -572,11 +224,12 @@ export function Sidebar({
       const buttonContent = (
           <Button
             variant="ghost"
-            disabled={isDisabled}
+            // Não desabilitar o botão para permitir expansão e visualização dos submenus
+            // disabled={isDisabled}
             className={cn(
               "w-full justify-start text-left h-auto py-2.5 px-4",
               isDisabled 
-                ? "opacity-50 cursor-not-allowed text-muted-foreground" 
+                ? "text-muted-foreground" // Apenas mudar a cor, não a opacidade total
                 : "hover:bg-muted/50",
               isCollapsed && "px-2 justify-center"
             )}
@@ -630,22 +283,49 @@ export function Sidebar({
           {isExpanded && !isCollapsed && item.children && (
             <div className="pl-5 mt-2 space-y-2">
               {item.children
+                .filter(child => {
+                  // Se não houver configuração de menus, mostrar tudo
+                  if (!enabledMenus) return true;
+                  
+                  const childState = getMenuState(child.id);
+
+                  // Debug para itens específicos
+                  if (item.id === 'gestao-compras' || item.id === 'parametros') {
+                      console.log(`[Sidebar] Filtering child ${child.id} of ${item.id}: state=${childState}`, {
+                          enabledMenusKeys: enabledMenus ? Object.keys(enabledMenus) : 'null',
+                          explicitValue: enabledMenus ? enabledMenus[child.id] : 'N/A'
+                      });
+                  }
+
+                  // 1. Se estiver explicitamente habilitado, mostrar
+                  if (childState === true) return true;
+
+                  // 2. Se estiver explicitamente desabilitado
+                  if (childState === false) {
+                      // Verificar se tem filhos explicitamente habilitados (ou padrão/undefined)
+                      if (child.children && child.children.length > 0) {
+                          return child.children.some(grandchild => getMenuState(grandchild.id) !== false);
+                      }
+                      return false;
+                  }
+
+                  // 3. Se estiver indefinido (implícito)
+                  // Assumimos habilitado por padrão (true)
+                  return true;
+                })
                 .map((child, index) => {
                   const isChildActive = child.path === location;
                   const ChildIcon = child.icon;
                   const hasGrandchildren = child.children && child.children.length > 0;
                   const isChildExpanded = expandedItems.includes(child.id);
                   
-                  // Verificar se o sub-item está desabilitado por falta de permissão
-                  // Removida a verificação de permissão para Assistentes Virtuais
-                  const isChildDisabled = false;
-                  
-                  
-                  
-                
-                if (hasGrandchildren) {
-                  return (
-                    <div key={child.id} className="w-full">
+                  // Verificar se o item está desabilitado por falta de permissão
+                  // Aqui você pode adicionar lógica específica para desabilitar filhos se necessário
+                  const isChildDisabled = false; // Por enquanto, não temos lógica específica para desabilitar filhos
+                  // Se tiver submenus (netos), renderizar como acordeão
+                  if (hasGrandchildren) {
+                    return (
+                      <div key={child.id} className="w-full">
                       <Button
                         variant="ghost"
                         disabled={isChildDisabled}
@@ -682,7 +362,12 @@ export function Sidebar({
                       </Button>
                       {isChildExpanded && child.children && (
                         <div className="pl-5 mt-2 space-y-2">
-                          {child.children.map(grandchild => {
+                          {child.children
+                            .filter(grandchild => {
+                                const state = getMenuState(grandchild.id);
+                                return state !== false;
+                            })
+                            .map(grandchild => {
                             const isGrandchildActive = grandchild.path === location;
                             const GrandchildIcon = grandchild.icon;
                             

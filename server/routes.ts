@@ -12,6 +12,30 @@ import { Tenant } from "./models/Tenant";
 import { PlatformAdmin } from "./models/PlatformAdmin";
 import bcrypt from "bcrypt";
 
+function toPlainObject(input: any): Record<string, any> {
+  if (!input) return {};
+  if (input instanceof Map) return Object.fromEntries(input.entries());
+  return input;
+}
+
+function normalizeConfigMap(input: any): Record<string, boolean> {
+  const source = toPlainObject(input);
+  const out: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(source)) {
+    const normalizedKey = key.replace(/_/g, "-");
+    const isHyphenKey = key === normalizedKey;
+    const boolValue = Boolean(value);
+    if (!(normalizedKey in out)) {
+      out[normalizedKey] = boolValue;
+      continue;
+    }
+    if (isHyphenKey) {
+      out[normalizedKey] = boolValue;
+    }
+  }
+  return out;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
   await connectToMongo();
@@ -43,7 +67,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: env._id,
           name: env.name,
           webserviceBaseUrl: env.webserviceBaseUrl,
-          modules: env.modules,
+          modules: normalizeConfigMap(env.modules),
+          menus: normalizeConfigMap(env.menus),
           // Parametrização de Movimentos
           MOVIMENTOS_SOLICITACAO_COMPRAS: env.MOVIMENTOS_SOLICITACAO_COMPRAS,
           MOVIMENTOS_ORDEM_COMPRA: env.MOVIMENTOS_ORDEM_COMPRA,
@@ -431,6 +456,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TOTVS API Proxy - handles CORS for all API calls
   app.get("/api/proxy", async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      res.setHeader("Surrogate-Control", "no-store");
+
       const { environmentId, path, token } = req.query;
       const tenantKey = req.headers['x-tenant'] as string;
       

@@ -31,6 +31,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getTenant } from "@/lib/tenant";
+import { useTenant } from "@/lib/tenant-context";
+import { ColigadaSelector } from "@/components/coligada-selector";
 
 export interface XmlItem {
   CODCOLIGADA: number;
@@ -127,6 +129,7 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { toast } = useToast();
+  const { selectedEnvironment } = useTenant();
 
   useEffect(() => {
     if (open) {
@@ -162,7 +165,10 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
       
       console.log("Token exists:", !!token);
 
-      if (!token || !token.environmentId) {
+      // Use environment from context if available, otherwise fallback to token (legacy)
+      const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+
+      if (!token || !currentEnvId) {
         console.error("Token não encontrado ou ambiente não selecionado.");
         toast({ title: "Erro de Autenticação", description: "Token não encontrado ou ambiente não selecionado.", variant: "destructive" });
         return;
@@ -171,7 +177,7 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
       // Use dynamic CODCOLIGADA if available, otherwise default to 1
       const coligada = xmlItem.CODCOLIGADA || 1;
       const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.009/${coligada}/T?parameters=CODCFO=${encodeURIComponent(xmlItem.CODCFO)}`;
-      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       console.log("URL de requisição:", fullUrl);
 
@@ -195,9 +201,18 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
         }
         
         // Handle "data" wrapper if present (common in some RM APIs or proxy responses)
-        const items = Array.isArray(data) ? data : (data.data || []);
+        let rawItems = Array.isArray(data) ? data : (data.data || []);
         
-        console.log("Itens retornados:", items);
+        // Normalize keys to uppercase
+        const items = rawItems.map((item: any) => {
+            const newItem: any = {};
+            Object.keys(item).forEach(key => {
+                newItem[key.toUpperCase()] = item[key];
+            });
+            return newItem;
+        });
+
+        console.log("Itens retornados (Normalizados):", items);
 
         // Filter for A (Aberto) or V (Validado/Vinculado?) as per request
         const filtered = Array.isArray(items) ? items.filter((d: any) => d.STATUS === "A" || d.STATUS === "V") : [];
@@ -226,20 +241,67 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
     setLoadingLines(true);
     try {
       const token = AuthService.getStoredToken();
-      if (!token || !token.environmentId) return;
+      
+      // Use environment from context if available, otherwise fallback to token (legacy)
+      const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+      
+      if (!token || !currentEnvId) return;
 
-      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.010/1/T?parameters=IDMOV=${selectedPo.IDMOV}`;
-      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      // Tenta pegar a coligada do PO selecionado, ou do XML (contexto), ou default 1
+      const coligada = selectedPo.CODCOLIGADA || xmlItem.CODCOLIGADA || 1;
+      
+      console.log(`Buscando itens da PO ${selectedPo.IDMOV} na Coligada ${coligada}. SelectedPo keys:`, Object.keys(selectedPo));
+
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.010/${coligada}/T?parameters=CODCOLIGADA=${coligada};IDMOV=${selectedPo.IDMOV}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       const response = await fetch(fullUrl, {
         headers: {
           ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
         }
       });
+      
       if (response.ok) {
-        const data = await response.json();
-        setPoLines(Array.isArray(data) ? data : []);
+        const responseText = await response.text();
+        console.log("Response text (lines):", responseText);
+
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+             console.error("JSON Parse Error:", e);
+             throw new Error("Invalid JSON response");
+        }
+        
+        console.log("Raw Data from API:", data);
+
+        // Handle data wrapper if present
+        let items = Array.isArray(data) ? data : (data.data || []);
+        
+        // Normalize keys to uppercase to ensure compatibility with Table rendering
+        items = items.map((item: any) => {
+            const newItem: any = {};
+            Object.keys(item).forEach(key => {
+                newItem[key.toUpperCase()] = item[key];
+            });
+            return newItem;
+        });
+
+        console.log("Itens da PO (Processados):", items);
+
+        if (items.length === 0) {
+            toast({
+                title: "Aviso - Nenhum item encontrado",
+                description: `IDMOV: ${selectedPo.IDMOV}, Coligada: ${coligada}. Verifique se a ordem possui itens pendentes no RM.`,
+                variant: "warning"
+            });
+        }
+
+        setPoLines(items);
         setStep(2);
+      } else {
+        console.error("Erro na resposta da API:", response.status, response.statusText);
+        toast({ title: "Erro", description: "Falha ao buscar itens da ordem. Status: " + response.status, variant: "destructive" });
       }
     } catch (error) {
       console.error(error);
@@ -322,7 +384,10 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
     setIsProcessing(true); // Bloqueia a interface
 
     try {
-        if (!token || !token.environmentId) {
+        // Use environment from context if available, otherwise fallback to token (legacy)
+        const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+
+        if (!token || !currentEnvId) {
             toast({ title: "Erro", description: "Ambiente não identificado no token.", variant: "destructive" });
             return;
         }
@@ -330,7 +395,7 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
         const soapXml = getFaturamentoMovimentoSoap(token.username, selectedPo.IDMOV, selectedPo.CODCOLIGADA, selectedPo.CODFILIAL);
         
         const soapPath = "/wsProcess/IwsProcess";
-        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
 
         toast({
             title: "Processando...",
@@ -343,6 +408,7 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
             },
             body: JSON.stringify({
                 xml: soapXml,
@@ -364,11 +430,14 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
                  console.log(`🚀 [2/4] ReadRecord (ID: ${xmlItem.ID})...`);
                  const readXml = getReadRecordMovDocNfeEntradaSoap(xmlItem.ID, xmlItem.CODCOLIGADA, token.username);
                  const readPath = "/wsDataServer/IwsDataServer";
-                 const readProxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(readPath)}&token=${encodeURIComponent(token.access_token)}`;
+                 const readProxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(readPath)}&token=${encodeURIComponent(token.access_token)}`;
 
                  const readResponse = await fetch(readProxyUrl, {
                      method: "POST",
-                     headers: { "Content-Type": "application/json" },
+                     headers: {
+                         "Content-Type": "application/json",
+                         ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                     },
                      body: JSON.stringify({
                          xml: readXml,
                          action: "http://www.totvs.com/IwsDataServer/ReadRecord"
@@ -450,8 +519,9 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
 
                  // 2. Buscar IDMOVDESTINO via REST
                  console.log(`🚀 [3/4] Buscando IDMOVDESTINO para IDMOV ${selectedPo.IDMOV}...`);
-                 const restPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.013/1/T?parameters=IDMOVORIGEM=${selectedPo.IDMOV}`;
-                 const restUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(restPath)}&token=${encodeURIComponent(token.access_token)}`;
+                 const coligadaDest = selectedPo.CODCOLIGADA || 1;
+                 const restPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.013/${coligadaDest}/T?parameters=IDMOVORIGEM=${selectedPo.IDMOV}`;
+                 const restUrl = `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(restPath)}&token=${encodeURIComponent(token.access_token)}`;
 
                  const restResponse = await fetch(restUrl, {
                      headers: {
@@ -499,7 +569,10 @@ const ReceiveXmlWizard = ({ xmlItem, open, onOpenChange, onBack, onSuccess }: { 
                  
                  const saveResponse = await fetch(readProxyUrl, {
                      method: "POST",
-                     headers: { "Content-Type": "application/json" },
+                     headers: {
+                         "Content-Type": "application/json",
+                         ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                     },
                      body: JSON.stringify({
                          xml: saveXml,
                          action: "http://www.totvs.com/IwsDataServer/SaveRecord"
@@ -838,6 +911,7 @@ const ReceiveXmlWithoutPoWizard = ({ xmlItem, open, onOpenChange, onBack }: { xm
   const [mappings, setMappings] = useState<{ xmlIndex: number, systemItem: SystemItem }[]>([]);
   
   const { toast } = useToast();
+  const { selectedEnvironment } = useTenant();
 
   useEffect(() => {
     if (xmlItem?.XML) {
@@ -859,14 +933,18 @@ const ReceiveXmlWithoutPoWizard = ({ xmlItem, open, onOpenChange, onBack }: { xm
     
     setLoadingSearch(true);
     try {
-      const endpoint = await EndpointService.getDefaultEndpoint();
       const token = AuthService.getStoredToken();
-      if (!token) return;
+      
+      // Use environment from context if available, otherwise fallback to token (legacy)
+      const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+
+      if (!token || !currentEnvId) return;
 
       const dataServer = searchType === "produto" ? "SIT.PORTALRM.011" : "SIT.PORTALRM.012";
-      // Removido filtro de URL para garantir compatibilidade com a consulta SQL existente
-      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/${dataServer}/1/T`;
-      const fullUrl = `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      // Use dynamic CODCOLIGADA if available, otherwise default to 1
+      const coligada = xmlItem.CODCOLIGADA || 1;
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/${dataServer}/${coligada}/T`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
       const response = await fetch(fullUrl, {
           headers: {
@@ -1243,7 +1321,59 @@ export default function ImportacaoXmlPage() {
   const [loading, setLoading] = useState(false);
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
+  const [coligada, setColigada] = useState<string>("");
   const { toast } = useToast();
+  const { selectedEnvironment } = useTenant();
+
+  const toDdMmYyyy = (dateValue: string) => {
+    const isoMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      return `${day}/${month}/${year}`;
+    }
+    const brMatch = dateValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (brMatch) return dateValue;
+    return dateValue;
+  };
+
+  const parseIsoToLocalDateStart = (dateValue: string) => {
+    const isoMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!isoMatch) return null;
+    const [, year, month, day] = isoMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0);
+  };
+
+  const parseIsoToLocalDateEnd = (dateValue: string) => {
+    const isoMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!isoMatch) return null;
+    const [, year, month, day] = isoMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day), 23, 59, 59, 999);
+  };
+
+  const parseBackendDateToLocalDate = (value: string) => {
+    const raw = value.trim();
+    const datePart = raw.includes("T") ? raw.split("T")[0] : raw;
+
+    const isoMatch = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+    }
+
+    const brMatch = datePart.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (brMatch) {
+      const [, day, month, year] = brMatch;
+      return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+    }
+
+    return null;
+  };
+
+  const formatBackendDateToPtBr = (value: string) => {
+    const parsed = parseBackendDateToLocalDate(value);
+    if (parsed) return parsed.toLocaleDateString("pt-BR");
+    return new Date(value).toLocaleDateString("pt-BR");
+  };
 
   const fetchData = useCallback(async () => {
     if (!dateStart || !dateEnd) {
@@ -1255,23 +1385,44 @@ export default function ImportacaoXmlPage() {
       return;
     }
 
+    if (!coligada) {
+      toast({ 
+        title: "Coligada Necessária", 
+        description: "Por favor, selecione uma coligada.", 
+        variant: "warning" 
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const token = AuthService.getStoredToken();
 
-      if (!token || !token.environmentId) {
+      // Use environment from context if available, otherwise fallback to token (legacy)
+      const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+
+      if (!token || !currentEnvId) {
+        toast({
+          title: "Erro de Autenticação",
+          description: "Ambiente não selecionado ou sessão expirada.",
+          variant: "destructive"
+        });
         return;
       }
 
       const parameters = [
-        `DATAINI=${dateStart}T00:00:00`,
-        `DATAFIM=${dateEnd}T23:59:59`
+        `DATAINI=${toDdMmYyyy(dateStart)}`,
+        `DATAFIM=${toDdMmYyyy(dateEnd)}`
       ].join(";");
 
-      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.008/1/T?parameters=${parameters}`;
-      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
+      const path = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.008/${coligada}/T?parameters=${parameters}`;
+      const fullUrl = `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token.access_token)}`;
 
-      const response = await fetch(fullUrl);
+      const response = await fetch(fullUrl, {
+        headers: {
+          ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         const resultItems = Array.isArray(data) ? data : (data.data || []);
@@ -1279,10 +1430,11 @@ export default function ImportacaoXmlPage() {
         // Filtragem client-side para garantir (caso o servidor ignore os parâmetros)
         const filteredItems = resultItems.filter((item: XmlItem) => {
             if (!item.DATAEMISSAO) return false;
-            // Cria datas considerando timezone local para comparação correta
-            const itemDate = new Date(item.DATAEMISSAO);
-            const startDate = new Date(`${dateStart}T00:00:00`);
-            const endDate = new Date(`${dateEnd}T23:59:59`);
+            const startDate = parseIsoToLocalDateStart(dateStart);
+            const endDate = parseIsoToLocalDateEnd(dateEnd);
+            if (!startDate || !endDate) return true;
+
+            const itemDate = parseBackendDateToLocalDate(item.DATAEMISSAO) || new Date(item.DATAEMISSAO);
             
             return itemDate >= startDate && itemDate <= endDate;
         });
@@ -1310,7 +1462,7 @@ export default function ImportacaoXmlPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast, dateStart, dateEnd]);
+  }, [toast, dateStart, dateEnd, coligada]);
 
   const columns = useMemo<ColumnDef<XmlItem>[]>(() => [
     {
@@ -1340,8 +1492,7 @@ export default function ImportacaoXmlPage() {
       cell: ({ row }) => {
           const val = row.getValue("DATAEMISSAO");
           if (!val) return <span className="text-white text-xs">-</span>;
-          const date = new Date(val as string);
-          return <span className="text-white text-xs">{date.toLocaleDateString("pt-BR")}</span>;
+          return <span className="text-white text-xs">{formatBackendDateToPtBr(String(val))}</span>;
       }
     },
     {
@@ -1450,6 +1601,10 @@ export default function ImportacaoXmlPage() {
         </CardHeader>
         <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="space-y-2">
+                    <Label>Coligada</Label>
+                    <ColigadaSelector value={coligada} onChange={setColigada} />
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="dateStart">Data Inicial</Label>
                     <Input 

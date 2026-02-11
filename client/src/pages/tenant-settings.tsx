@@ -8,22 +8,40 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Save, Building, Server, List, Box, X, ArrowLeft, Plus, Edit2, Trash2, RefreshCw } from "lucide-react";
+import { Loader2, Save, Building, Server, List, Box, X, ArrowLeft, Plus, Edit2, Trash2, RefreshCw, ChevronRight, ChevronDown } from "lucide-react";
 import { getTenant } from "@/lib/tenant";
+import { useTenant } from "@/lib/tenant-context";
+import { menuItems, MenuItem } from "@/config/menu-items";
+import { cn } from "@/lib/utils";
+import { EnvironmentConfigService } from "@/lib/environment-config";
 
-const SYSTEM_MODULES = [
-  { id: 'dashboard_principal', label: 'Dashboards' },
-  { id: 'simpledfe', label: 'SimpleDFe' },
-  { id: 'gestao_compras', label: 'Gestão de Compras' },
-  { id: 'gestao_financeira', label: 'Gestão Financeira' },
-  { id: 'gestao_contabil', label: 'Gestão Contábil' },
-  { id: 'gestao_fiscal', label: 'Gestão Fiscal' },
-  { id: 'gestao_rh', label: 'Gestão de RH' },
-  { id: 'assistentes_virtuais', label: 'Assistentes Virtuais' },
-  { id: 'parametros', label: 'Parâmetros' },
-];
+const DEFAULT_MODULES = menuItems.reduce((acc, mod) => {
+    // Only core modules are enabled by default
+    const isCore = ['dashboard-principal', 'parametros'].includes(mod.id);
+    return { ...acc, [mod.id]: isCore };
+}, {});
 
-const DEFAULT_MODULES = SYSTEM_MODULES.reduce((acc, mod) => ({ ...acc, [mod.id]: true }), {});
+// Helper to generate default menus map (all children set to false by default)
+const generateDefaultMenus = () => {
+    const menus: Record<string, boolean> = {};
+    const traverse = (item: MenuItem) => {
+        // Only core sub-menus are enabled by default if needed, but usually we rely on module level
+        // For safety, we default to false unless it's a core path
+        menus[item.id] = false;
+        if (item.children) {
+            item.children.forEach(traverse);
+        }
+    };
+    
+    menuItems.forEach(module => {
+        if (module.children) {
+            module.children.forEach(traverse);
+        }
+    });
+    return menus;
+};
+
+const DEFAULT_MENUS = generateDefaultMenus();
 
 // Helper functions for masking
 const formatCnpj = (value: string) => {
@@ -55,6 +73,7 @@ interface Environment {
     authMode: 'basic' | 'bearer';
     tokenEndpoint: string;
     modules: Record<string, boolean>;
+    menus?: Record<string, boolean>;
     MOVIMENTOS_SOLICITACAO_COMPRAS: string[];
     MOVIMENTOS_ORDEM_COMPRA: string[];
     MOVIMENTOS_NOTA_FISCAL_PRODUTO: string[];
@@ -65,6 +84,7 @@ interface Environment {
 export default function TenantSettingsPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { refreshTenant } = useTenant();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -136,7 +156,13 @@ export default function TenantSettingsPage() {
 
       // Populate Environments
       if (t.environments && Array.isArray(t.environments)) {
-          setEnvironments(t.environments);
+          // Ensure all environments have complete module/menu maps
+          const processedEnvs = t.environments.map((env: Environment) => ({
+              ...env,
+              modules: { ...DEFAULT_MODULES, ...env.modules },
+              menus: { ...DEFAULT_MENUS, ...(env.menus || {}) }
+          }));
+          setEnvironments(processedEnvs);
       } else {
           // Fallback logic if needed, but schema should handle it
           setEnvironments([]);
@@ -232,6 +258,7 @@ export default function TenantSettingsPage() {
           
           // Reload data
           loadData();
+          await refreshTenant();
 
       } catch (error: any) {
           toast({
@@ -246,15 +273,16 @@ export default function TenantSettingsPage() {
   // Environment Management
   const handleAddEnvironment = () => {
       const newEnv: Environment = {
-          tempId: Date.now().toString(),
+          tempId: crypto.randomUUID(),
           name: "Novo Ambiente",
           enabled: true,
           webserviceBaseUrl: "",
           restBaseUrl: "",
           soapDataServerUrl: "",
-          authMode: 'bearer',
+          authMode: 'basic',
           tokenEndpoint: "",
           modules: { ...DEFAULT_MODULES },
+          menus: { ...DEFAULT_MENUS },
           MOVIMENTOS_SOLICITACAO_COMPRAS: [],
           MOVIMENTOS_ORDEM_COMPRA: [],
           MOVIMENTOS_NOTA_FISCAL_PRODUTO: [],
@@ -266,7 +294,12 @@ export default function TenantSettingsPage() {
   };
 
   const handleEditEnvironment = (env: Environment) => {
-      setEditingEnv({ ...env }); // Clone to avoid direct mutation
+      // Ensure we have all keys populated when editing
+      setEditingEnv({ 
+          ...env,
+          modules: { ...DEFAULT_MODULES, ...env.modules },
+          menus: { ...DEFAULT_MENUS, ...(env.menus || {}) }
+      }); 
       setIsEnvDialogOpen(true);
   };
 
@@ -295,6 +328,7 @@ export default function TenantSettingsPage() {
           }
 
           setEnvironments(environments.filter(e => e._id !== envToDelete._id));
+          await refreshTenant();
           toast({ title: "Sucesso", description: "Ambiente excluído com sucesso." });
       } catch (error: any) {
           console.error("Erro ao excluir:", error);
@@ -310,11 +344,34 @@ export default function TenantSettingsPage() {
       if (!editingEnv || !tenantId) return;
       
       try {
+          const normalizeConfigMap = (input: Record<string, boolean> | undefined) => {
+              if (!input) return input;
+              const out: Record<string, boolean> = {};
+              for (const [key, value] of Object.entries(input)) {
+                  const normalizedKey = key.replace(/_/g, '-');
+                  const isHyphenKey = key === normalizedKey;
+                  if (!(normalizedKey in out)) {
+                      out[normalizedKey] = value;
+                      continue;
+                  }
+                  if (isHyphenKey) {
+                      out[normalizedKey] = value;
+                  }
+              }
+              return out;
+          };
+
           const headers: Record<string, string> = {
               'Content-Type': 'application/json'
           };
           const tenant = getTenant();
           if (tenant) headers['X-Tenant'] = tenant;
+
+          const payload = {
+              ...editingEnv,
+              modules: normalizeConfigMap(editingEnv.modules),
+              menus: normalizeConfigMap(editingEnv.menus)
+          };
 
           let response;
           if (editingEnv._id) {
@@ -322,14 +379,14 @@ export default function TenantSettingsPage() {
               response = await fetch(`/api/tenant/${tenantId}/environments/${editingEnv._id}`, {
                   method: 'PUT',
                   headers,
-                  body: JSON.stringify(editingEnv)
+                  body: JSON.stringify(payload)
               });
           } else {
               // Create
               response = await fetch(`/api/tenant/${tenantId}/environments`, {
                   method: 'POST',
                   headers,
-                  body: JSON.stringify(editingEnv)
+                  body: JSON.stringify(payload)
               });
           }
 
@@ -348,6 +405,14 @@ export default function TenantSettingsPage() {
               }
           });
 
+          // Se o ambiente editado for o atual, atualizar localStorage e notificar Sidebar imediatamente
+          const currentEnvId = localStorage.getItem(`selected_env_${getTenant()}`);
+          if (savedEnv._id === currentEnvId || savedEnv.id === currentEnvId) {
+              EnvironmentConfigService.saveEnabledModules(savedEnv.modules);
+              EnvironmentConfigService.saveEnabledMenus(savedEnv.menus || null);
+          }
+
+          await refreshTenant();
           setIsEnvDialogOpen(false);
           setEditingEnv(null);
           toast({ title: "Sucesso", description: "Ambiente salvo com sucesso." });
@@ -393,6 +458,82 @@ export default function TenantSettingsPage() {
   if (isLoading) {
       return <div className="flex h-screen items-center justify-center bg-[#121212] text-white"><Loader2 className="h-8 w-8 animate-spin text-yellow-500" /></div>;
   }
+
+  const ModuleItem = ({ item, level = 0 }: { item: MenuItem, level?: number }) => {
+    const isTopLevel = level === 0;
+    
+    // Fallback para chaves antigas com underscore (ex: gestao_financeira vs gestao-financeira)
+    const getModuleEnabled = (id: string) => {
+        if (!editingEnv?.modules) return false;
+        // Check for hyphenated key first (standard)
+        if (editingEnv.modules[id] !== undefined) return editingEnv.modules[id];
+        // Fallback for underscore
+        const underscoreId = id.replace(/-/g, '_');
+        return editingEnv.modules[underscoreId] ?? false;
+    };
+
+    const getMenuEnabled = (id: string) => {
+        if (!editingEnv?.menus) return false; 
+        // Check for hyphenated key first
+        if (editingEnv.menus[id] !== undefined) return editingEnv.menus[id];
+        // Fallback for underscore
+        const underscoreId = id.replace(/-/g, '_');
+        return editingEnv.menus[underscoreId] ?? false;
+    };
+
+    const isEnabled = isTopLevel 
+        ? getModuleEnabled(item.id)
+        : getMenuEnabled(item.id);
+
+    const handleToggle = (checked: boolean) => {
+        if (!editingEnv) return;
+        
+        if (isTopLevel) {
+             const normalizedId = item.id.replace(/_/g, '-');
+             const underscoreId = normalizedId.replace(/-/g, '_');
+             const nextModules = { ...editingEnv.modules };
+             delete nextModules[underscoreId];
+             delete nextModules[normalizedId];
+             setEditingEnv({
+                 ...editingEnv,
+                 modules: { ...nextModules, [normalizedId]: checked }
+             });
+        } else {
+             const normalizedId = item.id.replace(/_/g, '-');
+             const underscoreId = normalizedId.replace(/-/g, '_');
+             const nextMenus = { ...(editingEnv.menus || {}) };
+             delete nextMenus[underscoreId];
+             delete nextMenus[normalizedId];
+             setEditingEnv({
+                 ...editingEnv,
+                 menus: { ...nextMenus, [normalizedId]: checked }
+             });
+        }
+    };
+
+    const hasChildren = item.children && item.children.length > 0;
+
+    return (
+        <div className="w-full">
+            <div className={cn("flex items-center justify-between p-3 rounded-lg border-gray-700 mb-2", level === 0 ? "bg-[#2D2D2D] border" : "bg-transparent border-0 pl-0")}>
+                <Label htmlFor={`mod-${item.id}`} className={cn("cursor-pointer flex-1", level > 0 && "text-sm text-gray-300")}>{item.label}</Label>
+                <Switch 
+                    id={`mod-${item.id}`}
+                    checked={isEnabled} 
+                    onCheckedChange={handleToggle}
+                    className="data-[state=checked]:bg-yellow-500"
+                />
+            </div>
+            {hasChildren && isEnabled && (
+                <div className={cn("ml-4 pl-4 border-l border-gray-700", level === 0 && "mb-4")}>
+                    {item.children!.map(child => (
+                        <ModuleItem key={child.id} item={child} level={level + 1} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#121212] text-white p-6">
@@ -716,20 +857,9 @@ export default function TenantSettingsPage() {
 
                         {/* SUB-ABA MÓDULOS */}
                         <TabsContent value="modulos" className="py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {SYSTEM_MODULES.map((module) => (
-                                    <div key={module.id} className="flex items-center justify-between p-3 rounded-lg bg-[#2D2D2D] border border-gray-700">
-                                        <Label htmlFor={`mod-${module.id}`} className="text-gray-200 cursor-pointer flex-1">{module.label}</Label>
-                                        <Switch 
-                                            id={`mod-${module.id}`}
-                                            checked={editingEnv.modules?.[module.id] ?? true} 
-                                            onCheckedChange={(checked) => setEditingEnv({
-                                                ...editingEnv, 
-                                                modules: { ...editingEnv.modules, [module.id]: checked }
-                                            })}
-                                            className="data-[state=checked]:bg-yellow-500"
-                                        />
-                                    </div>
+                            <div className="grid grid-cols-1 gap-4">
+                                {menuItems.map((item) => (
+                                    <ModuleItem key={item.id} item={item} />
                                 ))}
                             </div>
                         </TabsContent>

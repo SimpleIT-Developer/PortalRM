@@ -1,18 +1,5 @@
 import mongoose from 'mongoose';
 
-// Schema para configuração de módulos (reutilizável)
-const modulesSchema = new mongoose.Schema({
-    dashboard_principal: { type: Boolean, default: true },
-    simpledfe: { type: Boolean, default: true },
-    gestao_compras: { type: Boolean, default: true },
-    gestao_financeira: { type: Boolean, default: true },
-    gestao_contabil: { type: Boolean, default: true },
-    gestao_fiscal: { type: Boolean, default: true },
-    gestao_rh: { type: Boolean, default: true },
-    assistentes_virtuais: { type: Boolean, default: true },
-    parametros: { type: Boolean, default: true }
-}, { _id: false });
-
 // Schema para Ambiente Individual
 const environmentSchema = new mongoose.Schema({
   name: { type: String, default: "Novo Ambiente" }, // Ex: Produção, Homologação
@@ -26,7 +13,8 @@ const environmentSchema = new mongoose.Schema({
   tokenEndpoint: { type: String, default: "" },
 
   // Módulos específicos deste ambiente
-  modules: { type: modulesSchema, default: () => ({}) },
+  modules: { type: Map, of: Boolean, default: {} },
+  menus: { type: Map, of: Boolean, default: {} },
 
   // Parametrização de Movimentos
   MOVIMENTOS_SOLICITACAO_COMPRAS: { type: [String], default: [] },
@@ -34,6 +22,9 @@ const environmentSchema = new mongoose.Schema({
   MOVIMENTOS_NOTA_FISCAL_PRODUTO: { type: [String], default: [] },
   MOVIMENTOS_NOTA_FISCAL_SERVICO: { type: [String], default: [] },
   MOVIMENTOS_OUTRAS_MOVIMENTACOES: { type: [String], default: [] }
+}, {
+  toJSON: { flattenMaps: true },
+  toObject: { flattenMaps: true }
 });
 
 const tenantSchema = new mongoose.Schema({

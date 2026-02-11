@@ -1,0 +1,11 @@
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:ReadRecord>
+         <tot:DataServerName>FinXCXData</tot:DataServerName>
+         <tot:PrimaryKey>1;1860</tot:PrimaryKey>
+         <tot:Contexto>CODCOLIGADA=1;CODUSUARIO='mestre';CODSISTEMA=F</tot:Contexto>
+      </tot:ReadRecord>
+   </soapenv:Body>
+</soapenv:Envelope>

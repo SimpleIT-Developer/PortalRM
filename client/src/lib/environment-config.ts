@@ -1,5 +1,6 @@
 export class EnvironmentConfigService {
   public static readonly MODULES_UPDATED_EVENT = 'modules_updated';
+  public static readonly MENUS_UPDATED_EVENT = 'menus_updated';
   private static readonly ORDER_MOVEMENTS_KEY = 'mov_ordem_compra';
   private static readonly NF_PRODUCT_MOVEMENTS_KEY = 'mov_nf_produto';
   private static readonly NF_SERVICE_MOVEMENTS_KEY = 'mov_nf_servico';
@@ -11,11 +12,17 @@ export class EnvironmentConfigService {
   static saveEnabledModules(modules: Record<string, boolean> | null): void {
     try {
       if (modules) {
-        // Normalizar chaves: substituir underscores por hifens para corresponder aos IDs do menu
         const normalizedModules: Record<string, boolean> = {};
         Object.entries(modules).forEach(([key, value]) => {
           const normalizedKey = key.replace(/_/g, '-');
-          normalizedModules[normalizedKey] = value;
+          const isHyphenKey = key === normalizedKey;
+          if (normalizedModules[normalizedKey] === undefined) {
+            normalizedModules[normalizedKey] = value;
+            return;
+          }
+          if (isHyphenKey) {
+            normalizedModules[normalizedKey] = value;
+          }
         });
         localStorage.setItem('enabled_modules', JSON.stringify(normalizedModules));
       } else {
@@ -37,6 +44,48 @@ export class EnvironmentConfigService {
       return saved ? JSON.parse(saved) : null;
     } catch (error) {
       console.error('Erro ao recuperar módulos habilitados:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Salva a configuração de menus habilitados
+   */
+  static saveEnabledMenus(menus: Record<string, boolean> | null): void {
+    try {
+      if (menus) {
+        const normalizedMenus: Record<string, boolean> = {};
+        Object.entries(menus).forEach(([key, value]) => {
+          const normalizedKey = key.replace(/_/g, '-');
+          const isHyphenKey = key === normalizedKey;
+          if (normalizedMenus[normalizedKey] === undefined) {
+            normalizedMenus[normalizedKey] = value;
+            return;
+          }
+          if (isHyphenKey) {
+            normalizedMenus[normalizedKey] = value;
+          }
+        });
+        localStorage.setItem('enabled_menus', JSON.stringify(normalizedMenus));
+      } else {
+        localStorage.removeItem('enabled_menus');
+      }
+      // Dispara evento para notificar componentes
+      window.dispatchEvent(new Event(this.MENUS_UPDATED_EVENT));
+    } catch (error) {
+      console.error('Erro ao salvar menus habilitados:', error);
+    }
+  }
+
+  /**
+   * Recupera a configuração de menus habilitados
+   */
+  static getEnabledMenus(): Record<string, boolean> | null {
+    try {
+      const saved = localStorage.getItem('enabled_menus');
+      return saved ? JSON.parse(saved) : null;
+    } catch (error) {
+      console.error('Erro ao recuperar menus habilitados:', error);
       return null;
     }
   }

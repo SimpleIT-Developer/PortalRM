@@ -3,7 +3,8 @@ import { useLocation, Switch, Route } from "wouter";
 import { AuthService, type StoredToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sidebar, menuItems } from "@/components/navigation/sidebar";
+import { Sidebar } from "@/components/navigation/sidebar";
+import { menuItems } from "@/config/menu-items";
 import { MobileMenuButton } from "@/components/navigation/mobile-menu-button";
 import { TokenIndicator } from "@/components/ui/token-indicator";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -66,6 +67,7 @@ import LoginLogPage from "./admin/login-log";
 import LancamentosContasReceber from "./lancamentos-contas-receber";
 import MovimentacaoBancaria from "./movimentacao-bancaria";
 import ConciliacaoBancaria from "./conciliacao-bancaria";
+import ConciliationLogsPage from "./conciliation-logs";
 import ContasCaixas from "./contas-caixas";
 
 // Import SimpleDFe pages
@@ -88,6 +90,9 @@ import {
   PieChart,
   Activity
 } from "lucide-react";
+import { ChangelogModal } from "@/components/changelog-modal";
+
+import { MenuVisibilityService } from "@/lib/menu-visibility";
 
 export default function DashboardPage() {
   const [location, setLocation] = useLocation();
@@ -103,6 +108,8 @@ export default function DashboardPage() {
     hasGestaoComprasPermission,
     hasGestaoFinanceiraPermission,
     hasGestaoRHPermission,
+    hasAssistenteVirtualRHPermission,
+    hasAssistenteVirtualFinanceiroPermission,
     loading: permissionsLoading, 
     error: permissionsError,
     permissions,
@@ -110,20 +117,40 @@ export default function DashboardPage() {
   } = usePermissions(token?.username || null);
 
   const [selectedModuleId, setSelectedModuleId] = useState<string>("dashboard-principal");
+  const [availableModules, setAvailableModules] = useState<MenuItem[]>([]);
 
   // Filtrar módulos disponíveis com base nas permissões e configuração do ambiente
-  const availableModules = menuItems.filter(item => {
-    // Verificar se o módulo está habilitado no ambiente
-    const enabledModules = EnvironmentConfigService.getEnabledModules();
-    if (enabledModules && enabledModules[item.id] === false) {
-      return false;
-    }
+  useEffect(() => {
+    const updateModules = () => {
+      const perms = {
+        hasGestaoComprasPermission,
+        hasGestaoFinanceiraPermission,
+        hasGestaoRHPermission,
+        hasAssistenteVirtualRHPermission,
+        hasAssistenteVirtualFinanceiroPermission
+      };
+      
+      const filtered = MenuVisibilityService.getVisibleItems(menuItems, perms);
+      setAvailableModules(filtered);
+    };
 
-    if (item.id === "gestao-compras") return hasGestaoComprasPermission;
-    if (item.id === "gestao-financeira") return hasGestaoFinanceiraPermission;
-    if (item.id === "gestao-rh") return hasGestaoRHPermission;
-    return true;
-  });
+    updateModules();
+
+    const handleUpdate = () => updateModules();
+    window.addEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleUpdate);
+    window.addEventListener(EnvironmentConfigService.MENUS_UPDATED_EVENT, handleUpdate);
+    
+    return () => {
+      window.removeEventListener(EnvironmentConfigService.MODULES_UPDATED_EVENT, handleUpdate);
+      window.removeEventListener(EnvironmentConfigService.MENUS_UPDATED_EVENT, handleUpdate);
+    };
+  }, [
+    hasGestaoComprasPermission,
+    hasGestaoFinanceiraPermission,
+    hasGestaoRHPermission,
+    hasAssistenteVirtualRHPermission,
+    hasAssistenteVirtualFinanceiroPermission
+  ]);
 
   // Atualizar o módulo selecionado se o atual não estiver mais disponível (ex: perdeu permissão)
   useEffect(() => {
@@ -134,7 +161,8 @@ export default function DashboardPage() {
   }, [availableModules, selectedModuleId]);
 
   // Obter os itens do sidebar para o módulo selecionado
-  const sidebarItems = menuItems.find(m => m.id === selectedModuleId)?.children || [];
+  // Usa availableModules para garantir que os itens exibidos no sidebar também respeitem a filtragem
+  const sidebarItems = availableModules.find(m => m.id === selectedModuleId)?.children || [];
 
   // Debug info para o Sidebar
   const debugInfo = {
@@ -386,6 +414,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ChangelogModal />
       {/* Header */}
       <header className="bg-card shadow-sm border-b border-border sticky top-0 z-40">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -525,6 +554,7 @@ const dashboardRoutes: Record<string, React.ComponentType<any> | (() => JSX.Elem
   '/dashboard/razao': RazaoPage,
   '/dashboard/fluxo-caixa': FluxoCaixaPage,
   '/dashboard/login-log': LoginLogPage,
+  '/dashboard/conciliation-logs': ConciliationLogsPage,
 
   // Rotas SimpleDFe
   '/dashboard/simpledfe/dashboard': SimpleDfeDashboard,

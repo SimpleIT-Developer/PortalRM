@@ -18,6 +18,8 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getTenant } from "@/lib/tenant";
 import { ColigadaSelector } from "@/components/coligada-selector";
+import { LogService } from "@/lib/log-service";
+import { useTenant } from "@/lib/tenant-context";
 
 interface ContaCaixa {
   CODCXA: string;
@@ -45,6 +47,7 @@ interface ErpTransaction {
 export default function ConciliacaoBancaria() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { selectedEnvironment } = useTenant();
   
   // Filtros
   const [coligada, setColigada] = useState<number>(1);
@@ -75,7 +78,8 @@ export default function ConciliacaoBancaria() {
       
       try {
         const token = AuthService.getStoredToken();
-        if (!token || !token.environmentId) {
+        const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+        if (!token || !currentEnvId) {
             console.error("Token ou EnvironmentId ausentes");
             return;
         }
@@ -84,7 +88,7 @@ export default function ConciliacaoBancaria() {
         console.log("URL Consulta Contas:", dataPath);
         
         const response = await fetch(
-            `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+            `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
             {
                 headers: {
                     ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
@@ -154,6 +158,11 @@ export default function ConciliacaoBancaria() {
             setDataInicial(minDateStr);
             setDataFinal(maxDateStr);
 
+            // Se já tiver conta caixa selecionada, busca automaticamente
+            if (contaCaixa) {
+                handleSearchErp(minDateStr, maxDateStr, data.transactions);
+            }
+
             toast({
                 title: "Arquivo processado",
                 description: `${data.transactions.length} transações. Período: ${format(minDate, 'dd/MM/yyyy')} a ${format(maxDate, 'dd/MM/yyyy')}`,
@@ -189,7 +198,8 @@ export default function ConciliacaoBancaria() {
     setLoading(true);
     try {
         const token = AuthService.getStoredToken();
-        if (!token || !token.environmentId) {
+        const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+        if (!token || !currentEnvId) {
              toast({ title: "Erro", description: "Ambiente não configurado", variant: "destructive" });
              return;
         }
@@ -198,19 +208,23 @@ export default function ConciliacaoBancaria() {
         const dataFinalErp = toErpDate(dataFinal);
         const params = `CODCOLIGADA=${coligada};DATA_INICIAL=${dataInicialErp};DATA_FINAL=${dataFinalErp};CODCXA=${contaCaixa}`;
         const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.023/${coligada}/T?parameters=${params}`;
+        const proxyUrl = `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}&t=${Date.now()}`;
         
         const response = await fetch(
-            `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+            proxyUrl,
             {
                 headers: {
+                    "Cache-Control": "no-cache",
+                    Pragma: "no-cache",
                     ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
-                }
+                },
+                cache: "no-store"
             }
         );
         
         if (response.ok) {
             const json = await response.json();
-            const loadedErp = Array.isArray(json) ? json : [];
+            const loadedErp = extractErpRows(json);
             setErpTransactions(loadedErp);
 
             // Auto-vincular registros já conciliados (RECONCILIADO = 1)
@@ -218,7 +232,7 @@ export default function ConciliacaoBancaria() {
             const usedOfxIds = new Set<string>();
 
             loadedErp.forEach((erpItem, erpIndex) => {
-                if (erpItem.RECONCILIADO === 1) {
+                if (Number(erpItem.RECONCILIADO) === 1) {
                     const erpValor = getErpValor(erpItem);
                     // Procura match no OFX pelo valor
                     const ofxMatch = ofxTransactions.find(ofx => {
@@ -245,19 +259,27 @@ export default function ConciliacaoBancaria() {
                 });
             }
 
-            if (!Array.isArray(json) || json.length === 0) {
+            if (loadedErp.length === 0) {
                 toast({ title: "Aviso", description: "Nenhum lançamento encontrado no ERP para este período." });
             }
         } else {
             const errorText = await response.text().catch(() => "");
+            let detailed = errorText;
+            try {
+                const parsed = errorText ? JSON.parse(errorText) : null;
+                if (parsed && (parsed.message || parsed.error)) {
+                    const code = parsed.code ? `(${parsed.code}) ` : "";
+                    detailed = `${code}${parsed.message || parsed.error}`;
+                }
+            } catch {}
             console.error("Erro ao buscar dados do ERP", response.status, errorText);
-            throw new Error("Erro na requisição");
+            throw new Error(`Falha ao buscar dados do ERP (HTTP ${response.status}): ${detailed || "sem detalhes"}`);
         }
     } catch (error) {
         console.error(error);
         toast({
             title: "Erro",
-            description: "Falha ao buscar dados do ERP.",
+            description: error instanceof Error ? error.message : "Falha ao buscar dados do ERP.",
             variant: "destructive"
         });
         setErpTransactions([]);
@@ -318,7 +340,7 @@ export default function ConciliacaoBancaria() {
     });
   };
 
-  const handleFinishConciliation = async () => {
+    const handleFinishConciliation = async () => {
     // Identificar itens vinculados (matches) que ainda não estão RECONCILIADO=1 no ERP
     const itemsToUpdate: ErpTransaction[] = [];
     const processedIndices = new Set<number>();
@@ -329,9 +351,11 @@ export default function ConciliacaoBancaria() {
             processedIndices.add(idx);
             
             const item = erpTransactions[idx];
-            // Se ainda não está reconciliado no ERP (ou queremos forçar a atualização)
-            if (item && item.RECONCILIADO !== 1) {
-                itemsToUpdate.push(item);
+            // Se ainda não está reconciliado no ERP
+            if (item) {
+                 if (item.RECONCILIADO !== 1) {
+                     itemsToUpdate.push(item);
+                 }
             }
         });
     });
@@ -350,69 +374,185 @@ export default function ConciliacaoBancaria() {
 
     try {
         const token = AuthService.getStoredToken();
-        if (!token || !token.environmentId) throw new Error("Não autenticado ou ambiente não selecionado");
+        const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+        if (!token || !currentEnvId) throw new Error("Não autenticado ou ambiente não selecionado");
         const username = token.username || "mestre";
-        const soapPath = "/wsDataServer/IwsDataServer";
-        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+        
+        // Endpoint de Processo (IwsProcess) em vez de DataServer
+        const soapPath = "/wsProcess/IwsProcess";
+        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+
+        // Template do XML fornecido
+        const xmlTemplate = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:ExecuteWithXmlParams>
+         <!--Optional:-->
+         <tot:ProcessServerName>FinXCXConciliacaoManualData</tot:ProcessServerName>
+         <!--Optional:-->
+         <tot:strXmlParams><![CDATA[<?xml version="1.0" encoding="utf-16"?>
+<RMSParamsProc z:Id="i1" xmlns="http://www.totvs.com/" xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:z="http://schemas.microsoft.com/2003/10/Serialization/">
+  <ActionModule>F</ActionModule>
+  <ActionName>FinXCXConciliacaoManualAction</ActionName>
+  <CanParallelize>true</CanParallelize>
+  <CanSendMail>false</CanSendMail>
+  <CanWaitSchedule>false</CanWaitSchedule>
+  <CodUsuario>mestre</CodUsuario>
+  <ConnectionId i:nil="true" />
+  <ConnectionString i:nil="true" />
+  <Context z:Id="i2" xmlns:a="http://www.totvs.com.br/RM/">
+    <a:_params xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$EXERCICIOFISCAL</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">22</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODLOCPRT</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODTIPOCURSO</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$EDUTIPOUSR</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODUNIDADEBIB</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODCOLIGADA</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$RHTIPOUSR</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODIGOEXTERNO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODSISTEMA</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">F</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODUSUARIOSERVICO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema" />
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODUSUARIO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">mestre</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$IDPRJ</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">2</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CHAPAFUNCIONARIO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODFILIAL</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+    </a:_params>
+    <a:Environment>DotNet</a:Environment>
+  </Context>
+  <CustomData i:nil="true" />
+  <DisableIsolateProcess>false</DisableIsolateProcess>
+  <DriverType i:nil="true" />
+  <ExecutionId>7964280d-3f3e-4604-9270-ed018ff3c3b8</ExecutionId>
+  <FailureMessage>Falha na execução do processo</FailureMessage>
+  <FriendlyLogs i:nil="true" />
+  <HideProgressDialog>false</HideProgressDialog>
+  <HostName>Favoreto-Avell</HostName>
+  <Initialized>true</Initialized>
+  <Ip>192.168.0.121</Ip>
+  <IsolateProcess>false</IsolateProcess>
+  <JobID>
+    <Children />
+    <ExecID>1</ExecID>
+    <ID>103337</ID>
+    <IsPriorityJob>false</IsPriorityJob>
+  </JobID>
+  <JobServerHostName>SRV-ERP01</JobServerHostName>
+  <MasterActionName>FinXCXAction</MasterActionName>
+  <MaximumQuantityOfPrimaryKeysPerProcess>1000</MaximumQuantityOfPrimaryKeysPerProcess>
+  <MinimumQuantityOfPrimaryKeysPerProcess>1</MinimumQuantityOfPrimaryKeysPerProcess>
+  <NetworkUser>MatheusFavoreto</NetworkUser>
+  <NotifyEmail>false</NotifyEmail>
+  <NotifyEmailList i:nil="true" xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
+  <NotifyFluig>false</NotifyFluig>
+  <OnlineMode>false</OnlineMode>
+  <PrimaryKeyList xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+    <a:ArrayOfanyType>
+      <a:anyType i:type="b:short" xmlns:b="http://www.w3.org/2001/XMLSchema">1</a:anyType>
+      <a:anyType i:type="b:int" xmlns:b="http://www.w3.org/2001/XMLSchema">1860</a:anyType>
+    </a:ArrayOfanyType>
+  </PrimaryKeyList>
+  <PrimaryKeyNames xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+    <a:string>CODCOLIGADA</a:string>
+    <a:string>IDXCX</a:string>
+  </PrimaryKeyNames>
+  <PrimaryKeyTableName>FXCX</PrimaryKeyTableName>
+  <ProcessName>Conciliar Manualmente</ProcessName>
+  <QuantityOfSplits>0</QuantityOfSplits>
+  <SaveLogInDatabase>true</SaveLogInDatabase>
+  <SaveParamsExecution>false</SaveParamsExecution>
+  <ScheduleDateTime>2026-01-29T11:49:45.6663861-03:00</ScheduleDateTime>
+  <Scheduler>JobMonitor</Scheduler>
+  <SendMail>false</SendMail>
+  <ServerName>FinXCXConciliacaoManualData</ServerName>
+  <ServiceInterface i:nil="true" xmlns:a="http://schemas.datacontract.org/2004/07/System" />
+  <ShouldParallelize>false</ShouldParallelize>
+  <ShowReExecuteButton>true</ShowReExecuteButton>
+  <StatusMessage i:nil="true" />
+  <SuccessMessage>Processo executado com sucesso</SuccessMessage>
+  <SyncExecution>false</SyncExecution>
+  <UseJobMonitor>true</UseJobMonitor>
+  <UserName>mestre</UserName>
+  <WaitSchedule>false</WaitSchedule>
+</RMSParamsProc>]]></tot:strXmlParams>
+      </tot:ExecuteWithXmlParams>
+   </soapenv:Body>
+</soapenv:Envelope>`;
 
         for (const item of itemsToUpdate) {
-            try {
-                // Formatar dados para o XML
-                const valor = getErpValor(item).toFixed(4).replace(".", ",");
-                
-                // Data formatada para YYYY-MM-DDTHH:mm:ss
-                // Se vier do ERP como 2026-01-12T00:00:00, usamos direto. Se não, tentamos formatar.
-                let dataXml = item.DATA || "";
-                if (!dataXml.includes("T")) {
-                     // Fallback simples se vier incompleta
-                     dataXml = `${dataXml}T00:00:00`;
-                } else {
-                     // Cortar timezone se houver
-                     dataXml = dataXml.split("+")[0].split("Z")[0];
-                }
+            if (!item.IDXCX) {
+                console.warn("Item sem IDXCX ignorado:", item);
+                continue;
+            }
 
-                const xmlBody = `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/"> 
-    <soapenv:Header/> 
-    <soapenv:Body> 
-       <tot:SaveRecord> 
-          <tot:DataServerName>FinXCXData</tot:DataServerName> 
-          <tot:XML><![CDATA[<FinXCX> 
-   <FXCX> 
-     <CODCOLIGADA>${coligada}</CODCOLIGADA> 
-     <IDXCX>${item.IDXCX}</IDXCX> 
-     <NUMERODOCUMENTO>${escapeXml(item.NUMERODOCUMENTO || "")}</NUMERODOCUMENTO> 
-     <TIPO>${item.TIPO || 0}</TIPO> 
-     <COMPENSADO>1</COMPENSADO> 
-     <RECONCILIADO>1</RECONCILIADO> 
-     <STATUSEXPORTACAO>0</STATUSEXPORTACAO> 
-     <HISTORICO>${escapeXml(item.HISTORICO || "")}</HISTORICO> 
-     <CODCOLCXA>${coligada}</CODCOLCXA> 
-     <CODCXA>${contaCaixa}</CODCXA> 
-     <CODFILIAL>1</CODFILIAL> 
-     <VALOR>${valor}</VALOR> 
-     <VALORCONTABIL>${valor}</VALORCONTABIL> 
-     <VALOREMREAIS>${valor}</VALOREMREAIS> 
-     <DATA>${dataXml}</DATA> 
-     <DATACOMPENSACAO>${dataXml}</DATACOMPENSACAO> 
-     <CONTABIL>0</CONTABIL> 
-     <ECHEQUE>0</ECHEQUE> 
-     <PREDATADO>0</PREDATADO> 
-     <CHEQUEIMPRESSO>0</CHEQUEIMPRESSO> 
-     <TIPOCUSTODIA>0</TIPOCUSTODIA> 
-     <ESTORNADO>0</ESTORNADO> 
-     <LIBERACAOAUTORIZADA>0</LIBERACAOAUTORIZADA> 
-     <USUARIOCRIACAO>${username}</USUARIOCRIACAO> 
-     <STATUSORCAMENTO>0</STATUSORCAMENTO> 
-     <MODELOCONTABILIZACAO>0</MODELOCONTABILIZACAO> 
-     <STATUSAVP>0</STATUSAVP> 
-     <STATUSESTORNO>0</STATUSESTORNO> 
-   </FXCX> 
- </FinXCX>]]></tot:XML> 
-          <tot:Contexto>CODCOLIGADA=${coligada};CODUSUARIO='${username}';CODSISTEMA=F</tot:Contexto> 
-       </tot:SaveRecord> 
-    </soapenv:Body> 
-</soapenv:Envelope>`;
+            try {
+                // Preparar XML com as substituições
+                let finalXml = xmlTemplate;
+
+                // 1. Substituir ID (1860) pelo item.IDXCX
+                // Usamos replace string direta pois é bem específico
+                finalXml = finalXml.replace(
+                    '<a:anyType i:type="b:int" xmlns:b="http://www.w3.org/2001/XMLSchema">1860</a:anyType>',
+                    `<a:anyType i:type="b:int" xmlns:b="http://www.w3.org/2001/XMLSchema">${item.IDXCX}</a:anyType>`
+                );
+
+                // 2. Substituir Coligada (1) pela coligada selecionada
+                // Atenção: Apenas a linha especificada na PrimaryKeyList
+                finalXml = finalXml.replace(
+                    '<a:anyType i:type="b:short" xmlns:b="http://www.w3.org/2001/XMLSchema">1</a:anyType>',
+                    `<a:anyType i:type="b:short" xmlns:b="http://www.w3.org/2001/XMLSchema">${coligada}</a:anyType>`
+                );
+
+                // 3. Atualizar usuário e coligada no Contexto (Melhor prática para garantir execução correta)
+                // Substitui 'mestre' pelo usuário logado
+                finalXml = finalXml.replaceAll('>mestre<', `>${username}<`);
+                
+                // Substitui $CODCOLIGADA no Contexto se possível (opcional, mas recomendado)
+                // Vamos tentar substituir apenas se encontrarmos o padrão exato para evitar falsos positivos
+                // Mas como o usuário pediu "só essa vai mudar" para o ID e "e a linha tal" para Coligada,
+                // vamos confiar que o replace acima na PrimaryKeyList é o principal.
+                // Vou manter o replace do 'mestre' pois é regra global do projeto.
 
                 const response = await fetch(proxyUrl, {
                     method: "POST",
@@ -421,27 +561,55 @@ export default function ConciliacaoBancaria() {
                         ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
                     },
                     body: JSON.stringify({
-                        xml: xmlBody,
-                        action: "http://www.totvs.com/IwsDataServer/SaveRecord"
+                        xml: finalXml,
+                        action: "http://www.totvs.com/IwsProcess/ExecuteWithXmlParams"
                     })
                 });
 
                 const responseText = await response.text();
-                if (responseText.includes("SaveRecordResult") && !responseText.includes("<faultstring>")) {
+                
+                // Log no Console (Solicitado pelo usuário)
+                console.log(`SOAP Request (Process Item ${item.IDXCX}):`, finalXml);
+                console.log(`SOAP Response (Process Item ${item.IDXCX}):`, responseText);
+                
+                // Verificar sucesso
+                // O retorno de ExecuteWithXmlParams geralmente contém ExecuteWithXmlParamsResult com o ID da execução
+                // Se der erro, geralmente vem Fault ou exceção
+                const isSuccess = response.ok && !responseText.includes("<faultstring>");
+
+                // Log
+                LogService.addLog({
+                  type: isSuccess ? 'success' : 'error',
+                  title: `Conciliação (Processo) Item ${item.IDXCX}`,
+                  details: isSuccess ? "Processo enviado com sucesso" : "Erro ao enviar processo",
+                  request: finalXml,
+                  response: responseText
+                });
+
+                if (isSuccess) {
                     successCount++;
                 } else {
-                    console.error("Erro ao atualizar item", item.IDXCX, responseText);
+                    console.error("Erro ao executar processo para item", item.IDXCX, responseText);
                     errorCount++;
                 }
+
             } catch (err) {
-                console.error("Erro na requisição SOAP para item", item.IDXCX, err);
+                console.error("Erro na operação SOAP para item", item.IDXCX, err);
+                
+                // Log Error
+                LogService.addLog({
+                  type: 'error',
+                  title: `Erro de Exceção Item ${item.IDXCX}`,
+                  details: err instanceof Error ? err.message : String(err)
+                });
+
                 errorCount++;
             }
         }
 
         toast({
             title: "Processamento concluído",
-            description: `${successCount} atualizados com sucesso. ${errorCount} erros.`,
+            description: `${successCount} enviados com sucesso. ${errorCount} erros.`,
             variant: errorCount > 0 ? "destructive" : "default"
         });
 
@@ -487,11 +655,24 @@ export default function ConciliacaoBancaria() {
   };
 
   const toErpDate = (value: string) => {
-    if (!value) return "";
-    const parts = value.split("-");
-    if (parts.length !== 3) return value;
-    const [year, month, day] = parts;
-    return `${month}/${day}/${year}`;
+    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) return value;
+
+    const brMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (brMatch) {
+      const [, day, month, year] = brMatch;
+      return `${year}-${month}-${day}`;
+    }
+
+    return value;
+  };
+
+  const extractErpRows = (payload: any): ErpTransaction[] => {
+    if (Array.isArray(payload)) return payload as ErpTransaction[];
+    if (payload && Array.isArray(payload.data)) return payload.data as ErpTransaction[];
+    if (payload && Array.isArray(payload.items)) return payload.items as ErpTransaction[];
+    if (payload && payload.data && Array.isArray(payload.data.items)) return payload.data.items as ErpTransaction[];
+    return [];
   };
 
   const getErpValor = (t: ErpTransaction) => {
@@ -593,7 +774,8 @@ export default function ConciliacaoBancaria() {
     setLoading(true);
     try {
         const token = AuthService.getStoredToken();
-        if (!token || !token.environmentId) {
+        const currentEnvId = selectedEnvironment?.id || token?.environmentId;
+        if (!token || !currentEnvId) {
             throw new Error("Usuário não autenticado ou ambiente não selecionado");
         }
 
@@ -657,12 +839,13 @@ export default function ConciliacaoBancaria() {
  </soapenv:Envelope>`;
 
         const soapPath = "/wsDataServer/IwsDataServer";
-        const proxyUrl = `/api/proxy-soap?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
 
         const response = await fetch(proxyUrl, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
             },
             body: JSON.stringify({
                 xml: xmlBody,
@@ -671,6 +854,19 @@ export default function ConciliacaoBancaria() {
         });
 
         const responseText = await response.text();
+
+        // Log no Console (Solicitado pelo usuário)
+        console.log("SOAP Request (SaveRecord):", xmlBody);
+        console.log("SOAP Response (SaveRecord):", responseText);
+
+        // Log no Serviço de Logs (Para visualização na tela de Parâmetros)
+        LogService.addLog({
+            type: response.ok && responseText.includes("SaveRecordResult") && !responseText.includes("<faultstring>") ? 'success' : 'error',
+            title: `Conciliação (SaveRecord) - Doc ${numDocumento}`,
+            details: response.ok ? "Tentativa de inclusão no ERP" : "Erro na requisição HTTP",
+            request: xmlBody,
+            response: responseText
+        });
 
         if (!response.ok) {
             throw new Error(`Erro na requisição: ${response.status} - ${responseText}`);
@@ -689,7 +885,12 @@ export default function ConciliacaoBancaria() {
                 const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.023/${coligada}/T?parameters=${params}`;
 
                 const erpResponse = await fetch(
-                    `/api/proxy?endpoint=${encodeURIComponent(endpoint)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`
+                    `/api/proxy?environmentId=${encodeURIComponent(currentEnvId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+                    {
+                        headers: {
+                            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                        }
+                    }
                 );
 
                 if (erpResponse.ok) {
@@ -753,9 +954,9 @@ export default function ConciliacaoBancaria() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col p-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="h-[calc(100vh-9.5rem)] flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
       {/* Header e Filtros */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 shrink-0">
         <div className="flex items-center justify-between">
              <div className="flex items-center gap-2">
                 <CheckCircle className="h-6 w-6 text-primary" />
@@ -870,15 +1071,15 @@ export default function ConciliacaoBancaria() {
                         <p>Importe um arquivo OFX para visualizar</p>
                     </div>
                 ) : (
-                    <Table>
+                    <Table className="table-fixed w-full">
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
-                                <TableHead className="w-[50px]"></TableHead>
-                                <TableHead>Data</TableHead>
-                                <TableHead>Documento</TableHead>
+                                <TableHead className="w-[40px]"></TableHead>
+                                <TableHead className="w-[100px]">Data</TableHead>
+                                <TableHead className="w-[120px]">Documento</TableHead>
                                 <TableHead>Descrição</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
+                                <TableHead className="text-right w-[120px]">Valor</TableHead>
+                                <TableHead className="w-[80px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -913,10 +1114,10 @@ export default function ConciliacaoBancaria() {
                                             />
                                         </TableCell>
                                         <TableCell>{format(t.date, 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell className="max-w-[120px] truncate" title={getOfxDocumento(t)}>
+                                        <TableCell className="truncate" title={getOfxDocumento(t)}>
                                           {getOfxDocumento(t)}
                                         </TableCell>
-                                        <TableCell className="max-w-[200px] truncate" title={t.description}>{t.description}</TableCell>
+                                        <TableCell className="truncate" title={t.description}>{t.description}</TableCell>
                                         <TableCell className={cn("text-right font-medium", t.amount < 0 ? "text-red-500" : "text-green-500")}>
                                             {formatMoney(t.amount)}
                                         </TableCell>
@@ -990,17 +1191,17 @@ export default function ConciliacaoBancaria() {
                         <p>Realize a busca para visualizar os lançamentos</p>
                     </div>
                 ) : (
-                    <Table>
+                    <Table className="table-fixed w-full">
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
-                                <TableHead className="w-[50px]"></TableHead>
-                                <TableHead>ID</TableHead>
-                                <TableHead>Data</TableHead>
-                                <TableHead>Documento</TableHead>
+                                <TableHead className="w-[40px]"></TableHead>
+                                <TableHead className="w-[80px]">ID</TableHead>
+                                <TableHead className="w-[100px]">Data</TableHead>
+                                <TableHead className="w-[120px]">Documento</TableHead>
                                 <TableHead>Histórico</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead>Conciliado</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
+                                <TableHead className="w-[100px]">Tipo</TableHead>
+                                <TableHead className="w-[80px]">Conciliado</TableHead>
+                                <TableHead className="text-right w-[120px]">Valor</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1042,7 +1243,7 @@ export default function ConciliacaoBancaria() {
                                         <TableCell>{t.IDXCX}</TableCell>
                                         <TableCell>{formatErpDate(t.DATA || t.DATAEMISSAO || "")}</TableCell>
                                         <TableCell>{t.NUMERODOCUMENTO}</TableCell>
-                                        <TableCell className="max-w-[150px] truncate" title={t.HISTORICO}>{t.HISTORICO}</TableCell>
+                                        <TableCell className="truncate" title={t.HISTORICO}>{t.HISTORICO}</TableCell>
                                         <TableCell>{getTipoDescricao(t.TIPO)}</TableCell>
                                         <TableCell>{getConciliadoLabel(t.RECONCILIADO)}</TableCell>
                                         <TableCell className={cn("text-right font-medium", getErpValor(t) < 0 ? "text-red-500" : "text-green-500")}>

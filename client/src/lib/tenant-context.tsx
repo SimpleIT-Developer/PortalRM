@@ -9,6 +9,7 @@ export interface TenantEnvironment {
   name: string;
   webserviceBaseUrl: string;
   modules: Record<string, boolean>;
+  menus?: Record<string, boolean>;
   MOVIMENTOS_SOLICITACAO_COMPRAS: string[];
   MOVIMENTOS_ORDEM_COMPRA: string[];
   MOVIMENTOS_NOTA_FISCAL_PRODUTO: string[];
@@ -29,6 +30,7 @@ interface TenantContextType {
   error: string | null;
   selectedEnvironment: TenantEnvironment | null;
   selectEnvironment: (envId: string) => void;
+  refreshTenant: () => Promise<void>;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
@@ -40,61 +42,80 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [selectedEnvironment, setSelectedEnvironment] = useState<TenantEnvironment | null>(null);
   const [location, setLocation] = useLocation();
 
-  useEffect(() => {
-    const loadTenant = async () => {
-      const tenantKey = getTenant();
+  const loadTenant = async () => {
+    const tenantKey = getTenant();
 
-      if (!tenantKey) {
-        setIsLoading(false);
+    if (!tenantKey) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/public/tenant-config/${tenantKey}?t=${new Date().getTime()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (response.status === 404) {
+        setError("Tenant not found");
+        if (location !== '/company-not-found') {
+            setLocation("/company-not-found");
+        }
         return;
       }
 
-      try {
-        const response = await fetch(`/api/public/tenant-config/${tenantKey}`);
-        
-        if (response.status === 404) {
-          setError("Tenant not found");
-          // Redirecionamento é tratado no componente visual ou App.tsx se necessário
-          // Mas aqui já sinalizamos o erro
-          if (location !== '/company-not-found') {
-              setLocation("/company-not-found");
-          }
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error("Failed to load tenant config");
-        }
-
-        const data: TenantConfig = await response.json();
-        setTenant(data);
-
-        // Se encontrou o tenant e está na landing page, redirecionar para login
-        if (location === '/') {
-            setLocation("/login");
-        }
-
-        // Tentar restaurar ambiente selecionado do localStorage se existir e pertencer a este tenant
-        const savedEnvId = localStorage.getItem(`selected_env_${tenantKey}`);
-        if (savedEnvId) {
-            const savedEnv = data.environments.find(e => e.id === savedEnvId);
-            if (savedEnv) {
-                setSelectedEnvironment(savedEnv);
-                // Sync modules with legacy service for Sidebar
-                EnvironmentConfigService.saveEnabledModules(savedEnv.modules);
-            }
-        }
-
-      } catch (err: any) {
-        console.error("Error loading tenant:", err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to load tenant config");
       }
-    };
 
+      const data: TenantConfig = await response.json();
+      setTenant(data);
+
+      // Se encontrou o tenant e está na landing page, redirecionar para login
+      if (location === '/') {
+          setLocation("/login");
+      }
+
+      // Tentar restaurar ambiente selecionado do localStorage se existir e pertencer a este tenant
+      // Ou atualizar o ambiente selecionado com os novos dados
+      const currentEnvId = selectedEnvironment?.id || localStorage.getItem(`selected_env_${tenantKey}`);
+      
+      if (currentEnvId) {
+          const savedEnv = data.environments.find(e => e.id === currentEnvId);
+          if (savedEnv) {
+              setSelectedEnvironment(savedEnv);
+              localStorage.setItem(`selected_env_${tenantKey}`, savedEnv.id);
+              localStorage.setItem('selected_endpoint', savedEnv.webserviceBaseUrl);
+              // Sync modules with legacy service for Sidebar
+              EnvironmentConfigService.saveEnabledModules(savedEnv.modules);
+              EnvironmentConfigService.saveEnabledMenus(savedEnv.menus || null);
+              return;
+          }
+      }
+
+      const fallbackEnv = data.environments[0];
+      if (fallbackEnv) {
+        setSelectedEnvironment(fallbackEnv);
+        localStorage.setItem(`selected_env_${tenantKey}`, fallbackEnv.id);
+        localStorage.setItem('selected_endpoint', fallbackEnv.webserviceBaseUrl);
+        EnvironmentConfigService.saveEnabledModules(fallbackEnv.modules);
+        EnvironmentConfigService.saveEnabledMenus(fallbackEnv.menus || null);
+      }
+
+    } catch (err: any) {
+      console.error("Error loading tenant:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadTenant();
-  }, [setLocation]);
+  }, []); // Remove setLocation from deps to avoid loop, though it was there before. Kept loadTenant call.
 
   const selectEnvironment = (envId: string) => {
     if (!tenant) return;
@@ -103,17 +124,24 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setSelectedEnvironment(env);
       localStorage.setItem(`selected_env_${tenant.tenantKey}`, envId);
       
-      // Persistir URL do Webservice globalmente se necessário (para compatibilidade com código legado)
-      // Mas o ideal é usar o contexto.
+      // Persistir URL do Webservice globalmente se necessário
       localStorage.setItem('selected_endpoint', env.webserviceBaseUrl);
 
       // Sync modules with legacy service for Sidebar
       EnvironmentConfigService.saveEnabledModules(env.modules);
+      EnvironmentConfigService.saveEnabledMenus(env.menus || null);
     }
   };
 
   return (
-    <TenantContext.Provider value={{ tenant, isLoading, error, selectedEnvironment, selectEnvironment }}>
+    <TenantContext.Provider value={{ 
+      tenant, 
+      isLoading, 
+      error, 
+      selectedEnvironment, 
+      selectEnvironment,
+      refreshTenant: loadTenant 
+    }}>
       {children}
     </TenantContext.Provider>
   );
