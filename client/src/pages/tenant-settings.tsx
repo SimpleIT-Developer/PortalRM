@@ -123,7 +123,7 @@ export default function TenantSettingsPage() {
       const storedUser = localStorage.getItem('portal_user');
       if (!storedUser) {
         toast({ title: "Erro", description: "Usuário não autenticado", variant: "destructive" });
-        setLocation("/admin-login");
+        setLocation("/admin");
         return;
       }
 

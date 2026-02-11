@@ -89,23 +89,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tenant/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      console.log("🔑 Tenant Admin Login attempt:", email);
-      
-      const admin = await PlatformAdmin.findOne({ email });
+      const tenantKey = (req as any).tenantKey as string | undefined;
+      console.log("🔑 Tenant Admin Login attempt:", email, tenantKey ? `(tenant=${tenantKey})` : "");
+
+      if (!tenantKey) {
+        return res.status(400).json({ error: "Tenant não identificado" });
+      }
+
+      const tenant = await Tenant.findOne({ tenantKey });
+      if (!tenant) {
+        return res.status(404).json({ error: "Tenant não encontrado" });
+      }
+
+      const admin = await PlatformAdmin.findOne({ email, tenantId: tenant._id });
       if (!admin) {
-          console.log("❌ Admin not found:", email);
-          return res.status(401).json({ error: "Credenciais inválidas" });
+        console.log("❌ Admin not found for tenant:", email, tenantKey);
+        return res.status(401).json({ error: "Credenciais inválidas" });
       }
 
       const isMatch = await bcrypt.compare(password, admin.passwordHash);
       if (!isMatch) {
           console.log("❌ Password mismatch for:", email);
           return res.status(401).json({ error: "Credenciais inválidas" });
-      }
-
-      const tenant = await Tenant.findById(admin.tenantId);
-      if (!tenant) {
-          return res.status(404).json({ error: "Tenant não encontrado" });
       }
 
       console.log("✅ Login successful for:", email);
@@ -153,8 +158,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get Tenant Info
   app.get("/api/tenant/:id", async (req, res) => {
     try {
+        const tenantKey = (req as any).tenantKey as string | undefined;
+        if (!tenantKey) return res.status(400).json({ error: "Tenant não identificado" });
+
         const tenant = await Tenant.findById(req.params.id);
         if (!tenant) return res.status(404).json({ error: "Tenant not found" });
+
+        if (tenant.tenantKey !== tenantKey) {
+          return res.status(403).json({ error: "Acesso negado" });
+        }
         
         const admin = await PlatformAdmin.findOne({ tenantId: tenant._id });
         
@@ -175,6 +187,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update Tenant
   app.put("/api/tenant/:id", async (req, res) => {
     try {
+      const tenantKey = (req as any).tenantKey as string | undefined;
+      if (!tenantKey) return res.status(400).json({ error: "Tenant não identificado" });
+
+      const existingTenant = await Tenant.findById(req.params.id);
+      if (!existingTenant) return res.status(404).json({ error: "Tenant não encontrado" });
+
+      if (existingTenant.tenantKey !== tenantKey) {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
       const result = await TenantService.updateTenant(req.params.id, req.body);
       res.json(result);
     } catch (error: any) {

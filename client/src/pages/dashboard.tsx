@@ -93,6 +93,7 @@ import {
 import { ChangelogModal } from "@/components/changelog-modal";
 
 import { MenuVisibilityService } from "@/lib/menu-visibility";
+import { useTenant } from "@/lib/tenant-context";
 
 export default function DashboardPage() {
   const [location, setLocation] = useLocation();
@@ -102,6 +103,7 @@ export default function DashboardPage() {
   const [currentEndpoint, setCurrentEndpoint] = useState<string>("");
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const { tenant, selectedEnvironment } = useTenant();
 
   // Hook para gerenciar permissões do usuário
   const { 
@@ -503,7 +505,8 @@ export default function DashboardPage() {
         <div className="h-6 bg-card border-t border-border text-xs text-muted-foreground px-4 fixed bottom-0 left-0 right-0 z-10">
           <div className="flex justify-between items-center h-full max-w-full">
             <div className="flex items-center space-x-4">
-              <span>Ambiente: {currentEndpoint || "Não configurado"}</span>
+              <span>TenantKey: {tenant?.tenantKey || "Não identificado"}</span>
+              <span>Ambiente: {selectedEnvironment?.name || currentEndpoint || "Não configurado"}</span>
               <span>Versão RM: {rmVersion || "Carregando..."}</span>
               <span>Versão Portal: 1.0.01</span>
             </div>
