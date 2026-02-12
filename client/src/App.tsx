@@ -11,6 +11,9 @@ import LandingPage from "@/pages/landing-page";
 import DashboardPage from "@/pages/dashboard";
 import TenantSettingsPage from "@/pages/tenant-settings";
 import CompanyNotFoundPage from "@/pages/company-not-found";
+import TrialExpiredPage from "@/pages/trial-expired";
+import SuperAdminLoginPage from "@/pages/superadmin-login";
+import SuperAdminTenantsPage from "@/pages/superadmin-tenants";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,11 +22,14 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/admin" component={AdminLoginPage} />
+      <Route path="/superadmin" component={SuperAdminLoginPage} />
+      <Route path="/superadmin/tenants" component={SuperAdminTenantsPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/dashboard/*" component={DashboardPage} />
       <Route path="/tenant-settings" component={TenantSettingsPage} />
       <Route path="/company-not-found" component={CompanyNotFoundPage} />
+      <Route path="/trial-expired" component={TrialExpiredPage} />
       <Route component={NotFound} />
     </Switch>
   );

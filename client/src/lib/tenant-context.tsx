@@ -43,6 +43,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
 
   const loadTenant = async () => {
+    if (location.startsWith("/superadmin")) {
+      setIsLoading(false);
+      return;
+    }
+
     const tenantKey = getTenant();
 
     if (!tenantKey) {
@@ -63,6 +68,28 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         setError("Tenant not found");
         if (location !== '/company-not-found') {
             setLocation("/company-not-found");
+        }
+        return;
+      }
+
+      if (response.status === 403) {
+        let message = "Acesso ao tenant indisponível";
+        try {
+          const body = await response.json();
+          if (body?.error) message = String(body.error);
+        } catch {}
+
+        setError(message);
+
+        if (message.toLowerCase().includes("avaliação expirado") || message.toLowerCase().includes("avaliacao expirado")) {
+          if (location !== "/trial-expired") {
+            setLocation("/trial-expired");
+          }
+          return;
+        }
+
+        if (location !== "/company-not-found") {
+          setLocation("/company-not-found");
         }
         return;
       }

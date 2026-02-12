@@ -11,6 +11,7 @@ import { TenantService } from "./services/tenant-service";
 import { Tenant } from "./models/Tenant";
 import { PlatformAdmin } from "./models/PlatformAdmin";
 import bcrypt from "bcrypt";
+import { requireSuperAdmin } from "./middleware/require-superadmin";
 
 function toPlainObject(input: any): Record<string, any> {
   if (!input) return {};
@@ -36,9 +37,192 @@ function normalizeConfigMap(input: any): Record<string, boolean> {
   return out;
 }
 
+function assertTenantAccess(tenant: any) {
+  if (tenant?.access?.blocked) {
+    throw Object.assign(new Error("Acesso ao tenant bloqueado"), { statusCode: 403 });
+  }
+
+  if (tenant?.status !== "active" && tenant?.status !== "trial") {
+    throw Object.assign(new Error("Acesso ao tenant indisponível"), { statusCode: 403 });
+  }
+
+  if (tenant?.status === "trial") {
+    const endsAt = tenant?.trial?.endsAt ? new Date(tenant.trial.endsAt) : null;
+    if (endsAt && !isNaN(endsAt.getTime()) && Date.now() > endsAt.getTime()) {
+      throw Object.assign(new Error("Período de avaliação expirado"), { statusCode: 403 });
+    }
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
   await connectToMongo();
+
+  app.post("/api/superadmin/login", async (req, res) => {
+    try {
+      const { email, password } = req.body || {};
+      const superEmail = process.env.SUPERADMIN_EMAIL;
+      const passwordHash = process.env.SUPERADMIN_PASSWORD_HASH;
+
+      if (!superEmail || !passwordHash) {
+        return res.status(500).json({ error: "Superadmin não configurado" });
+      }
+
+      if (typeof email !== "string" || typeof password !== "string") {
+        return res.status(400).json({ error: "Dados inválidos" });
+      }
+
+      if (email.toLowerCase().trim() !== superEmail.toLowerCase().trim()) {
+        return res.status(401).json({ error: "Credenciais inválidas" });
+      }
+
+      const ok = await bcrypt.compare(password, passwordHash);
+      if (!ok) {
+        return res.status(401).json({ error: "Credenciais inválidas" });
+      }
+
+      req.session.superadmin = { email, createdAt: Date.now() };
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Superadmin login error:", error);
+      return res.status(500).json({ error: error.message || "Erro interno" });
+    }
+  });
+
+  app.post("/api/superadmin/logout", requireSuperAdmin, async (req, res) => {
+    req.session.destroy(() => {
+      res.json({ ok: true });
+    });
+  });
+
+  app.get("/api/superadmin/me", requireSuperAdmin, async (req, res) => {
+    res.json({ ok: true, email: req.session.superadmin?.email });
+  });
+
+  app.get("/api/superadmin/tenants", requireSuperAdmin, async (_req, res) => {
+    const tenants = await Tenant.find({})
+      .sort({ createdAt: -1 })
+      .select("tenantKey status company domains trial access createdAt updatedAt")
+      .lean();
+    res.json({ data: tenants });
+  });
+
+  app.patch("/api/superadmin/tenants/:id", requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, trialEndsAt, blocked, blockedReason } = req.body || {};
+
+      const tenant = await Tenant.findById(id);
+      if (!tenant) return res.status(404).json({ error: "Tenant não encontrado" });
+
+      if (status !== undefined) {
+        const allowed = ["active", "inactive", "trial", "blocked", "cancelled"];
+        if (!allowed.includes(status)) {
+          return res.status(400).json({ error: "Status inválido" });
+        }
+        tenant.status = status;
+      }
+
+      if (trialEndsAt !== undefined) {
+        const next = new Date(trialEndsAt);
+        if (isNaN(next.getTime())) {
+          return res.status(400).json({ error: "Data inválida" });
+        }
+        tenant.trial.endsAt = next;
+      }
+
+      if (blocked !== undefined) {
+        tenant.access.blocked = Boolean(blocked);
+      }
+
+      if (blockedReason !== undefined) {
+        tenant.access.blockedReason = blockedReason ? String(blockedReason) : null;
+      }
+
+      await tenant.save();
+      res.json({ ok: true, tenant });
+    } catch (error: any) {
+      console.error("Superadmin update tenant error:", error);
+      res.status(500).json({ error: error.message || "Erro interno" });
+    }
+  });
+
+  // Get tenant modules and menus configuration
+  app.get("/api/superadmin/tenants/:id/modules", requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const tenant = await Tenant.findById(id).select("environments tenantKey company").lean();
+      
+      if (!tenant) {
+        return res.status(404).json({ error: "Tenant não encontrado" });
+      }
+
+      // Return all environments with their module/menu configurations
+      const environments = tenant.environments?.map(env => ({
+        id: env._id,
+        name: env.name,
+        enabled: env.enabled,
+        modules: normalizeConfigMap(env.modules || {}),
+        menus: normalizeConfigMap(env.menus || {}),
+        webserviceBaseUrl: env.webserviceBaseUrl,
+        restBaseUrl: env.restBaseUrl,
+        soapDataServerUrl: env.soapDataServerUrl
+      })) || [];
+
+      res.json({ 
+        tenantId: tenant._id,
+        tenantKey: tenant.tenantKey,
+        companyName: tenant.company?.tradeName,
+        environments 
+      });
+    } catch (error: any) {
+      console.error("Superadmin get tenant modules error:", error);
+      res.status(500).json({ error: error.message || "Erro interno" });
+    }
+  });
+
+  // Update tenant modules and menus configuration for a specific environment
+  app.patch("/api/superadmin/tenants/:id/environments/:envId/modules", requireSuperAdmin, async (req, res) => {
+    try {
+      const { id, envId } = req.params;
+      const { modules, menus } = req.body || {};
+
+      const tenant = await Tenant.findById(id);
+      if (!tenant) {
+        return res.status(404).json({ error: "Tenant não encontrado" });
+      }
+
+      const environment = tenant.environments.id(envId);
+      if (!environment) {
+        return res.status(404).json({ error: "Ambiente não encontrado" });
+      }
+
+      // Update modules if provided
+      if (modules !== undefined) {
+        environment.modules = normalizeConfigMap(modules);
+      }
+
+      // Update menus if provided
+      if (menus !== undefined) {
+        environment.menus = normalizeConfigMap(menus);
+      }
+
+      await tenant.save();
+      
+      res.json({ 
+        ok: true, 
+        environment: {
+          id: environment._id,
+          name: environment.name,
+          modules: normalizeConfigMap(environment.modules || {}),
+          menus: normalizeConfigMap(environment.menus || {})
+        }
+      });
+    } catch (error: any) {
+      console.error("Superadmin update tenant modules error:", error);
+      res.status(500).json({ error: error.message || "Erro interno" });
+    }
+  });
 
   // Public Tenant Config (For Login Page)
   app.get("/api/public/tenant-config/:tenantKey", async (req, res) => {
@@ -53,9 +237,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Tenant não encontrado" });
       }
 
-      if (tenant.status !== 'active' && tenant.status !== 'trial') {
-         console.log("⚠️ Tenant inativo ou bloqueado:", tenantKey, tenant.status);
-         return res.status(403).json({ error: "Acesso ao tenant indisponível" });
+      try {
+        assertTenantAccess(tenant);
+      } catch (err: any) {
+        console.log("⚠️ Tenant indisponível:", tenantKey, tenant.status);
+        return res.status(err.statusCode || 403).json({ error: err.message || "Acesso ao tenant indisponível" });
       }
 
       // Retornar apenas dados seguros/necessários para o login
@@ -99,6 +285,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenant = await Tenant.findOne({ tenantKey });
       if (!tenant) {
         return res.status(404).json({ error: "Tenant não encontrado" });
+      }
+
+      try {
+        assertTenantAccess(tenant);
+      } catch (err: any) {
+        return res.status(err.statusCode || 403).json({ error: err.message || "Acesso ao tenant indisponível" });
       }
 
       const admin = await PlatformAdmin.findOne({ email, tenantId: tenant._id });
@@ -155,16 +347,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Tenant Info
+  // Get Tenant Info by ID (requires matching tenantKey)
   app.get("/api/tenant/:id", async (req, res) => {
     try {
         const tenantKey = (req as any).tenantKey as string | undefined;
-        if (!tenantKey) return res.status(400).json({ error: "Tenant não identificado" });
+        console.log(`[DEBUG] Requisição para /api/tenant/${req.params.id}`);
+        console.log(`[DEBUG] tenantKey do request:`, tenantKey);
+        console.log(`[DEBUG] Headers:`, req.headers);
+        
+        if (!tenantKey) {
+          console.log(`[DEBUG] tenantKey não encontrado - retornando 400`);
+          return res.status(400).json({ error: "Tenant não identificado" });
+        }
 
         const tenant = await Tenant.findById(req.params.id);
-        if (!tenant) return res.status(404).json({ error: "Tenant not found" });
+        if (!tenant) {
+          console.log(`[DEBUG] Tenant ${req.params.id} não encontrado - retornando 404`);
+          return res.status(404).json({ error: "Tenant not found" });
+        }
 
+        console.log(`[DEBUG] Tenant encontrado:`, tenant.tenantKey);
+        console.log(`[DEBUG] Comparação: tenant.tenantKey=${tenant.tenantKey} !== tenantKey=${tenantKey}`);
+        
         if (tenant.tenantKey !== tenantKey) {
+          console.log(`[DEBUG] Acesso negado - tenantKeys não correspondem`);
           return res.status(403).json({ error: "Acesso negado" });
         }
         
@@ -180,6 +386,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } : null
         });
     } catch (error: any) {
+        console.error("Erro ao buscar tenant:", error);
+        res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get Current Tenant Info (by tenantKey from auth)
+  app.get("/api/tenant", async (req, res) => {
+    try {
+        const tenantKey = (req as any).tenantKey as string | undefined;
+        if (!tenantKey) return res.status(400).json({ error: "Tenant não identificado" });
+
+        const tenant = await Tenant.findOne({ tenantKey });
+        if (!tenant) return res.status(404).json({ error: "Tenant não encontrado" });
+        
+        const admin = await PlatformAdmin.findOne({ tenantId: tenant._id });
+        
+        res.json({
+            tenant,
+            admin: admin ? {
+                email: admin.email,
+                name: admin.name,
+                phone: admin.phone,
+                role: admin.role
+            } : null
+        });
+    } catch (error: any) {
+        console.error("Erro ao buscar tenant atual:", error);
         res.status(500).json({ error: error.message });
     }
   });
@@ -323,6 +556,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`❌ [getEnvironmentUrl] Tenant não encontrado: '${tenantKey}'`);
         throw new Error(`Tenant '${tenantKey}' não encontrado`);
     }
+
+    assertTenantAccess(tenant);
 
     // Debug: Listar ambientes disponíveis
     if (tenant.environments) {

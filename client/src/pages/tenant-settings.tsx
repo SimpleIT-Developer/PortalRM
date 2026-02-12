@@ -118,6 +118,21 @@ export default function TenantSettingsPage() {
     loadData();
   }, []);
 
+  // Additional synchronization when environments change
+  useEffect(() => {
+    if (environments.length > 0) {
+      const currentEnvId = localStorage.getItem(`selected_env_${getTenant()}`);
+      if (currentEnvId) {
+        const currentEnv = environments.find(env => env._id === currentEnvId || env.id === currentEnvId);
+        if (currentEnv) {
+          EnvironmentConfigService.saveEnabledModules(currentEnv.modules);
+          EnvironmentConfigService.saveEnabledMenus(currentEnv.menus || null);
+          console.log(`[TenantSettings] Re-synchronized environment config for: ${currentEnv.name}`);
+        }
+      }
+    }
+  }, [environments]);
+
   const loadData = async () => {
     try {
       const storedUser = localStorage.getItem('portal_user');
@@ -134,13 +149,30 @@ export default function TenantSettingsPage() {
       setTenantId(tId);
 
       const headers: Record<string, string> = {};
-      const tenant = getTenant();
-      if (tenant) headers['X-Tenant'] = tenant;
+      const tenantKey = getTenant();
+      if (tenantKey) {
+        headers['X-Tenant'] = tenantKey;
+      }
 
-      const response = await fetch(`/api/tenant/${tId}`, { headers });
-      if (!response.ok) throw new Error("Falha ao carregar dados do tenant");
+      console.log(`[DEBUG] Fazendo requisição para /api/tenant (current tenant)`);
+      console.log(`[DEBUG] Headers:`, headers);
+      console.log(`[DEBUG] User data:`, userData);
+      console.log(`[DEBUG] tenantKey (from getTenant):`, tenantKey);
+      
+      // Usar o novo endpoint que retorna o tenant autenticado
+      const response = await fetch(`/api/tenant`, { headers });
+      console.log(`[DEBUG] Response status:`, response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.log(`[DEBUG] Error response:`, errorData);
+        throw new Error(`Falha ao carregar dados do tenant: ${response.status} ${errorData}`);
+      }
       
       const data = await response.json();
+      // Atualizar o tenantId com o ID real do tenant
+      setTenantId(data.tenant._id);
+      
       const t = data.tenant;
       const a = data.admin;
 
@@ -163,6 +195,18 @@ export default function TenantSettingsPage() {
               menus: { ...DEFAULT_MENUS, ...(env.menus || {}) }
           }));
           setEnvironments(processedEnvs);
+
+          // Synchronize current environment configuration with localStorage
+          const currentEnvId = localStorage.getItem(`selected_env_${getTenant()}`);
+          if (currentEnvId) {
+              const currentEnv = processedEnvs.find(env => env._id === currentEnvId || env.id === currentEnvId);
+              if (currentEnv) {
+                  // Update localStorage with current environment configuration
+                  EnvironmentConfigService.saveEnabledModules(currentEnv.modules);
+                  EnvironmentConfigService.saveEnabledMenus(currentEnv.menus || null);
+                  console.log(`[TenantSettings] Synchronized environment config for: ${currentEnv.name}`);
+              }
+          }
       } else {
           // Fallback logic if needed, but schema should handle it
           setEnvironments([]);
@@ -459,81 +503,7 @@ export default function TenantSettingsPage() {
       return <div className="flex h-screen items-center justify-center bg-[#121212] text-white"><Loader2 className="h-8 w-8 animate-spin text-yellow-500" /></div>;
   }
 
-  const ModuleItem = ({ item, level = 0 }: { item: MenuItem, level?: number }) => {
-    const isTopLevel = level === 0;
-    
-    // Fallback para chaves antigas com underscore (ex: gestao_financeira vs gestao-financeira)
-    const getModuleEnabled = (id: string) => {
-        if (!editingEnv?.modules) return false;
-        // Check for hyphenated key first (standard)
-        if (editingEnv.modules[id] !== undefined) return editingEnv.modules[id];
-        // Fallback for underscore
-        const underscoreId = id.replace(/-/g, '_');
-        return editingEnv.modules[underscoreId] ?? false;
-    };
 
-    const getMenuEnabled = (id: string) => {
-        if (!editingEnv?.menus) return false; 
-        // Check for hyphenated key first
-        if (editingEnv.menus[id] !== undefined) return editingEnv.menus[id];
-        // Fallback for underscore
-        const underscoreId = id.replace(/-/g, '_');
-        return editingEnv.menus[underscoreId] ?? false;
-    };
-
-    const isEnabled = isTopLevel 
-        ? getModuleEnabled(item.id)
-        : getMenuEnabled(item.id);
-
-    const handleToggle = (checked: boolean) => {
-        if (!editingEnv) return;
-        
-        if (isTopLevel) {
-             const normalizedId = item.id.replace(/_/g, '-');
-             const underscoreId = normalizedId.replace(/-/g, '_');
-             const nextModules = { ...editingEnv.modules };
-             delete nextModules[underscoreId];
-             delete nextModules[normalizedId];
-             setEditingEnv({
-                 ...editingEnv,
-                 modules: { ...nextModules, [normalizedId]: checked }
-             });
-        } else {
-             const normalizedId = item.id.replace(/_/g, '-');
-             const underscoreId = normalizedId.replace(/-/g, '_');
-             const nextMenus = { ...(editingEnv.menus || {}) };
-             delete nextMenus[underscoreId];
-             delete nextMenus[normalizedId];
-             setEditingEnv({
-                 ...editingEnv,
-                 menus: { ...nextMenus, [normalizedId]: checked }
-             });
-        }
-    };
-
-    const hasChildren = item.children && item.children.length > 0;
-
-    return (
-        <div className="w-full">
-            <div className={cn("flex items-center justify-between p-3 rounded-lg border-gray-700 mb-2", level === 0 ? "bg-[#2D2D2D] border" : "bg-transparent border-0 pl-0")}>
-                <Label htmlFor={`mod-${item.id}`} className={cn("cursor-pointer flex-1", level > 0 && "text-sm text-gray-300")}>{item.label}</Label>
-                <Switch 
-                    id={`mod-${item.id}`}
-                    checked={isEnabled} 
-                    onCheckedChange={handleToggle}
-                    className="data-[state=checked]:bg-yellow-500"
-                />
-            </div>
-            {hasChildren && isEnabled && (
-                <div className={cn("ml-4 pl-4 border-l border-gray-700", level === 0 && "mb-4")}>
-                    {item.children!.map(child => (
-                        <ModuleItem key={child.id} item={child} level={level + 1} />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-[#121212] text-white p-6">
@@ -673,7 +643,6 @@ export default function TenantSettingsPage() {
                         <TabsList className="bg-[#2D2D2D] w-full justify-start">
                             <TabsTrigger value="conexao">Ambiente</TabsTrigger>
                             <TabsTrigger value="parametrizacao">Parametrização</TabsTrigger>
-                            <TabsTrigger value="modulos">Módulos</TabsTrigger>
                         </TabsList>
 
                         {/* SUB-ABA CONEXÃO */}
@@ -855,14 +824,7 @@ export default function TenantSettingsPage() {
                             </div>
                         </TabsContent>
 
-                        {/* SUB-ABA MÓDULOS */}
-                        <TabsContent value="modulos" className="py-4">
-                            <div className="grid grid-cols-1 gap-4">
-                                {menuItems.map((item) => (
-                                    <ModuleItem key={item.id} item={item} />
-                                ))}
-                            </div>
-                        </TabsContent>
+
                     </Tabs>
                 )}
 

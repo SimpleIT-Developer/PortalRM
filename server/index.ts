@@ -1,4 +1,6 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { resolveTenant } from "./middleware/resolve-tenant";
@@ -6,6 +8,25 @@ import { resolveTenant } from "./middleware/resolve-tenant";
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+app.set("trust proxy", 1);
+if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET não configurado");
+}
+app.use(
+  session({
+    name: "portalrm.sid",
+    secret: process.env.SESSION_SECRET || "dev-session-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 12
+    }
+  })
+);
 
 // Add Tenant Resolution Middleware
 app.use(resolveTenant);
