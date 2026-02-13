@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><ReadRecordResponse xmlns="http://www.totvs.com/"><ReadRecordResult>&lt;GlbConsSql /&gt;</ReadRecordResult></ReadRecordResponse></s:Body></s:Envelope>

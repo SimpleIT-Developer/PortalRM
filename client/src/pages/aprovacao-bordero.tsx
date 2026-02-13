@@ -180,10 +180,10 @@ export default function AprovacaoBorderoPage() {
       }
 
       // Montagem dos parâmetros para a query SQL (tentativa de filtrar no server)
-      // Formato esperado pelo RM geralmente depende da query, mas vamos enviar padrão
+      // Removido hora/minuto conforme solicitado pelo usuário
       const parameters = [
-        `DATAINI=${dateStart} 00:00:00`,
-        `DATAFIM=${dateEnd} 23:59:59`,
+        `DATAINI=${dateStart}`,
+        `DATAFIM=${dateEnd}`,
         `STATUS=${statusFilter === "todos" ? "-1" : statusFilter}`
       ].join(";");
 
@@ -218,17 +218,22 @@ export default function AprovacaoBorderoPage() {
       fetchedItems = fetchedItems.filter(item => {
         // Filtro de Data
         if (item.DATA) {
-          const itemDate = new Date(item.DATA);
-          const startDate = new Date(`${dateStart}T00:00:00`);
-          const endDate = new Date(`${dateEnd}T23:59:59`);
+          // Extrai apenas a parte da data YYYY-MM-DD da string retornada pelo backend
+          // Ex: "2025-12-17T00:00:00" -> "2025-12-17"
+          let itemDateStr = "";
+          if (typeof item.DATA === 'string') {
+             itemDateStr = item.DATA.split('T')[0];
+          } else {
+             // Fallback se não for string
+             try {
+                itemDateStr = new Date(item.DATA).toISOString().split('T')[0];
+             } catch (e) {
+                return false;
+             }
+          }
           
-          // Ajuste básico de fuso horário para comparação de datas apenas (dia)
-          // Zeramos as horas para comparar apenas as datas
-          itemDate.setHours(0, 0, 0, 0);
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(0, 0, 0, 0);
-
-          if (itemDate < startDate || itemDate > endDate) {
+          // Compara strings diretamente (YYYY-MM-DD) para evitar problemas de timezone
+          if (itemDateStr < dateStart || itemDateStr > dateEnd) {
             return false;
           }
         }

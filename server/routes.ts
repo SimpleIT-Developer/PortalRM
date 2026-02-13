@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { readFileSync, writeFile, unlinkSync } from "fs";
+import { readFileSync, writeFile, unlinkSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 // @ts-ignore
 import { storage } from "./storage.js";
@@ -517,6 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Sentences configuration
   app.get("/api/config/sentences", (req, res) => {
+    const defaultSentences = Array.from({ length: 24 }, (_, i) => `SIT.PORTALRM.${String(i + 1).padStart(3, "0")}`);
     try {
       const sentencesPath = join(process.cwd(), "ambiente", "sentencas.txt");
       // Fallback for direct path if needed, or just rely on relative
@@ -538,10 +539,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .filter(line => line.length > 0 && !line.startsWith('#'));
           res.json({ sentences: lines });
       } catch (err2) {
-          res.status(500).json({ 
-            error: "Erro ao ler arquivo de configurações",
-            details: error instanceof Error ? error.message : "Erro desconhecido"
+          res.json({
+            sentences: defaultSentences,
+            error: "Arquivo de sentenças não encontrado, usando padrão"
           });
+      }
+    }
+  });
+
+  // Sentence content endpoint
+  app.get("/api/config/sentence-content", (req, res) => {
+    try {
+      const contentPath = join(process.cwd(), "ambiente", "conteudo_sentencas.txt");
+      const content = readFileSync(contentPath, "utf-8");
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.send(content);
+    } catch (error) {
+      console.error("Erro ao ler arquivo de conteúdo das sentenças:", error);
+      // Fallback alternate path in case server cwd differs
+      try {
+        const altPath = join(process.cwd(), "..", "ambiente", "conteudo_sentencas.txt");
+        const content = readFileSync(altPath, "utf-8");
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.send(content);
+      } catch (err2) {
+        res.status(500).json({
+          error: "Erro ao carregar conteúdo das sentenças"
+        });
       }
     }
   });
@@ -845,10 +869,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!response.ok) {
         console.log("⚠️ Proxy SOAP - Erro Body:", responseText);
+        // Log response error to file
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const actionName = action ? action.split('/').pop() : 'unknown';
+          const filename = `rsp_${timestamp}_${actionName}.xml`;
+          const filePath = join("d:\\PortalRM\\requisições", filename);
+          writeFile(filePath, responseText, (err) => {
+            if (err) console.error("❌ Erro ao salvar log da resposta:", err);
+            else console.log("📝 Log da resposta salvo em:", filePath);
+          });
+        } catch (logError) {
+          console.error("❌ Erro ao tentar salvar log de resposta:", logError);
+        }
         return res.status(response.status).json({ error: "Erro na requisição SOAP", details: responseText });
       }
 
       console.log("✅ Proxy SOAP - Sucesso (tamanho):", responseText.length);
+      // Log success response to file
+      try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const actionName = action ? action.split('/').pop() : 'unknown';
+        const filename = `rsp_${timestamp}_${actionName}.xml`;
+        const filePath = join("d:\\PortalRM\\requisições", filename);
+        writeFile(filePath, responseText, (err) => {
+          if (err) console.error("❌ Erro ao salvar log da resposta:", err);
+          else console.log("📝 Log da resposta salvo em:", filePath);
+        });
+      } catch (logError) {
+        console.error("❌ Erro ao tentar salvar log de resposta:", logError);
+      }
       res.json({ response: responseText });
 
     } catch (error) {
@@ -857,6 +907,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Erro interno do servidor",
         message: error instanceof Error ? error.message : "Erro desconhecido"
       });
+    }
+  });
+
+  // Endpoint para obter o último log de resposta SOAP
+  app.get("/api/soap-logs/latest", (req, res) => {
+    try {
+      const { action } = req.query;
+      const dir = "d:\\PortalRM\\requisições";
+      const files = readdirSync(dir)
+        .filter(f => f.startsWith("rsp_") && (!action || f.includes(String(action))))
+        .map(f => ({ name: f, time: statSync(join(dir, f)).mtimeMs }))
+        .sort((a, b) => b.time - a.time);
+      
+      if (files.length === 0) {
+        return res.status(404).json({ error: "Nenhum log de resposta encontrado" });
+      }
+      
+      const latestFile = files[0].name;
+      const content = readFileSync(join(dir, latestFile), "utf-8");
+      res.json({ file: latestFile, content });
+    } catch (error: any) {
+      console.error("Erro ao ler logs SOAP:", error);
+      res.status(500).json({ error: error.message || "Erro interno ao ler logs" });
     }
   });
 

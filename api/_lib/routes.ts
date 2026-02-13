@@ -52,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("🔗 Proxy - Autenticando em:", `${endpoint}/api/connect/token`);
-      console.log("📤 Proxy - Dados:", credentials);
+      console.log("📤 Proxy - Dados:", { ...credentials, password: "***" });
 
       const response = await fetch(`${endpoint}/api/connect/token`, {
         method: "POST",
@@ -61,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         body: JSON.stringify(credentials),
       });
-
+      
       const data = await response.json();
       
       if (!response.ok) {
@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (docs.length === 0) {
         return res.json([]);
       }
-
+      
       // 2. Coletar Chaves (Tentando identificar a chave da NFSe, geralmente nfse_chave ou nfse_cod_verificacao)
       // Assumindo nfse_chave para compatibilidade com eventos
       const validDocs = docs.filter((d: any) => d.nfse_chave && typeof d.nfse_chave === 'string' && d.nfse_chave.length > 0);
@@ -517,6 +517,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Erro ao buscar dados",
         message: error instanceof Error ? error.message : "Erro desconhecido",
         details: "Verifique se a tabela 'cte' existe no banco de dados."
+      });
+    }
+  });
+
+  // Sentence configuration endpoints
+  app.get("/api/config/sentences", (req, res) => {
+    try {
+      const sentencesPath = join(process.cwd(), "ambiente", "sentencas.txt");
+      const content = readFileSync(sentencesPath, "utf-8");
+      const sentences = content
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && !line.startsWith('#'));
+      
+      res.json({ sentences });
+    } catch (error) {
+      console.error("Erro ao ler arquivo de sentenças:", error);
+      res.status(500).json({ 
+        error: "Erro ao carregar configuração de sentenças",
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
+  app.get("/api/config/sentence-content", (req, res) => {
+    try {
+      const contentPath = join(process.cwd(), "ambiente", "conteudo_sentencas.txt");
+      const content = readFileSync(contentPath, "utf-8");
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.send(content);
+    } catch (error) {
+      console.error("Erro ao ler arquivo de conteúdo das sentenças:", error);
+      res.status(500).json({ 
+        error: "Erro ao carregar conteúdo das sentenças",
+        message: error instanceof Error ? error.message : "Erro desconhecido"
       });
     }
   });

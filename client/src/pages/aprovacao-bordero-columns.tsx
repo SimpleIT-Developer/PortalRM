@@ -47,6 +47,17 @@ export interface BorderoItem {
 const formatarData = (dataString: string) => {
   if (!dataString) return "";
   try {
+    // Se for string ISO (YYYY-MM-DD...), extraímos as partes para evitar conversão de timezone
+    if (typeof dataString === 'string' && dataString.includes('-')) {
+      const datePart = dataString.split('T')[0];
+      const [year, month, day] = datePart.split('-');
+      // Verifica se temos ano, mês e dia válidos
+      if (year && month && day) {
+        return `${day}/${month}/${year}`;
+      }
+    }
+    
+    // Fallback para comportamento padrão se não for o formato esperado
     const data = new Date(dataString);
     return data.toLocaleDateString('pt-BR');
   } catch (error) {

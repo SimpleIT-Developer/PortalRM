@@ -1,4 +1,3 @@
-
 import { BorderoItem } from "@/pages/aprovacao-bordero-columns";
 
 export const getAprovacaoBorderoSoap = (item: BorderoItem, username: string) => {
@@ -367,7 +366,7 @@ export const getRecebimentoXmlSoap = (
   <ScheduleDateTime xmlns="http://www.totvs.com/">${scheduleDate}</ScheduleDateTime>
   <Scheduler xmlns="http://www.totvs.com/">JobMonitor</Scheduler>
   <SendMail xmlns="http://www.totvs.com/">false</SendMail>
-  <ServerName xmlns="http://www.totvs.com/">MovNfeEntradaDataProc</ServerName>
+  <ServerName xmlns="http://www.totvs.com/">MovTraducaoXMLTOTVSColabProc</ServerName>
   <ServiceInterface i:nil="true" xmlns="http://www.totvs.com/" xmlns:a="http://schemas.datacontract.org/2004/07/System" />
   <ShouldParallelize xmlns="http://www.totvs.com/">false</ShouldParallelize>
   <ShowReExecuteButton xmlns="http://www.totvs.com/">true</ShowReExecuteButton>
@@ -377,17 +376,124 @@ export const getRecebimentoXmlSoap = (
   <UseJobMonitor xmlns="http://www.totvs.com/">false</UseJobMonitor>
   <UserName xmlns="http://www.totvs.com/">${username}</UserName>
   <WaitSchedule xmlns="http://www.totvs.com/">false</WaitSchedule>
-  <ParametrosProcesso i:nil="true" xmlns="http://www.totvs.com/" xmlns:a="http://www.totvs.com.br/RM/" />
+  <XmlItem>
+    <a:ChaveAcesso>${xmlItem.CHAVEACESSO}</a:ChaveAcesso>
+    <a:CodCfo>${xmlItem.CODCFO}</a:CodCfo>
+    <a:CodColCfo>${xmlItem.CODCOLCFO}</a:CodColCfo>
+    <a:CodColigada>${xmlItem.CODCOLIGADA}</a:CodColigada>
+    <a:CodFilial>${xmlItem.CODFILIAL}</a:CodFilial>
+    <a:Id>${xmlItem.ID}</a:Id>
+    <a:Numero>${xmlItem.NUMERO}</a:Numero>
+  </XmlItem>
+  <Produtos>
+    ${produtosXml}
+  </Produtos>
 </MovTraducaoXMLTOTVSColabParams>`;
 
   return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
    <soapenv:Header/>
    <soapenv:Body>
       <tot:ExecuteWithXmlParams>
-         <tot:ProcessServerName>MovNfeEntradaDataProc</tot:ProcessServerName>
-         <tot:strXmlParams><![CDATA[<?xml version="1.0" encoding="utf-16"?>
-${innerXml}]]></tot:strXmlParams>
+         <tot:ProcessServerName>MovTraducaoXMLTOTVSColabProc</tot:ProcessServerName>
+         <tot:strXmlParams><![CDATA[${innerXml}]]></tot:strXmlParams>
       </tot:ExecuteWithXmlParams>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+};
+
+export const getSaveRecordMovDocNfeEntradaSoap = (
+  xmlContent: string,
+  username: string,
+  codColigada: number
+) => {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:SaveRecord>
+         <!--Optional:-->
+         <tot:DataServerName>MovDocNfeEntradaData</tot:DataServerName>
+         <!--Optional:-->
+         <tot:XML><![CDATA[${xmlContent}]]></tot:XML>
+         <!--Optional:-->
+         <tot:Contexto>CODCOLIGADA=${codColigada};CODUSUARIO='${username}';CODSISTEMA=T</tot:Contexto>
+      </tot:SaveRecord>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+};
+
+export const getCreateSqlSentenceSoap = (
+  codSentenca: string,
+  titulo: string,
+  sentenca: string,
+  username: string,
+  codColigada: number = 1
+) => {
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const year = now.getFullYear();
+  const month = pad(now.getMonth() + 1);
+  const day = pad(now.getDate());
+  const hours = pad(now.getHours());
+  const minutes = pad(now.getMinutes());
+  const seconds = pad(now.getSeconds());
+  const timestamp = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.0000000-03:00`;
+  
+  const tamanho = sentenca.length;
+  const guid = crypto.randomUUID();
+  const controle = Math.floor(Math.random() * 99999) + 1000;
+
+  const xmlContent = `<GlbConsSql>
+  <GConsSql>
+    <CODCOLIGADA>${codColigada}</CODCOLIGADA>
+    <APLICACAO>T</APLICACAO>
+    <CODSENTENCA>${codSentenca}</CODSENTENCA>
+    <TITULO>${titulo}</TITULO>
+    <SENTENCA>${sentenca}</SENTENCA>
+    <TAMANHO>${tamanho}</TAMANHO>
+    <DTULTALTERACAO>${timestamp}</DTULTALTERACAO>
+    <USRULTALTERACAO>${username}</USRULTALTERACAO>
+    <DISPONIVELFILTRO>1</DISPONIVELFILTRO>
+    <DISPONIVELRELATORIO>1</DISPONIVELRELATORIO>
+    <DISPONIVELVISAO>1</DISPONIVELVISAO>
+    <DISPONIVELMENU>0</DISPONIVELMENU>
+    <SEMSEGCOLUNAS>0</SEMSEGCOLUNAS>
+    <SEMSEGESTENDIDA>0</SEMSEGESTENDIDA>
+    <GUID>${guid}</GUID>
+    <CONTROLE>${controle}</CONTROLE>
+  </GConsSql>
+</GlbConsSql>`;
+
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:SaveRecord>
+         <!--Optional:-->
+         <tot:DataServerName>GlbConsSqlData</tot:DataServerName>
+         <!--Optional:-->
+         <tot:XML><![CDATA[${xmlContent}]]></tot:XML>
+         <!--Optional:-->
+         <tot:Contexto>CODCOLIGADA=${codColigada};CODUSUARIO='${username}';CODSISTEMA=T</tot:Contexto>
+      </tot:SaveRecord>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+};
+
+export const getReadRecordMovDocNfeEntradaSoap = (
+  primaryKey: string,
+  username: string,
+  codColigada: number
+) => {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:ReadRecord>
+         <!--Optional:-->
+         <tot:DataServerName>MovDocNfeEntradaData</tot:DataServerName>
+         <!--Optional:-->
+         <tot:PrimaryKey>${primaryKey}</tot:PrimaryKey>
+         <!--Optional:-->
+         <tot:Contexto>CODCOLIGADA=${codColigada};CODUSUARIO='${username}';CODSISTEMA=T</tot:Contexto>
+      </tot:ReadRecord>
    </soapenv:Body>
 </soapenv:Envelope>`;
 };
@@ -395,8 +501,8 @@ ${innerXml}]]></tot:strXmlParams>
 export const getFaturamentoMovimentoSoap = (
   username: string,
   idMov: number,
-  codColigada: number = 1,
-  codFilial: number = 1
+  codColigada: number,
+  codFilial: number
 ) => {
   const executionId = crypto.randomUUID();
   const now = new Date();
@@ -410,7 +516,7 @@ export const getFaturamentoMovimentoSoap = (
   const scheduleDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.0000000-03:00`;
   const todayDate = `${year}-${month}-${day}T00:00:00-03:00`;
 
-  const innerXml = `<MovFaturamentoProcParams z:Id="i1" xmlns="http://www.totvs.com.br/RM/" xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:z="http://schemas.microsoft.com/2003/10/Serialization/">
+  const innerXml = `<MovFaturamentoParamsProc z:Id="i1" xmlns="http://www.totvs.com.br/RM/" xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:z="http://schemas.microsoft.com/2003/10/Serialization/">
   <ActionModule xmlns="http://www.totvs.com/">T</ActionModule>
   <ActionName xmlns="http://www.totvs.com/">MovFaturamentoProcAction</ActionName>
   <CanParallelize xmlns="http://www.totvs.com/">true</CanParallelize>
@@ -498,7 +604,7 @@ export const getFaturamentoMovimentoSoap = (
     <IsPriorityJob>false</IsPriorityJob>
   </JobID>
   <JobServerHostName xmlns="http://www.totvs.com/">SERVER</JobServerHostName>
-  <MasterActionName xmlns="http://www.totvs.com/">MovMovimentoMDIAction</MasterActionName>
+  <MasterActionName xmlns="http://www.totvs.com/">MovFaturamentoAction</MasterActionName>
   <MaximumQuantityOfPrimaryKeysPerProcess xmlns="http://www.totvs.com/">1000</MaximumQuantityOfPrimaryKeysPerProcess>
   <MinimumQuantityOfPrimaryKeysPerProcess xmlns="http://www.totvs.com/">1</MinimumQuantityOfPrimaryKeysPerProcess>
   <NetworkUser xmlns="http://www.totvs.com/">${username}</NetworkUser>
@@ -508,116 +614,43 @@ export const getFaturamentoMovimentoSoap = (
   <OnlineMode xmlns="http://www.totvs.com/">false</OnlineMode>
   <PrimaryKeyList xmlns="http://www.totvs.com/" xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
     <a:ArrayOfanyType>
-      <a:anyType i:type="b:short" xmlns:b="http://www.w3.org/2001/XMLSchema">${codColigada}</a:anyType>
       <a:anyType i:type="b:int" xmlns:b="http://www.w3.org/2001/XMLSchema">${idMov}</a:anyType>
+      <a:anyType i:type="b:short" xmlns:b="http://www.w3.org/2001/XMLSchema">${codColigada}</a:anyType>
+      <a:anyType i:type="b:short" xmlns:b="http://www.w3.org/2001/XMLSchema">${codFilial}</a:anyType>
     </a:ArrayOfanyType>
   </PrimaryKeyList>
   <PrimaryKeyNames xmlns="http://www.totvs.com/" xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
-    <a:string>CODCOLIGADA</a:string>
     <a:string>IDMOV</a:string>
+    <a:string>CODCOLIGADA</a:string>
+    <a:string>CODFILIAL</a:string>
   </PrimaryKeyNames>
   <PrimaryKeyTableName xmlns="http://www.totvs.com/">TMOV</PrimaryKeyTableName>
-  <ProcessName xmlns="http://www.totvs.com/">Faturar / Receber</ProcessName>
+  <ProcessName xmlns="http://www.totvs.com/">Faturamento de Movimento</ProcessName>
   <QuantityOfSplits xmlns="http://www.totvs.com/">0</QuantityOfSplits>
   <SaveLogInDatabase xmlns="http://www.totvs.com/">true</SaveLogInDatabase>
   <SaveParamsExecution xmlns="http://www.totvs.com/">false</SaveParamsExecution>
   <ScheduleDateTime xmlns="http://www.totvs.com/">${scheduleDate}</ScheduleDateTime>
   <Scheduler xmlns="http://www.totvs.com/">JobMonitor</Scheduler>
   <SendMail xmlns="http://www.totvs.com/">false</SendMail>
-  <ServerName xmlns="http://www.totvs.com/">MovFaturamentoProc</ServerName>
+  <ServerName xmlns="http://www.totvs.com/">MovFaturamentoDataProc</ServerName>
   <ServiceInterface i:nil="true" xmlns="http://www.totvs.com/" xmlns:a="http://schemas.datacontract.org/2004/07/System" />
   <ShouldParallelize xmlns="http://www.totvs.com/">false</ShouldParallelize>
   <ShowReExecuteButton xmlns="http://www.totvs.com/">true</ShowReExecuteButton>
   <StatusMessage i:nil="true" xmlns="http://www.totvs.com/" />
   <SuccessMessage xmlns="http://www.totvs.com/">Processo executado com sucesso</SuccessMessage>
-  <SyncExecution xmlns="http://www.totvs.com/">false</SyncExecution>
-  <UseJobMonitor xmlns="http://www.totvs.com/">true</UseJobMonitor>
+  <SyncExecution xmlns="http://www.totvs.com/">true</SyncExecution>
+  <UseJobMonitor xmlns="http://www.totvs.com/">false</UseJobMonitor>
   <UserName xmlns="http://www.totvs.com/">${username}</UserName>
   <WaitSchedule xmlns="http://www.totvs.com/">false</WaitSchedule>
-  <AutorizaGeracaoFinanceiro>false</AutorizaGeracaoFinanceiro>
-  <AutorizaGeracaoFinanceiroBloqueado>false</AutorizaGeracaoFinanceiroBloqueado>
-  <movCopiaFatPar z:Id="i3">
-    <InternalId i:nil="true" xmlns="http://www.totvs.com/" />
-    <ChaveAcessoNFe i:nil="true" />
-    <CodColigada>${codColigada}</CodColigada>
-    <CodCondicaoPagamento i:nil="true" />
-    <CodSistema>T</CodSistema>
-    <CodTipoDocumento i:nil="true" />
-    <CodTmvDestino>1.2.01</CodTmvDestino>
-    <CodTmvOrigem>1.1.03</CodTmvOrigem>
-    <CodUsuario>${username}</CodUsuario>
-    <DataExtra1 i:nil="true" />
-    <DataExtra2 i:nil="true" />
-    <FaturamentoAutomaticoNFSe i:nil="true" />
-    <GrupoFaturamento />
-    <Historico i:nil="true" />
-    <IdExercicioFiscal>22</IdExercicioFiscal>
-    <IdMov xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
-      <a:int>${idMov}</a:int>
-    </IdMov>
-    <Serie i:nil="true" />
-    <TipoFaturamento>0</TipoFaturamento>
-    <dataBase>${todayDate}</dataBase>
-    <dataEmissao i:nil="true" />
-    <dataFimAgendamento i:nil="true" />
-    <dataInicoAgendamento i:nil="true" />
-    <dataSaida i:nil="true" />
-    <efeitoPedidoFatAutomatico>2</efeitoPedidoFatAutomatico>
-    <listFilialAgendamento xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
-    <listaMovItemFatAutomatico />
-    <numeroMov />
-    <realizaBaixaPedido>true</realizaBaixaPedido>
-  </movCopiaFatPar>
-</MovFaturamentoProcParams>`;
+</MovFaturamentoParamsProc>`;
 
   return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
    <soapenv:Header/>
    <soapenv:Body>
       <tot:ExecuteWithXmlParams>
-         <tot:ProcessServerName>MovFaturamentoProc</tot:ProcessServerName>
-         <tot:strXmlParams><![CDATA[<?xml version="1.0" encoding="utf-16"?>
-${innerXml}]]></tot:strXmlParams>
+         <tot:ProcessServerName>MovFaturamentoDataProc</tot:ProcessServerName>
+         <tot:strXmlParams><![CDATA[${innerXml}]]></tot:strXmlParams>
       </tot:ExecuteWithXmlParams>
-   </soapenv:Body>
-</soapenv:Envelope>`;
-};
-
-export const getReadRecordMovDocNfeEntradaSoap = (
-  id: number,
-  codColigada: number,
-  username: string
-) => {
-  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
-    <soapenv:Header/>
-    <soapenv:Body>
-       <tot:ReadRecord>
-          <!--Optional:-->
-          <tot:DataServerName>MovDocNfeEntradaData</tot:DataServerName>
-          <!--Optional:-->
-          <tot:PrimaryKey>${id};${codColigada}</tot:PrimaryKey>
-          <!--Optional:-->
-          <tot:Contexto>CODCOLIGADA=${codColigada};CODUSUARIO='${username}';CODSISTEMA=T</tot:Contexto>
-       </tot:ReadRecord>
-    </soapenv:Body>
- </soapenv:Envelope>`;
-};
-
-export const getSaveRecordMovDocNfeEntradaSoap = (
-  xmlContent: string,
-  username: string,
-  codColigada: number
-) => {
-  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <tot:SaveRecord>
-         <!--Optional:-->
-         <tot:DataServerName>MovDocNfeEntradaData</tot:DataServerName>
-         <!--Optional:-->
-         <tot:XML><![CDATA[${xmlContent}]]></tot:XML>
-         <!--Optional:-->
-         <tot:Contexto>CODCOLIGADA=${codColigada};CODUSUARIO='${username}';CODSISTEMA=T</tot:Contexto>
-      </tot:SaveRecord>
    </soapenv:Body>
 </soapenv:Envelope>`;
 };

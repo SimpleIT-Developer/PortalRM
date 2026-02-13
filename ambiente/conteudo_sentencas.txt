@@ -1,10 +1,10 @@
-SIT.PORTALRM.001
+SIT.PORTALRM.001 - Retorna Lançamentos Contas a Pagar
     "select * from flan f 
     left join fcfo fo
     on fo.codcoligada = f.codcolcfo and fo.codcfo = f.codcfo
     where f.datavencimento >= '07/01/2025'"
 
-SIT.PORTALRM.002
+SIT.PORTALRM.002 - Retorna Acessos aos Menus
     "SELECT 
     -- Verifica acesso à Solicitação de Compras
     CASE 
@@ -54,14 +54,109 @@ SIT.PORTALRM.002
         ELSE 0
     END AS MNULB"
 
-SIT.PORTALRM.003
-SIT.PORTALRM.004
-SIT.PORTALRM.005
-SIT.PORTALRM.006
-SIT.PORTALRM.007
-SIT.PORTALRM.008
-SIT.PORTALRM.009
-SIT.PORTALRM.010
-SIT.PORTALRM.011
-SIT.PORTALRM.012
-SIT.PORTALRM.013
+SIT.PORTALRM.003 - Retorna Coligadas
+    "select * from gcoligada"
+
+SIT.PORTALRM.004 - Retorna Filial
+    "select * from gfilial where codcoligada = 1
+    order by codfilial"
+
+SIT.PORTALRM.005 - Retorna Fornecedores
+    "select * from fcfo where (codcoligada = 0 or codcoligada = :CODCOLIGADA)"
+
+SIT.PORTALRM.006 - Retorna Borderôs Pendentes
+    "select * 
+    from FBORDERO 
+    where 
+        codcoligada = 1 
+        /*and STATUSREMESSA = 0*/"
+
+SIT.PORTALRM.007 - Retorna Lançamentos do Borderô
+    "select * from flan where codcoligada = 1 and idbordero = :IDBORDERO"
+
+SIT.PORTALRM.008 - Retorna XML
+    "select tnfe.*, f.nomefantasia from TNFEENTRADA tnfe
+    left join fcfo f
+    on tnfe.codcoligada = f.codcoligada and tnfe.codcfo = f.codcfo"
+
+SIT.PORTALRM.009 - Retorna Movimento para o Fornecedor
+    "select * from tmov where codcoligada = 1 and CODCFO = :CODCFO"
+
+SIT.PORTALRM.010 - Retorna Itens do Movimento
+    "select * 
+    from titmmov it
+    left join tproduto p
+    on it.codcoligada = p.codcolprd and it.idprd = p.idprd 
+    where it.codcoligada = :CODCOLIGADA and it.idmov =:IDMOV"
+
+SIT.PORTALRM.011 - Retorna Produtos
+    "select * from TPRODUTO P
+    left join TPRODUTODEF PD
+    on p.codcolprd = pd.codcoligada and p.idprd = pd.idprd 
+    where 
+        P.tipo = 'P' 
+        order by codigoprd"
+
+SIT.PORTALRM.012 - Retorna Serviços
+    "select * from TPRODUTO P
+    left join TPRODUTODEF PD
+    on p.codcolprd = pd.codcoligada and p.idprd = pd.idprd 
+    where 
+        P.tipo = 'S' 
+        order by codigoprd"
+
+SIT.PORTALRM.013 - Retorna IDMOV de Destino
+    "select * from tmovrelac where codcolorigem = 1 and idmovorigem = :IDMOVORIGEM "
+
+SIT.PORTALRM.014 - Retorna Natureza Orçamentária
+    "select * from ttborcamento where codcoligada = 1"
+
+SIT.PORTALRM.015 - Patch
+    "SELECT TOP 1 VERSAOPATCH
+    FROM GUPGATUALIZACAO
+    ORDER BY RECCREATEDON DESC"
+
+SIT.PORTALRM.016 - Retorna Campos da Tabela
+    "select * from gcampos where tabela = :TABELA
+"
+
+SIT.PORTALRM.017 - Retorna Dados do Cadastro de Contas Caixa
+    "select * from fcxa"
+
+SIT.PORTALRM.018 - Retorna Lançamentos Contas a Pagar
+    "select * 
+    from flan f
+    left join fcfo fo
+    on f.codcolcfo = fo.codcoligada and f.codcfo = fo.codcfo
+    where f.pagrec = 2"
+
+SIT.PORTALRM.019 - Retorna Lançamentos Contas a Receber
+    "select * 
+    from flan f
+    left join fcfo fo
+    on f.codcolcfo = fo.codcoligada and f.codcfo = fo.codcfo
+    where f.pagrec = 1"
+
+SIT.PORTALRM.020 - Retorna Lançamento do Extrato de Caixa
+    "select * from fxcx"
+
+SIT.PORTALRM.021 - Retorna Movimentos por Tipo de Movimento
+    "SELECT *
+    FROM TMOV tm
+    left join FCFO f
+    on f.codcoligada = tm.codcolcfo and f.codcfo = tm.codcfo
+    WHERE tm.CODCOLIGADA = :CODCOLIGADA
+    AND ',' + :CODTMV + ',' LIKE '%,' + tm.CODTMV + ',%'"
+
+SIT.PORTALRM.022 - Retorna Cotações
+    "select * from tccotacao where codcoligada = :CODCOLIGADA"
+
+SIT.PORTALRM.023 - Retorna Extrato de Caixa por Data
+    "select * from fxcx
+    where codcoligada = :CODCOLIGADA
+    and DATA >= :DATA_INICIAL
+    and DATA <= :DATA_FINAL
+    and CODCXA = :CODCXA"
+
+SIT.PORTALRM.024 - Teste
+    "select * from gcoligada"

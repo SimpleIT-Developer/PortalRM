@@ -137,60 +137,82 @@ export function MovimentacaoBancaria() {
       const token = AuthService.getStoredToken();
       if (!token || !token.environmentId) return;
       
-      // Using parameters similar to Contas a Pagar/Receber but for Movimentação
-      // Assuming the backend query filters by DATAINI and DATAFIM based on the selected TIPODATA
-      const paramsList = [
-        `DATAINI=${dateStart}T00:00:00`,
-        `DATAFIM=${dateEnd}T23:59:59`,
-        `TIPODATA=${dateType}` 
-      ];
-
-      if (contaCaixa && contaCaixa !== "ALL") {
-        paramsList.push(`CODCONTA=${contaCaixa}`);
-      }
-
-      const parameters = paramsList.join(";");
-
-      const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.020/1/T?parameters=${parameters}`;
+      // Obter a coligada selecionada do contexto
+      const selectedColigada = localStorage.getItem("selected_coligada") || "1";
       
-      const response = await fetch(
-        `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
-        {
-            headers: {
-                ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+      // Função para tentar diferentes formatos de data
+      const tryDateFormats = async (startDate: string, endDate: string, coligada: string, conta: string) => {
+        const dateFormats = [
+          { name: 'ISO', format: (date: string) => date }, // YYYY-MM-DD
+          { name: 'BR', format: (date: string) => {
+            const [year, month, day] = date.split('-');
+            return `${day}/${month}/${year}`;
+          }},
+          { name: 'US', format: (date: string) => {
+            const [year, month, day] = date.split('-');
+            return `${month}/${day}/${year}`;
+          }}
+        ];
+
+        for (const dateFormat of dateFormats) {
+          try {
+            const paramsList = [
+              `CODCOLIGADA=${coligada}`,
+              `DATAINI=${dateFormat.format(startDate)}`,
+              `DATAFIM=${dateFormat.format(endDate)}`
+            ];
+
+            if (conta && conta !== "ALL") {
+              paramsList.push(`CODCONTA=${conta}`);
             }
+
+            const parameters = paramsList.join(";");
+            const dataPath = `/api/framework/v1/consultaSQLServer/RealizaConsulta/SIT.PORTALRM.020/1/T?parameters=${parameters}`;
+            
+            const response = await fetch(
+              `/api/proxy?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(dataPath)}&token=${encodeURIComponent(token.access_token)}`,
+              {
+                  headers: {
+                      ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                  }
+              }
+            );
+
+            if (response.ok) {
+              console.log(`✅ Formato de data ${dateFormat.name} funcionou!`);
+              return response;
+            } else {
+              const errorData = await response.json().catch(() => ({ message: response.statusText }));
+              if (errorData.message?.includes('conversion') || errorData.message?.includes('datetime')) {
+                console.log(`❌ Formato de data ${dateFormat.name} falhou, tentando próximo...`);
+                continue;
+              }
+              // Se for outro tipo de erro, não tenta outros formatos
+              return response;
+            }
+          } catch (error) {
+            console.log(`❌ Erro com formato ${dateFormat.name}:`, error);
+            continue;
+          }
         }
-      );
+        
+        // Se nenhum formato funcionou, retorna null
+        return null;
+      };
+
+      // Tenta diferentes formatos de data
+      const response = await tryDateFormats(dateStart, dateEnd, selectedColigada, contaCaixa);
+      
+      if (!response) {
+        throw new Error("Nenhum formato de data funcionou com o banco de dados");
+      }
 
       if (response.ok) {
         const json = await response.json();
         const resultItems = Array.isArray(json) ? json : (json.data || []);
         
-        // Client-side filtering
-        const filtered = resultItems.filter((item: Movimento) => {
-            // Filter by Conta Caixa if provided (Client-side fallback)
-            if (contaCaixa && contaCaixa !== "ALL") {
-                const itemConta = item.CODCXA || item.CODCONTA || item.CODCONTACAIXA || item.CodConta || item.codconta || item.CONTACAIXA || "";
-                if (!String(itemConta).toLowerCase().includes(contaCaixa.toLowerCase())) {
-                    return false;
-                }
-            }
-
-            const dateValue = item[dateType];
-            if (!dateValue) return false;
-
-            let itemDateStr = "";
-            if (typeof dateValue === 'string') {
-                itemDateStr = dateValue.split('T')[0];
-            } else {
-                 try {
-                    itemDateStr = new Date(dateValue).toISOString().split('T')[0];
-                 } catch (e) {
-                    return false;
-                 }
-            }
-            return itemDateStr >= dateStart && itemDateStr <= dateEnd;
-        }).map((item: any) => ({
+        // Como a query SQL já filtra por coligada, conta e datas, apenas normalizamos os dados
+        const filtered = resultItems.map((item: any) => ({
             ...item,
             // Normalize CODCONTA: Prioritize CODCXA as per user request
             CODCONTA: item.CODCXA || item.CODCONTA || item.CODCONTACAIXA || item.CodConta || item.codconta || item.CONTACAIXA || ""

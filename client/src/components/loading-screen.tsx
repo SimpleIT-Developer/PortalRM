@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Progress } from "@/components/ui/progress";
 import { Box } from "lucide-react";
+import { StartupCheckService } from "@/lib/startup-check";
 
 interface LoadingScreenProps {
   duration?: number; // duração em milissegundos
@@ -17,49 +18,66 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
 }) => {
   const [internalProgress, setInternalProgress] = useState(0);
   const [internalMessage, setInternalMessage] = useState("Iniciando...");
+  const hasStartedRef = useRef(false);
 
   const isControlled = typeof progressValue === 'number';
 
   useEffect(() => {
     if (isControlled) return;
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
 
-    const messages = [
-      "Iniciando...",
-      "Configurando permissões...",
-      "Verificando URL...",
-      "Carregando módulos...",
-      "Preparando ambiente...",
-      "Quase pronto..."
-    ];
+    let cancelled = false;
 
-    const interval = 100; // atualiza a cada 100ms para animação suave
-    const steps = duration / interval;
-    const messageChangePoints = [0, 20, 40, 60, 80, 95]; // pontos percentuais para trocar mensagens
-    
-    let currentStep = 0;
-    
-    const timer = setInterval(() => {
-      currentStep++;
-      const newProgress = Math.min(100, Math.floor((currentStep / steps) * 100));
-      setInternalProgress(newProgress);
-      
-      // Atualiza a mensagem com base no progresso atual
-      for (let i = messageChangePoints.length - 1; i >= 0; i--) {
-        if (newProgress >= messageChangePoints[i]) {
-          setInternalMessage(messages[i]);
-          break;
+    const run = async () => {
+      setInternalProgress(5);
+      setInternalMessage("Carregando lista de sentenças...");
+
+      try {
+        await StartupCheckService.checkConfiguration((sentence, current, total) => {
+          if (cancelled) return;
+          const safeTotal = Math.max(1, total);
+          const pct = 5 + Math.floor((current / safeTotal) * 90);
+          setInternalProgress(Math.min(95, pct));
+          setInternalMessage(`Verificando ${sentence} (${current}/${total})...`);
+        });
+
+        if (cancelled) return;
+        setInternalProgress(100);
+        setInternalMessage("Concluído");
+      } catch (error) {
+        if (cancelled) return;
+
+        try {
+          const logData = {
+            timestamp: new Date().toISOString(),
+            items: [
+              {
+                sentence: "-",
+                status: 'error' as const,
+                message: error instanceof Error ? error.message : String(error)
+              }
+            ]
+          };
+          localStorage.setItem('startup_check_log', JSON.stringify(logData));
+        } catch {
         }
+
+        setInternalProgress(100);
+        setInternalMessage("Concluído");
+      } finally {
+        if (cancelled) return;
+        setTimeout(() => {
+          if (!cancelled) onComplete?.();
+        }, Math.min(250, duration));
       }
-      
-      if (newProgress >= 100) {
-        clearInterval(timer);
-        if (onComplete) {
-          onComplete();
-        }
-      }
-    }, interval);
-    
-    return () => clearInterval(timer);
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [duration, onComplete, isControlled]);
 
   const displayProgress = isControlled ? progressValue : internalProgress;
