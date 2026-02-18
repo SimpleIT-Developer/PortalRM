@@ -297,4 +297,156 @@ export class ERPService {
   static getAllSoapLogs(): Map<string, SoapLog[]> {
     return soapLogs;
   }
+
+  /**
+   * Verifica se um DPS já existe na Sefin Nacional
+   * @param dpsNumber Número completo do DPS (ex: DPS355400325743108800011300900000000000000063)
+   * @returns Objeto com status de existência e dados da NFSe se existir
+   */
+  static async verificarDPSExistente(dpsNumber: string): Promise<{
+    exists: boolean;
+    chaveAcesso?: string;
+    erro?: string;
+    codigo?: string;
+  }> {
+    try {
+      console.log(`[ERP-SERVICE] Verificando DPS na Sefin Nacional: ${dpsNumber}`);
+      
+      const url = `https://sefin.nfse.gov.br/SefinNacional/dps/${dpsNumber}`;
+      
+      console.log(`[ERP-SERVICE] Fazendo GET em: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'PortalRM/1.0'
+        }
+      });
+
+      console.log(`[ERP-SERVICE] Resposta da Sefin: ${response.status} ${response.statusText}`);
+       
+      let responseData;
+      const responseText = await response.text();
+      
+      try {
+        responseData = JSON.parse(responseText);
+        console.log(`[ERP-SERVICE] Dados retornados:`, responseData);
+      } catch (parseError) {
+        // Se não for JSON, provavelmente é HTML (página de erro ou não encontrado)
+        console.log(`[ERP-SERVICE] Resposta não é JSON, tratando como DPS não encontrado`);
+        console.log(`[ERP-SERVICE] Texto da resposta: ${responseText.substring(0, 200)}...`);
+        
+        // Para DPS não encontrado, a Sefin geralmente retorna 404 ou página HTML
+        if (response.status === 404 || responseText.includes('not found') || responseText.includes('não encontrado')) {
+          return {
+            exists: false,
+            codigo: 'E2404',
+            erro: 'Não foi gerada uma NFS-e com o identificador de DPS informado'
+          };
+        }
+        
+        // Para outros erros de HTML
+        return {
+          exists: false,
+          erro: `Erro na consulta: ${response.status} - Página HTML retornada`,
+          codigo: `HTTP_${response.status}`
+        };
+      }
+
+      // Se retornou 200 com chave de acesso, o DPS já existe
+      if (response.ok && responseData.chaveAcesso) {
+        console.log(`[ERP-SERVICE] DPS ${dpsNumber} já existe! Chave: ${responseData.chaveAcesso}`);
+        return {
+          exists: true,
+          chaveAcesso: responseData.chaveAcesso
+        };
+      }
+      
+      // Se retornou erro E2404, o DPS não existe (disponível)
+      if (responseData.erro?.codigo === 'E2404') {
+        console.log(`[ERP-SERVICE] DPS ${dpsNumber} está disponível!`);
+        return {
+          exists: false,
+          codigo: responseData.erro.codigo
+        };
+      }
+      
+      // Outros erros
+      if (responseData.erro) {
+        console.log(`[ERP-SERVICE] Erro ao verificar DPS: ${responseData.erro.descricao}`);
+        return {
+          exists: false,
+          erro: responseData.erro.descricao,
+          codigo: responseData.erro.codigo
+        };
+      }
+      
+      // Resposta inesperada
+      console.log(`[ERP-SERVICE] Resposta inesperada da Sefin:`, responseData);
+      return {
+        exists: false,
+        erro: 'Resposta inesperada da Sefin Nacional'
+      };
+      
+    } catch (error) {
+      console.error(`[ERP-SERVICE] Erro ao verificar DPS:`, error);
+      
+      // Se for erro de rede, consideramos como "não existe" para não bloquear
+      if (error instanceof Error && error.message.includes('fetch')) {
+        console.log(`[ERP-SERVICE] Erro de rede - assumindo DPS como disponível`);
+        return {
+          exists: false,
+          erro: 'Erro de conexão com Sefin Nacional - DPS considerado disponível'
+        };
+      }
+      
+      return {
+        exists: false,
+        erro: error instanceof Error ? error.message : 'Erro desconhecido'
+      };
+    }
+  }
+
+  /**
+   * Encontra o próximo DPS disponível incrementando o número
+   * @param dpsBase Número base do DPS (sem o sufixo incremental)
+   * @param maxTentativas Número máximo de tentativas (padrão: 100)
+   * @returns Próximo DPS disponível ou null se não encontrar
+   */
+  static async encontrarDPSDisponivel(dpsBase: string, maxTentativas: number = 100): Promise<string | null> {
+    console.log(`[ERP-SERVICE] Procurando DPS disponível a partir de: ${dpsBase}`);
+    
+    // Extrair partes do DPS para incrementar
+    const partes = dpsBase.match(/^(DPS\d+)(\d+)$/);
+    if (!partes) {
+      console.error(`[ERP-SERVICE] Formato de DPS inválido: ${dpsBase}`);
+      return null;
+    }
+    
+    const prefixo = partes[1]; // DPS3554003257431088000113009
+    const numeroStr = partes[2]; // 000000000000063
+    const comprimento = numeroStr.length; // Manter zeros à esquerda
+    
+    let numero = parseInt(numeroStr, 10);
+    
+    for (let tentativa = 0; tentativa < maxTentativas; tentativa++) {
+      const dpsTestado = prefixo + numero.toString().padStart(comprimento, '0');
+      
+      console.log(`[ERP-SERVICE] Tentativa ${tentativa + 1}: Verificando ${dpsTestado}`);
+      
+      const resultado = await this.verificarDPSExistente(dpsTestado);
+      
+      if (!resultado.exists) {
+        console.log(`[ERP-SERVICE] DPS disponível encontrado: ${dpsTestado}`);
+        return dpsTestado;
+      }
+      
+      console.log(`[ERP-SERVICE] DPS ${dpsTestado} já existe, tentando próximo...`);
+      numero++;
+    }
+    
+    console.error(`[ERP-SERVICE] Nenhum DPS disponível encontrado após ${maxTentativas} tentativas`);
+    return null;
+  }
 }

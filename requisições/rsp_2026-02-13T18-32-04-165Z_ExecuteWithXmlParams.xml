@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><ExecuteWithXmlParamsResponse xmlns="http://www.totvs.com/"><ExecuteWithXmlParamsResult>1</ExecuteWithXmlParamsResult></ExecuteWithXmlParamsResponse></s:Body></s:Envelope>

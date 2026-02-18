@@ -135,4 +135,29 @@ export class AuditLogger {
       details: `Documento ID: ${docId}`
     });
   }
+
+  static async logNFSeEmission(req: Request & { user?: any }, emissionData: {
+    success: boolean;
+    dpsNumber: string;
+    protocol?: string;
+    error?: string;
+    xmlContent: string;
+  }): Promise<void> {
+    if (!req.user) return;
+    
+    const action = emissionData.success ? 'Emitiu NFSe com sucesso' : 'Falha na emissão de NFSe';
+    const details = [
+      `DPS: ${emissionData.dpsNumber}`,
+      emissionData.protocol ? `Protocolo: ${emissionData.protocol}` : null,
+      emissionData.error ? `Erro: ${emissionData.error}` : null,
+      `XML: ${emissionData.xmlContent.substring(0, 100)}${emissionData.xmlContent.length > 100 ? '...' : ''}`
+    ].filter(Boolean).join(', ');
+    
+    await this.log(req, {
+      userId: req.user.id,
+      userName: req.user.name || req.user.username,
+      action,
+      details
+    });
+  }
 }
