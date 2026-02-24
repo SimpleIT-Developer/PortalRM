@@ -1,0 +1,10 @@
+{
+  "default": "http://erp-simpleit.sytes.net:8051",
+  "endpoints": [
+    {
+      "url": "http://erp-simpleit.sytes.net:8051",
+      "name": "ERP SimpleIT",
+      "description": "Servidor principal ERP SimpleIT"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(227, 15%, 16%);
+  --foreground: hsl(0, 0%, 98%);
+
+  --card: hsl(227, 17%, 20%);
+  --card-foreground: hsl(0, 0%, 98%);
+
+  --popover: hsl(227, 17%, 20%);
+  --popover-foreground: hsl(0, 0%, 98%);
+
+  --primary: hsl(48, 96%, 53%);
+  --primary-foreground: hsl(0, 0%, 9%);
+
+  --secondary: hsl(227, 16%, 23%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+
+  --muted: hsl(227, 14%, 28%);
+  --muted-foreground: hsl(0, 0%, 63.9%);
+
+  --accent: hsl(227, 16%, 26%);
+  --accent-foreground: hsl(48, 96%, 53%);
+
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+
+  --border: hsl(227, 15%, 28%);
+  --input: hsl(227, 16%, 23%);
+  --ring: hsl(48, 96%, 53%);
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: hsl(227, 15%, 16%);
+  --foreground: hsl(0, 0%, 98%);
+  --card: hsl(227, 17%, 20%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --popover: hsl(227, 17%, 20%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --primary: hsl(48, 96%, 53%);
+  --primary-foreground: hsl(0, 0%, 9%);
+  --secondary: hsl(227, 16%, 23%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --muted: hsl(227, 14%, 28%);
+  --muted-foreground: hsl(0, 0%, 63.9%);
+  --accent: hsl(227, 16%, 26%);
+  --accent-foreground: hsl(48, 96%, 53%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --border: hsl(227, 15%, 28%);
+  --input: hsl(227, 16%, 23%);
+  --ring: hsl(48, 96%, 53%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image: linear-gradient(180deg, hsl(227, 16%, 18%) 0%, hsl(227, 15%, 16%) 100%);
+  }
+}
+
+@layer utilities {
+  .glassmorphism {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+}

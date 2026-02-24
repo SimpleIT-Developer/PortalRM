@@ -1,0 +1,42 @@
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/"> 
+    <soapenv:Header/> 
+    <soapenv:Body> 
+       <tot:SaveRecord> 
+          <tot:DataServerName>FinXCXData</tot:DataServerName> 
+          <tot:XML><![CDATA[<FinXCX> 
+   <FXCX> 
+     <CODCOLIGADA>1</CODCOLIGADA> 
+     <IDXCX>-1</IDXCX> 
+     <NUMERODOCUMENTO>202601120773</NUMERODOCUMENTO> 
+     <TIPO>2</TIPO> 
+     <COMPENSADO>1</COMPENSADO> 
+     <RECONCILIADO>1</RECONCILIADO> 
+     <STATUSEXPORTACAO>0</STATUSEXPORTACAO> 
+     <HISTORICO>Boleto de cobranca recebido: &quot;112/90550892353&quot;</HISTORICO> 
+     <CODCOLCXA>1</CODCOLCXA> 
+     <CODCXA>MEUERP01</CODCXA> 
+     <CODFILIAL>1</CODFILIAL> 
+     <VALOR>2100,0000</VALOR> 
+     <VALORCONTABIL>2100,0000</VALORCONTABIL> 
+     <VALOREMREAIS>2100,0000</VALOREMREAIS> 
+     <DATA>2026-01-12T00:00:00</DATA> 
+     <DATACOMPENSACAO>2026-01-12T00:00:00</DATACOMPENSACAO> 
+     <CONTABIL>0</CONTABIL> 
+     <ECHEQUE>0</ECHEQUE> 
+     <PREDATADO>0</PREDATADO> 
+     <CHEQUEIMPRESSO>0</CHEQUEIMPRESSO> 
+     <TIPOCUSTODIA>0</TIPOCUSTODIA> 
+     <ESTORNADO>0</ESTORNADO> 
+     <LIBERACAOAUTORIZADA>0</LIBERACAOAUTORIZADA> 
+     <USUARIOCRIACAO>mestre</USUARIOCRIACAO> 
+     <STATUSORCAMENTO>0</STATUSORCAMENTO> 
+     <MODELOCONTABILIZACAO>0</MODELOCONTABILIZACAO> 
+     <STATUSAVP>0</STATUSAVP> 
+     <STATUSESTORNO>0</STATUSESTORNO> 
+   </FXCX> 
+ </FinXCX>]]></tot:XML> 
+          <tot:Contexto>CODCOLIGADA=1;CODUSUARIO='mestre';CODSISTEMA=F</tot:Contexto> 
+       </tot:SaveRecord> 
+    </soapenv:Body> 
+ </soapenv:Envelope>

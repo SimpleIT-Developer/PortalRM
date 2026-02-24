@@ -1,0 +1,136 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:ExecuteWithXmlParams>
+         <!--Optional:-->
+         <tot:ProcessServerName>FinXCXConciliacaoManualData</tot:ProcessServerName>
+         <!--Optional:-->
+         <tot:strXmlParams><![CDATA[<?xml version="1.0" encoding="utf-16"?>
+<RMSParamsProc z:Id="i1" xmlns="http://www.totvs.com/" xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:z="http://schemas.microsoft.com/2003/10/Serialization/">
+  <ActionModule>F</ActionModule>
+  <ActionName>FinXCXConciliacaoManualAction</ActionName>
+  <CanParallelize>true</CanParallelize>
+  <CanSendMail>false</CanSendMail>
+  <CanWaitSchedule>false</CanWaitSchedule>
+  <CodUsuario>mestre</CodUsuario>
+  <ConnectionId i:nil="true" />
+  <ConnectionString i:nil="true" />
+  <Context z:Id="i2" xmlns:a="http://www.totvs.com.br/RM/">
+    <a:_params xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$EXERCICIOFISCAL</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">22</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODLOCPRT</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODTIPOCURSO</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$EDUTIPOUSR</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODUNIDADEBIB</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODCOLIGADA</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$RHTIPOUSR</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODIGOEXTERNO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODSISTEMA</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">F</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODUSUARIOSERVICO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema" />
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODUSUARIO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">mestre</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$IDPRJ</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">2</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CHAPAFUNCIONARIO</b:Key>
+        <b:Value i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">-1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+      <b:KeyValueOfanyTypeanyType>
+        <b:Key i:type="c:string" xmlns:c="http://www.w3.org/2001/XMLSchema">$CODFILIAL</b:Key>
+        <b:Value i:type="c:int" xmlns:c="http://www.w3.org/2001/XMLSchema">1</b:Value>
+      </b:KeyValueOfanyTypeanyType>
+    </a:_params>
+    <a:Environment>DotNet</a:Environment>
+  </Context>
+  <CustomData i:nil="true" />
+  <DisableIsolateProcess>false</DisableIsolateProcess>
+  <DriverType i:nil="true" />
+  <ExecutionId>7964280d-3f3e-4604-9270-ed018ff3c3b8</ExecutionId>
+  <FailureMessage>Falha na execução do processo</FailureMessage>
+  <FriendlyLogs i:nil="true" />
+  <HideProgressDialog>false</HideProgressDialog>
+  <HostName>Favoreto-Avell</HostName>
+  <Initialized>true</Initialized>
+  <Ip>192.168.0.121</Ip>
+  <IsolateProcess>false</IsolateProcess>
+  <JobID>
+    <Children />
+    <ExecID>1</ExecID>
+    <ID>103337</ID>
+    <IsPriorityJob>false</IsPriorityJob>
+  </JobID>
+  <JobServerHostName>SRV-ERP01</JobServerHostName>
+  <MasterActionName>FinXCXAction</MasterActionName>
+  <MaximumQuantityOfPrimaryKeysPerProcess>1000</MaximumQuantityOfPrimaryKeysPerProcess>
+  <MinimumQuantityOfPrimaryKeysPerProcess>1</MinimumQuantityOfPrimaryKeysPerProcess>
+  <NetworkUser>MatheusFavoreto</NetworkUser>
+  <NotifyEmail>false</NotifyEmail>
+  <NotifyEmailList i:nil="true" xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
+  <NotifyFluig>false</NotifyFluig>
+  <OnlineMode>false</OnlineMode>
+  <PrimaryKeyList xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+    <a:ArrayOfanyType>
+      <a:anyType i:type="b:short" xmlns:b="http://www.w3.org/2001/XMLSchema">1</a:anyType>
+      <a:anyType i:type="b:int" xmlns:b="http://www.w3.org/2001/XMLSchema">1863</a:anyType>
+    </a:ArrayOfanyType>
+  </PrimaryKeyList>
+  <PrimaryKeyNames xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+    <a:string>CODCOLIGADA</a:string>
+    <a:string>IDXCX</a:string>
+  </PrimaryKeyNames>
+  <PrimaryKeyTableName>FXCX</PrimaryKeyTableName>
+  <ProcessName>Conciliar Manualmente</ProcessName>
+  <QuantityOfSplits>0</QuantityOfSplits>
+  <SaveLogInDatabase>true</SaveLogInDatabase>
+  <SaveParamsExecution>false</SaveParamsExecution>
+  <ScheduleDateTime>2026-01-29T11:49:45.6663861-03:00</ScheduleDateTime>
+  <Scheduler>JobMonitor</Scheduler>
+  <SendMail>false</SendMail>
+  <ServerName>FinXCXConciliacaoManualData</ServerName>
+  <ServiceInterface i:nil="true" xmlns:a="http://schemas.datacontract.org/2004/07/System" />
+  <ShouldParallelize>false</ShouldParallelize>
+  <ShowReExecuteButton>true</ShowReExecuteButton>
+  <StatusMessage i:nil="true" />
+  <SuccessMessage>Processo executado com sucesso</SuccessMessage>
+  <SyncExecution>false</SyncExecution>
+  <UseJobMonitor>true</UseJobMonitor>
+  <UserName>mestre</UserName>
+  <WaitSchedule>false</WaitSchedule>
+</RMSParamsProc>]]></tot:strXmlParams>
+      </tot:ExecuteWithXmlParams>
+   </soapenv:Body>
+</soapenv:Envelope>

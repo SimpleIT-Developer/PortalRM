@@ -1,0 +1,80 @@
+Data: 16/10/2025
+Tipo: Melhoria
+Descrição: Foi realizada a migração dos servidores para uma nova infraestrutura, visando otimizar o desempenho das integrações e corrigir instabilidades que vinham ocorrendo em alguns processos do sistema.
+
+Data: 25/08/2025
+Ticket: SDFE-21
+Tipo: Melhoria
+Descrição: Processo "Esqueceu a senha" ajustado
+
+Data: 25/08/2025
+Ticket: SDFE-21
+Tipo: Melhoria
+Descrição: Ao trocar a senha e deslogar do sistema, só reconhecia a senha depois de dar um F5 na página. Foi ajustado para que o cache seja limpo e as informações novas sejam buscadas no banco de dados.
+
+Data: 25/08/2025
+Ticket: SDFE-21
+Tipo: Melhoria
+Descrição: Ao acessar o cadastro de usuário com o usuário do tipo "USER" os campos TIPO e STATUS apesar de não poderem ser alterados eles estavam habilitados. Foi realizado o ajuste desabilitando o acesso a esses campos
+
+Data: 23/07/2025
+Ticket: #
+Tipo: ROADMAP
+Descrição: Nova funcionalidade de captura automática de CTe (Conhecimento de Transporte Eletrônico) implementada no sistema SimpleDFe.
+A ferramenta permite que os CT-es emitidos contra o CNPJ da empresa sejam consultados, baixados e armazenados automaticamente, otimizando o controle fiscal e garantindo integração futura com o ERP TOTVS RM.
+A captura contempla o modelo 57 (transporte de cargas)
+
+Data: 17/07/2025
+Ticket: #
+Tipo: ROADMAP
+Descrição: Pré inclusão de Fornecedor no ERP pela tela de Fornecedores com dados da Receita Federal.
+
+Data: 15/07/2025
+Ticket: #SDFE-9
+Tipo: Bug
+Descrição: DANFSe das NFSe do município de BARUERI estava com erro no PDF. Foi ajustado e o PDF está sendo visualizado normalmente.
+
+Data: 14/07/2025
+Ticket: #
+Tipo: Melhoria
+Descrição: No menu usuários foi adicionado um botão que será utilizado para abertura de chamado.
+
+Data: 14/07/2025
+Ticket: #
+Tipo: Melhoria
+Descrição: Na tela de NFSe foi incluída a coluna Número da NFSE.
+
+Data: 04/07/2025
+Ticket: #
+Tipo: Melhoria
+Descrição: Na tela de NFe foi incluído o botão de VERIFICAR EVENTOS DA NFe.
+
+Data: 04/07/2025
+Ticket: #
+Tipo: Melhoria
+Descrição: Na tela de NFe foi incluído um campo STATUS onde podemos ver se a NFe está EM PROCESSAMENTO, AUTORIZADA ou CANCELADA.
+
+Data: 04/07/2025
+Ticket: #
+Tipo: Melhoria
+Descrição: Na tela de NFe o campo Empresa agora reflete exatamente a Empresa da Nota Fiscal.
+
+Data: 04/07/2025
+Ticket: #
+Tipo: Nova Funcionalidade
+Descrição: Exportação do relatório de resumo de NFe e NFSe em Excel.
+
+Data: 04/07/2025
+Ticket: #
+Tipo: Nova Funcionalidade
+Descrição: Exportação de XML NFe e XML NFSe individual, por lote e por data.
+
+Data: 04/07/2025
+Ticket: #
+Tipo: Melhoria
+Descrição: Melhoria na busca dentro da tela de NFe, que quando buscava a tela toda atualizava a cada caractere digitado.
+
+Data: 04/07/2025
+Ticket: #
+Tipo: Melhoria
+Descrição: Melhoria na digitação de datas nos filtros.
