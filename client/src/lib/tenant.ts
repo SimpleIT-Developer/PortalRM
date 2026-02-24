@@ -1,26 +1,33 @@
 
 /**
- * Helper to determine the current tenant based on the environment and URL.
+ * Helper to determine the current tenant based ONLY on the environment and URL.
+ * Does not check local storage.
  */
-export function getTenant(): string | undefined {
-  // 1. Check URL Query Param (Highest Priority - mostly for Dev/Testing)
-  // e.g., http://localhost:5173/?tenant=cliente1
+export function getTenantFromUrl(): string | undefined {
   if (typeof window !== 'undefined') {
+    // 1. Check URL Query Param (Highest Priority - mostly for Dev/Testing)
     const params = new URLSearchParams(window.location.search);
     const tenantParam = params.get('tenant');
     if (tenantParam) return tenantParam;
 
     // 2. Check Subdomain (Production)
-    // e.g., cliente1.portalrm.simpleit.app.br
     const host = window.location.hostname;
-    // Check if we are on a subdomain of portalrm.simpleit.app.br
-    // Or just grab the first part if it's not localhost/ip
     if (host.includes('.portalrm.simpleit.app.br')) {
       return host.split('.')[0];
     }
   }
+  return undefined;
+}
 
-  // 3. Check Stored Token (Persistence after login)
+/**
+ * Helper to determine the current tenant based on the environment and URL.
+ */
+export function getTenant(): string | undefined {
+  // 1. Check URL first
+  const urlTenant = getTenantFromUrl();
+  if (urlTenant) return urlTenant;
+
+  // 2. Check Stored Token (Persistence after login)
   // Se o usuário já fez login, o tenantKey está salvo no token.
   if (typeof localStorage !== 'undefined') {
       try {

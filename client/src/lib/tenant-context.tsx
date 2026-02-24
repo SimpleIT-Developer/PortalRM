@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getTenant } from "./tenant";
+import { getTenant, getTenantFromUrl } from "./tenant";
 import { useLocation } from "wouter";
 import { EnvironmentConfigService } from "./environment-config";
 
@@ -102,7 +102,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setTenant(data);
 
       // Se encontrou o tenant e está na landing page, redirecionar para login
-      if (location === '/') {
+      // APENAS se o tenant foi identificado pela URL (subdomínio ou query param)
+      if (location === '/' && getTenantFromUrl()) {
           setLocation("/login");
       }
 
