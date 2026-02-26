@@ -1,0 +1,32 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:SaveRecord>
+         <!--Optional:-->
+         <tot:DataServerName>GlbConsSqlData</tot:DataServerName>
+         <!--Optional:-->
+         <tot:XML><![CDATA[<GlbConsSql>
+  <GConsSql>
+    <CODCOLIGADA>1</CODCOLIGADA>
+    <APLICACAO>T</APLICACAO>
+    <CODSENTENCA>SIT.PORTALRM.003</CODSENTENCA>
+    <TITULO>Retorna Coligadas</TITULO>
+    <SENTENCA>select * from gcoligada</SENTENCA>
+    <TAMANHO>23</TAMANHO>
+    <DTULTALTERACAO>2026-02-26T11:32:27.0000000-03:00</DTULTALTERACAO>
+    <USRULTALTERACAO>mestre</USRULTALTERACAO>
+    <DISPONIVELFILTRO>1</DISPONIVELFILTRO>
+    <DISPONIVELRELATORIO>1</DISPONIVELRELATORIO>
+    <DISPONIVELVISAO>1</DISPONIVELVISAO>
+    <DISPONIVELMENU>0</DISPONIVELMENU>
+    <SEMSEGCOLUNAS>0</SEMSEGCOLUNAS>
+    <SEMSEGESTENDIDA>0</SEMSEGESTENDIDA>
+    <GUID>79973def-cd23-44b7-9ca8-f0df63188aed</GUID>
+    <CONTROLE>23578</CONTROLE>
+  </GConsSql>
+</GlbConsSql>]]></tot:XML>
+         <!--Optional:-->
+         <tot:Contexto>CODCOLIGADA=1;CODUSUARIO='mestre';CODSISTEMA=T</tot:Contexto>
+      </tot:SaveRecord>
+   </soapenv:Body>
+</soapenv:Envelope>

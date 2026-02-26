@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault><faultcode xmlns:a="http://schemas.microsoft.com/2009/WebFault">a:Unauthorized</faultcode><faultstring xml:lang="pt-BR">Unauthorized</faultstring></s:Fault></s:Body></s:Envelope>

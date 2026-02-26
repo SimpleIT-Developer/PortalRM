@@ -163,70 +163,94 @@ export const StartupCheckService = {
     let index = 0;
     const total = requiredSentences.length;
 
+    // Retry configuration
+    const MAX_RETRIES = 1; // Tentar mais uma vez no final se falhar
+    const REQUEST_TIMEOUT = 5000; // 5 segundos de timeout (reduzido de 10s)
+
+    const pendingRetries: string[] = [];
+
+    // Helper function to check a single sentence
+    const checkSentence = async (sentenceId: string): Promise<boolean> => {
+        try {
+            const soapXml = getReadRecordSoap(sentenceId);
+            const soapPath = "/wsDataServer/IwsDataServer";
+            const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
+
+            // Timeout para evitar travamento
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+            const response = await fetch(proxyUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
+                },
+                body: JSON.stringify({
+                    xml: soapXml,
+                    action: "http://www.totvs.com/IwsDataServer/ReadRecord"
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                console.error(`Falha na requisição para ${sentenceId}: ${response.status}`);
+                return false;
+            }
+
+            const responseText = await response.text();
+
+            if (responseText.includes("&lt;GlbConsSql /&gt;") || responseText.includes("<GlbConsSql />") ||
+                responseText.includes("<ReadRecordResult/>") || responseText.includes("<ReadRecordResult />")) {
+                 return false;
+            }
+
+            return true;
+        } catch (error: any) {
+            console.error(`Erro ao verificar ${sentenceId}:`, error);
+            return false;
+        }
+    };
+
+    // First pass
     for (const sentenceId of requiredSentences) {
       index++;
       if (onProgress) {
         onProgress(sentenceId, index, total, 'checking');
       }
 
-      try {
-        const soapXml = getReadRecordSoap(sentenceId);
-        const soapPath = "/wsDataServer/IwsDataServer";
-        const proxyUrl = `/api/proxy-soap?environmentId=${encodeURIComponent(token.environmentId)}&path=${encodeURIComponent(soapPath)}&token=${encodeURIComponent(token.access_token)}`;
-
-        // Timeout de 10 segundos para evitar travamento
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-        const response = await fetch(proxyUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(getTenant() ? { 'X-Tenant': getTenant()! } : {})
-          },
-          body: JSON.stringify({
-            xml: soapXml,
-            action: "http://www.totvs.com/IwsDataServer/ReadRecord"
-          }),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-           console.error(`Falha na requisição para ${sentenceId}: ${response.status}`);
-           missingSentences.push(sentenceId);
-           logItems.push({ sentence: sentenceId, status: 'error', message: `Erro HTTP: ${response.status}` });
-           continue;
-        }
-
-        const responseText = await response.text();
-        
-        if (responseText.includes("&lt;GlbConsSql /&gt;") || responseText.includes("<GlbConsSql />")) {
-             missingSentences.push(sentenceId);
-             logItems.push({ sentence: sentenceId, status: 'error', message: 'Retorno vazio (GlbConsSql)' });
-             continue;
-        }
-        
-        if (responseText.includes("<ReadRecordResult/>") || responseText.includes("<ReadRecordResult />")) {
-            missingSentences.push(sentenceId);
-            logItems.push({ sentence: sentenceId, status: 'error', message: 'Retorno vazio (ReadRecordResult)' });
-            continue;
-        }
-
-        logItems.push({ sentence: sentenceId, status: 'ok', message: 'Verificado com sucesso' });
-
-      } catch (error: any) {
-        console.error(`Erro ao verificar ${sentenceId}:`, error);
-        missingSentences.push(sentenceId);
-        
-        let errorMessage = error instanceof Error ? error.message : String(error);
-        if (error?.name === 'AbortError') {
-            errorMessage = 'Timeout (10s) - Servidor não respondeu';
-        }
-        
-        logItems.push({ sentence: sentenceId, status: 'error', message: errorMessage });
+      const isOk = await checkSentence(sentenceId);
+      
+      if (isOk) {
+          logItems.push({ sentence: sentenceId, status: 'ok', message: 'Verificado com sucesso' });
+      } else {
+          // Add to retry list instead of failing immediately
+          pendingRetries.push(sentenceId);
+          // Don't log error yet, wait for retry
       }
+    }
+
+    // Retry pass for failed items
+    if (pendingRetries.length > 0) {
+        console.log(`Retrying ${pendingRetries.length} failed sentences...`);
+        
+        for (const sentenceId of pendingRetries) {
+            // Update progress (keep index at 100% basically, or show specific retry message if UI supported it)
+             if (onProgress) {
+                onProgress(sentenceId, total, total, 'checking');
+             }
+
+            const isOk = await checkSentence(sentenceId);
+
+            if (isOk) {
+                logItems.push({ sentence: sentenceId, status: 'ok', message: 'Verificado com sucesso (após retry)' });
+            } else {
+                missingSentences.push(sentenceId);
+                logItems.push({ sentence: sentenceId, status: 'error', message: 'Falha na verificação (timeout ou erro)' });
+            }
+        }
     }
 
     // Now create missing sentences

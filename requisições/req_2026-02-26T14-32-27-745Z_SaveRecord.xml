@@ -1,0 +1,32 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tot="http://www.totvs.com/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <tot:SaveRecord>
+         <!--Optional:-->
+         <tot:DataServerName>GlbConsSqlData</tot:DataServerName>
+         <!--Optional:-->
+         <tot:XML><![CDATA[<GlbConsSql>
+  <GConsSql>
+    <CODCOLIGADA>1</CODCOLIGADA>
+    <APLICACAO>T</APLICACAO>
+    <CODSENTENCA>SIT.PORTALRM.007</CODSENTENCA>
+    <TITULO>Retorna Lançamentos do Borderô</TITULO>
+    <SENTENCA>select * from flan where codcoligada = 1 and idbordero = :IDBORDERO</SENTENCA>
+    <TAMANHO>67</TAMANHO>
+    <DTULTALTERACAO>2026-02-26T11:32:27.0000000-03:00</DTULTALTERACAO>
+    <USRULTALTERACAO>mestre</USRULTALTERACAO>
+    <DISPONIVELFILTRO>1</DISPONIVELFILTRO>
+    <DISPONIVELRELATORIO>1</DISPONIVELRELATORIO>
+    <DISPONIVELVISAO>1</DISPONIVELVISAO>
+    <DISPONIVELMENU>0</DISPONIVELMENU>
+    <SEMSEGCOLUNAS>0</SEMSEGCOLUNAS>
+    <SEMSEGESTENDIDA>0</SEMSEGESTENDIDA>
+    <GUID>5db63266-8eaa-48b7-92d9-57ef40ac77eb</GUID>
+    <CONTROLE>70670</CONTROLE>
+  </GConsSql>
+</GlbConsSql>]]></tot:XML>
+         <!--Optional:-->
+         <tot:Contexto>CODCOLIGADA=1;CODUSUARIO='mestre';CODSISTEMA=T</tot:Contexto>
+      </tot:SaveRecord>
+   </soapenv:Body>
+</soapenv:Envelope>
