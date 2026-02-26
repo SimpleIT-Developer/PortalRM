@@ -48,6 +48,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Se estamos na raiz (Landing Page) e NÃO temos um tenant explícito na URL,
+    // não devemos carregar tenant do storage. O usuário quer uma sessão limpa.
+    if (location === '/' && !getTenantFromUrl()) {
+        setTenant(null);
+        setIsLoading(false);
+        return;
+    }
+
     const tenantKey = getTenant();
 
     if (!tenantKey) {
@@ -104,7 +112,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       // Se encontrou o tenant e está na landing page, redirecionar para login
       // APENAS se o tenant foi identificado pela URL (subdomínio ou query param)
       if (location === '/' && getTenantFromUrl()) {
-          setLocation("/login");
+          // Preservar query params (ex: ?tenant=xyz) para que o refresh na tela de login funcione
+          const search = window.location.search;
+          setLocation("/login" + search);
       }
 
       // Tentar restaurar ambiente selecionado do localStorage se existir e pertencer a este tenant
