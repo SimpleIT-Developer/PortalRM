@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { getTenant, getTenantFromUrl } from "./tenant";
 import { useLocation } from "wouter";
 import { EnvironmentConfigService } from "./environment-config";
+import LoadingScreen from "@/components/loading-screen";
 
 // Tipos baseados no que definimos no backend
 export interface TenantEnvironment {
@@ -50,7 +51,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
     // Se estamos na raiz (Landing Page) e NÃO temos um tenant explícito na URL,
     // não devemos carregar tenant do storage. O usuário quer uma sessão limpa.
-    if (location === '/' && !getTenantFromUrl()) {
+    const urlTenant = getTenantFromUrl();
+    if (location === '/' && !urlTenant) {
         setTenant(null);
         setIsLoading(false);
         return;
@@ -63,14 +65,20 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Se temos um tenant indicado na URL, forçamos um delay mínimo de 3 segundos
+    // para exibir a tela de loading e evitar flicker da Landing Page
+    const minDelay = urlTenant ? new Promise(resolve => setTimeout(resolve, 3000)) : Promise.resolve();
+
     try {
-      const response = await fetch(`/api/public/tenant-config/${tenantKey}?t=${new Date().getTime()}`, {
+      const fetchPromise = fetch(`/api/public/tenant-config/${tenantKey}?t=${new Date().getTime()}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'
         }
       });
+
+      const [response] = await Promise.all([fetchPromise, minDelay]);
       
       if (response.status === 404) {
         setError("Tenant not found");
@@ -170,6 +178,21 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       EnvironmentConfigService.saveEnabledMenus(env.menus || null);
     }
   };
+
+  // Se estivermos carregando E tivermos um tenant na URL, mostramos a tela de loading
+  // Isso previne que a Landing Page apareça antes de redirecionar para Login, Erro ou Expired
+  const urlTenant = getTenantFromUrl();
+  const shouldShowLoadingScreen = isLoading && !!urlTenant;
+
+  if (shouldShowLoadingScreen) {
+      return (
+          <LoadingScreen 
+            customMessage="Carregando ambiente..." 
+            // O LoadingScreen tem sua própria lógica de progresso, 
+            // mas aqui queremos apenas o visual enquanto carregamos o tenant
+          />
+      );
+  }
 
   return (
     <TenantContext.Provider value={{ 
